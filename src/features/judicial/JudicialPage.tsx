@@ -1,0 +1,202 @@
+import { Download, Plus, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Cartao } from '@/components/comum/Cartao'
+import { PontoSemaforo, ROTULO_COR } from '@/components/comum/Semaforo'
+import { Botao } from '@/components/ui/Botao'
+import { Modal } from '@/components/ui/Modal'
+import { useUsuario } from '@/features/auth/Sessao'
+import { FormularioRegistro } from '@/features/cadastros/FormularioRegistro'
+import { baixarArquivo, gerarCsv } from '@/lib/csv'
+import { criarDemanda, feriadosDe } from '@/lib/dados/servicos'
+import type { Colecao } from '@/lib/dados/tipos'
+import { useTodos } from '@/lib/dados/useColecao'
+import { hojeIso } from '@/lib/diasUteis'
+import { ROTULO_NIVEL } from '@/lib/fluxo/sla'
+import { formatarData } from '@/lib/formatacao'
+import { situacaoDosProcessos } from '@/lib/monitoramento'
+import { ehCentral, podeEditarColecao } from '@/lib/permissoes'
+import { DEMANDA, ORIGENS } from './configuracoes'
+
+type Filtro = '' | 'ativas' | 'vermelho' | 'amarelo' | 'judicial_vencido' | 'nivel3' | 'cumpridas'
+
+export function JudicialPage() {
+  const usuario = useUsuario()
+  const navegar = useNavigate()
+  const { dados, recarregar } = useTodos()
+  const hoje = hojeIso()
+  const [filtro, setFiltro] = useState<Filtro>('ativas')
+  const [etapa, setEtapa] = useState('')
+  const [sre, setSre] = useState('')
+  const [busca, setBusca] = useState('')
+  const [nova, setNova] = useState(false)
+
+  const linhas = useMemo(() => {
+    const lista = (c: Colecao) => dados[c] ?? []
+    const achar = (c: Colecao, id: unknown) => lista(c).find((r) => r.id === id)
+    return situacaoDosProcessos(lista, hoje, feriadosDe(lista))
+      .filter((s) => s.demanda)
+      .map((s) => {
+        const alunos = lista('demanda_alunos')
+          .filter((a) => a.demanda_id === s.demanda!.id && !a.removido_em)
+          .map((a) => String(achar('alunos', a.aluno_id)?.nome ?? ''))
+        return {
+          ...s,
+          alunos,
+          escola: String(achar('escolas', s.demanda!.escola_id)?.nome ?? ''),
+          sigla: String(achar('sres', s.sre_id)?.sigla ?? ''),
+          responsavel: String(achar('usuarios', s.instancia?.responsavel_id)?.nome ?? '—'),
+          judicialVencido: !s.demanda!.data_inicio_transporte && String(s.demanda!.prazo_judicial) < hoje && s.demanda!.situacao === 'ativa',
+        }
+      })
+  }, [dados, hoje])
+
+  const conta = (f: (l: (typeof linhas)[number]) => boolean) => linhas.filter(f).length
+  const ativa = (l: (typeof linhas)[number]) => l.demanda!.situacao === 'ativa'
+  const filtradas = linhas
+    .filter((l) => {
+      switch (filtro) {
+        case 'ativas': return ativa(l)
+        case 'vermelho': return ativa(l) && l.semaforo.cor === 'vermelho'
+        case 'amarelo': return ativa(l) && l.semaforo.cor === 'amarelo'
+        case 'judicial_vencido': return l.judicialVencido
+        case 'nivel3': return ativa(l) && l.semaforo.nivel === 3
+        case 'cumpridas': return !ativa(l)
+        default: return true
+      }
+    })
+    .filter((l) => !etapa || l.modelo?.codigo === etapa)
+    .filter((l) => !sre || l.sre_id === sre)
+    .filter((l) => {
+      const t = busca.trim().toLocaleLowerCase('pt-BR')
+      return !t || [l.processo.codigo, l.processo.numero_sei, l.demanda!.numero_processo_origem, l.demanda!.comarca, l.escola, ...l.alunos].some((x) => String(x ?? '').toLocaleLowerCase('pt-BR').includes(t))
+    })
+    .sort((a, b) => ({ vermelho: 0, amarelo: 1, verde: 2, cinza: 3 })[a.semaforo.cor] - ({ vermelho: 0, amarelo: 1, verde: 2, cinza: 3 })[b.semaforo.cor] || String(a.semaforo.prazo).localeCompare(String(b.semaforo.prazo)))
+
+  function exportar() {
+    const csv = gerarCsv(
+      ['Código único', 'Nº SEI', 'Origem', 'Processo judicial/MP', 'Comarca', 'SRE', 'Escola', 'Alunos', 'Etapa atual', 'Responsável', 'Prazo judicial', 'Semáforo', 'Prazo que manda', 'Dias úteis', 'Escalonamento', 'Situação'],
+      filtradas.map((l) => [
+        String(l.processo.codigo), String(l.processo.numero_sei ?? ''), ORIGENS.find((o) => o.valor === l.demanda!.origem)?.rotulo ?? '', String(l.demanda!.numero_processo_origem), String(l.demanda!.comarca),
+        l.sigla, l.escola, l.alunos.join(', '), l.modelo ? `${l.modelo.codigo} ${l.modelo.nome}` : 'Concluída', l.responsavel, formatarData(l.demanda!.prazo_judicial),
+        ROTULO_COR[l.semaforo.cor], formatarData(l.semaforo.prazo), String(l.semaforo.dias_uteis ?? ''), ROTULO_NIVEL[l.semaforo.nivel], String(l.demanda!.situacao),
+      ]),
+    )
+    baixarArquivo(`demandas_judiciais_${hoje}.csv`, csv)
+  }
+
+  const f = (id: Filtro) => ({ ativo: filtro === id, onClick: () => setFiltro(filtro === id ? '' : id) })
+  const etapas = (dados.etapas_modelo ?? []).filter((m) => m.modulo === 'JUDICIAL').sort((a, b) => Number(a.ordem) - Number(b.ordem))
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Demandas judiciais e do MP</h1>
+          <p className="mt-1 text-sm text-slate-600">Semáforo = o menor entre o prazo judicial e o prazo (SLA) da etapa atual, em dias úteis.</p>
+        </div>
+        <div className="flex gap-2">
+          <Botao variante="secundario" onClick={exportar} disabled={!filtradas.length}><Download size={16} /> Exportar CSV</Botao>
+          {podeEditarColecao(usuario, 'demandas') && <Botao onClick={() => setNova(true)}><Plus size={16} /> Nova demanda</Botao>}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <Cartao titulo="Ativas" valor={conta(ativa)} {...f('ativas')} />
+        <Cartao titulo="Vencidas (vermelho)" valor={conta((l) => ativa(l) && l.semaforo.cor === 'vermelho')} cor="text-red-600" {...f('vermelho')} />
+        <Cartao titulo="A vencer (amarelo)" valor={conta((l) => ativa(l) && l.semaforo.cor === 'amarelo')} cor="text-amber-600" {...f('amarelo')} />
+        <Cartao titulo="Prazo judicial vencido" valor={conta((l) => l.judicialVencido)} cor="text-red-700" {...f('judicial_vencido')} />
+        <Cartao titulo="Escalonadas ao órgão central" valor={conta((l) => ativa(l) && l.semaforo.nivel === 3)} {...f('nivel3')} />
+        <Cartao titulo="Cumpridas / encerradas" valor={conta((l) => !ativa(l))} {...f('cumpridas')} />
+      </div>
+
+      <div className="mt-6 mb-3 flex flex-wrap gap-2">
+        <div className="relative w-full max-w-sm">
+          <Search size={16} className="pointer-events-none absolute top-2.5 left-3 text-slate-400" />
+          <input className="campo pl-9" placeholder="Código, SEI, processo, comarca, escola, aluno…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
+        </div>
+        <select className="campo w-auto" value={etapa} onChange={(e) => setEtapa(e.target.value)} aria-label="Etapa">
+          <option value="">Todas as etapas</option>
+          {etapas.map((m) => <option key={m.id} value={String(m.codigo)}>{String(m.ordem)}. {String(m.nome)}</option>)}
+        </select>
+        {ehCentral(usuario) && (
+          <select className="campo w-auto" value={sre} onChange={(e) => setSre(e.target.value)} aria-label="SRE">
+            <option value="">Todas as SREs</option>
+            {[...new Set(linhas.map((l) => l.sre_id))].map((id) => <option key={String(id)} value={String(id)}>{linhas.find((l) => l.sre_id === id)?.sigla}</option>)}
+          </select>
+        )}
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-600 uppercase">
+            <tr>
+              <th className="px-3 py-2 font-medium">Código / SEI</th>
+              <th className="px-3 py-2 font-medium">Origem</th>
+              <th className="px-3 py-2 font-medium">Escola / alunos</th>
+              <th className="px-3 py-2 font-medium">Etapa atual</th>
+              <th className="px-3 py-2 font-medium">Prazo judicial</th>
+              <th className="px-3 py-2 font-medium">Semáforo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filtradas.map((l) => (
+              <tr key={l.demanda!.id} className="cursor-pointer hover:bg-marca-50" onClick={() => navegar(`/judicial/${l.demanda!.id}`)}>
+                <td className="px-3 py-2">
+                  <p className="font-medium whitespace-nowrap text-marca-700">{String(l.processo.codigo)}</p>
+                  <p className="text-xs text-slate-500">SEI {String(l.processo.numero_sei ?? '—')} · {l.sigla}</p>
+                </td>
+                <td className="px-3 py-2">
+                  <p>{ORIGENS.find((o) => o.valor === l.demanda!.origem)?.rotulo}</p>
+                  <p className="text-xs text-slate-500">{String(l.demanda!.numero_processo_origem)} · {String(l.demanda!.comarca)}</p>
+                </td>
+                <td className="px-3 py-2">
+                  <p>{l.escola}</p>
+                  <p className="text-xs text-slate-500">{l.alunos.join(', ') || 'sem aluno'}</p>
+                </td>
+                <td className="px-3 py-2">
+                  {l.modelo ? <p>{String(l.modelo.ordem)}. {String(l.modelo.nome)}</p> : <p className="text-green-700">Cumprida</p>}
+                  <p className="text-xs text-slate-500">{l.responsavel}</p>
+                </td>
+                <td className={`px-3 py-2 whitespace-nowrap ${l.judicialVencido ? 'font-medium text-red-600' : ''}`}>
+                  {formatarData(l.demanda!.prazo_judicial)}
+                  {Boolean(l.demanda!.data_inicio_transporte) && <p className="text-xs font-normal text-green-700">transporte iniciado</p>}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="flex items-start gap-2">
+                    <PontoSemaforo cor={l.semaforo.cor} />
+                    <span className="text-xs leading-tight">
+                      {l.semaforo.texto}
+                      {l.semaforo.nivel > 0 && <span className="block font-medium text-orange-700">{ROTULO_NIVEL[l.semaforo.nivel]}</span>}
+                    </span>
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtradas.length === 0 && <p className="px-3 py-8 text-center text-sm text-slate-500">Nenhuma demanda nesta seleção.</p>}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">{filtradas.length} de {linhas.length} demanda(s).</p>
+
+      <Modal titulo="Nova demanda judicial / MP" aberto={nova} aoFechar={() => setNova(false)}>
+        {nova && (
+          <FormularioRegistro
+            config={DEMANDA}
+            registro={null}
+            referencias={dados}
+            valoresPadrao={{ data_recebimento: hoje }}
+            acao={(v) => criarDemanda(usuario, v)}
+            rotuloSalvar="Registrar demanda"
+            aoCancelar={() => setNova(false)}
+            aoSalvar={async (r) => {
+              setNova(false)
+              await recarregar()
+              navegar(`/judicial/${r.id}`)
+            }}
+          />
+        )}
+      </Modal>
+    </div>
+  )
+}

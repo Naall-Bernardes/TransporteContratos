@@ -4,7 +4,16 @@
 
 import { normalizarDocumento, somenteDigitos, validarCnpj, validarCpf } from '../validacao'
 import { hojeIso } from '../diasUteis'
-import type { Colecao, Consulta, Registro } from './tipos'
+import { normalizarContrato, validarContrato, type ContextoValidacao } from './regrasContratos'
+import {
+  normalizarModulo,
+  OBRIGATORIOS_MODULOS,
+  REFERENCIAS_MODULOS,
+  UNICOS_MODULOS,
+  validarModulo,
+  type ColecaoModulo,
+} from './regrasModulos'
+import { COLECOES_CONTRATO, COLECOES_MODULOS, type Colecao, type ColecaoContrato, type Consulta, type Registro } from './tipos'
 
 type Campos = Record<string, unknown>
 type Erros = Record<string, string>
@@ -21,6 +30,17 @@ export const OBRIGATORIOS: Record<Colecao, string[]> = {
   precos_referencia: ['sre_id', 'tipo_veiculo_id', 'unidade', 'valor', 'vigencia_inicio'],
   feriados: ['data', 'descricao', 'abrangencia'],
   usuarios: ['nome', 'email', 'papel'],
+  processos: ['codigo', 'modulo', 'ano'],
+  instrumentos: [
+    'tipo', 'numero', 'objeto', 'numero_sei', 'data_assinatura', 'vigencia_inicio', 'vigencia_fim',
+    'valor_global', 'dotacao_orcamentaria', 'gestor_id', 'fiscal_id', 'status',
+  ],
+  aditivos: ['instrumento_id', 'numero', 'data_assinatura', 'documento_sei'],
+  parcelas: ['instrumento_id', 'numero', 'competencia', 'valor_previsto', 'data_prevista'],
+  fiscalizacoes: ['instrumento_id', 'competencia', 'dias_rodados', 'alunos_transportados', 'fiscal_id'],
+  ocorrencias: ['instrumento_id', 'data', 'tipo', 'gravidade', 'titulo', 'descricao', 'status'],
+  prestacoes_contas: ['instrumento_id', 'periodo_referencia', 'data_limite', 'status'],
+  ...OBRIGATORIOS_MODULOS,
 }
 
 /** Chaves estrangeiras: impedem excluir um registro que ainda é usado por outro. */
@@ -35,9 +55,28 @@ export const REFERENCIAS: { origem: Colecao; campo: string; alvo: Colecao }[] = 
   { origem: 'precos_referencia', campo: 'tipo_veiculo_id', alvo: 'tipos_veiculo' },
   { origem: 'feriados', campo: 'municipio_id', alvo: 'municipios' },
   { origem: 'usuarios', campo: 'sre_id', alvo: 'sres' },
+  { origem: 'processos', campo: 'sre_id', alvo: 'sres' },
+  { origem: 'processos', campo: 'municipio_id', alvo: 'municipios' },
+  { origem: 'instrumentos', campo: 'processo_id', alvo: 'processos' },
+  { origem: 'instrumentos', campo: 'caixa_escolar_id', alvo: 'caixas_escolares' },
+  { origem: 'instrumentos', campo: 'transportador_id', alvo: 'transportadores' },
+  { origem: 'instrumentos', campo: 'municipio_id', alvo: 'municipios' },
+  { origem: 'instrumentos', campo: 'gestor_id', alvo: 'usuarios' },
+  { origem: 'instrumentos', campo: 'fiscal_id', alvo: 'usuarios' },
+  { origem: 'aditivos', campo: 'instrumento_id', alvo: 'instrumentos' },
+  { origem: 'parcelas', campo: 'instrumento_id', alvo: 'instrumentos' },
+  { origem: 'fiscalizacoes', campo: 'instrumento_id', alvo: 'instrumentos' },
+  { origem: 'fiscalizacoes', campo: 'fiscal_id', alvo: 'usuarios' },
+  { origem: 'ocorrencias', campo: 'instrumento_id', alvo: 'instrumentos' },
+  { origem: 'prestacoes_contas', campo: 'instrumento_id', alvo: 'instrumentos' },
+  { origem: 'prestacoes_contas', campo: 'analista_id', alvo: 'usuarios' },
+  ...REFERENCIAS_MODULOS,
 ]
 
-/** Campos únicos (UNIQUE). Cada item pode ser uma combinação de campos. */
+/**
+ * Campos únicos (UNIQUE). Cada item pode ser uma combinação de campos; a checagem só roda
+ * quando o primeiro campo está preenchido (a mensagem aparece nesse campo).
+ */
 const UNICOS: Partial<Record<Colecao, { campos: string[]; mensagem: string }[]>> = {
   sres: [{ campos: ['sigla'], mensagem: 'Já existe SRE com esta sigla.' }],
   municipios: [{ campos: ['cod_ibge'], mensagem: 'Já existe município com este código IBGE.' }],
@@ -50,9 +89,29 @@ const UNICOS: Partial<Record<Colecao, { campos: string[]; mensagem: string }[]>>
     { campos: ['data', 'abrangencia', 'municipio_id'], mensagem: 'Feriado já cadastrado nesta data.' },
   ],
   usuarios: [{ campos: ['email'], mensagem: 'Já existe usuário com este e-mail.' }],
+  processos: [{ campos: ['codigo'], mensagem: 'Código único já utilizado.' }],
+  instrumentos: [
+    {
+      campos: ['numero', 'tipo', 'caixa_escolar_id', 'municipio_id'],
+      mensagem: 'Já existe instrumento com este número para o mesmo contratante.',
+    },
+  ],
+  aditivos: [{ campos: ['numero', 'instrumento_id'], mensagem: 'Já existe aditivo com este número.' }],
+  parcelas: [{ campos: ['numero', 'instrumento_id'], mensagem: 'Já existe parcela com este número.' }],
+  fiscalizacoes: [
+    { campos: ['competencia', 'instrumento_id'], mensagem: 'Já existe registro de fiscalização nesta competência.' },
+  ],
+  prestacoes_contas: [
+    { campos: ['periodo_referencia', 'instrumento_id'], mensagem: 'Já existe prestação de contas para este período.' },
+  ],
+  ...UNICOS_MODULOS,
 }
 
-const vazio = (v: unknown) => v === null || v === undefined || v === '' || Number.isNaN(v)
+const ehContrato = (c: Colecao): c is ColecaoContrato => (COLECOES_CONTRATO as Colecao[]).includes(c)
+const ehModulo = (c: Colecao): c is ColecaoModulo => (COLECOES_MODULOS as Colecao[]).includes(c)
+
+const vazio = (v: unknown) =>
+  v === null || v === undefined || v === '' || Number.isNaN(v) || (Array.isArray(v) && v.length === 0)
 
 /** Limpa e padroniza os dados antes de validar (maiúsculas, só dígitos, campos derivados). */
 export function normalizar(colecao: Colecao, dados: Campos, consulta: Consulta): Campos {
@@ -88,11 +147,14 @@ export function normalizar(colecao: Colecao, dados: Campos, consulta: Consulta):
       if (d.papel === 'admin' || d.papel === 'analista_central') d.sre_id = null
       break
   }
+  if (ehContrato(colecao)) return normalizarContrato(colecao, d, consulta)
+  if (ehModulo(colecao)) return normalizarModulo(colecao, d, consulta)
   return d
 }
 
-/** Valida um registro já normalizado. Devolve os erros por campo (vazio = válido). */
-export function validar(colecao: Colecao, r: Registro, existentes: Registro[], consulta: Consulta): Erros {
+/** Valida um registro já normalizado. Devolve os erros por campo (vazio = válido; `_geral` = erro sem campo). */
+export function validar(colecao: Colecao, r: Registro, existentes: Registro[], ctx: ContextoValidacao): Erros {
+  const { consulta } = ctx
   const erros: Erros = {}
   const outros = existentes.filter((e) => e.id !== r.id)
 
@@ -101,7 +163,7 @@ export function validar(colecao: Colecao, r: Registro, existentes: Registro[], c
   }
 
   for (const u of UNICOS[colecao] ?? []) {
-    if (u.campos.some((c) => vazio(r[c]) && c !== 'municipio_id')) continue
+    if (vazio(r[u.campos[0]])) continue
     const repetido = outros.some((e) => u.campos.every((c) => (e[c] ?? null) === (r[c] ?? null)))
     if (repetido) erros[u.campos[0]] = u.mensagem
   }
@@ -169,5 +231,7 @@ export function validar(colecao: Colecao, r: Registro, existentes: Registro[], c
       if (r.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(r.email))) erros.email = 'E-mail inválido.'
       break
   }
+  if (ehContrato(colecao)) return { ...validarContrato(colecao, r, ctx), ...erros }
+  if (ehModulo(colecao)) return { ...validarModulo(colecao, r, ctx), ...erros }
   return erros
 }

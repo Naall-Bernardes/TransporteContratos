@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useUsuario } from '@/features/auth/Sessao'
 import { listar } from './repositorio'
-import type { Colecao, Registro } from './tipos'
+import { COLECOES, type Colecao, type Registro } from './tipos'
 
 /** Carrega as coleções pedidas (já filtradas pela permissão do usuário logado). */
 export function useColecoes(colecoes: Colecao[]) {
@@ -23,3 +23,6 @@ export function useColecoes(colecoes: Colecao[]) {
 
   return { dados, carregando, recarregar }
 }
+
+/** Carrega todas as tabelas (usado nas telas dos módulos, que cruzam muitas tabelas). */
+export const useTodos = () => useColecoes(COLECOES)

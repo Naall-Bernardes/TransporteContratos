@@ -1,4 +1,4 @@
-import { Bus, History, Home, LogOut, Menu, Users, X } from 'lucide-react'
+import { BarChart3, Bell, Bus, Download, FileSignature, Files, Gavel, History, Home, ListChecks, LogOut, Menu, Route, ShieldAlert, Timer, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { CADASTROS, MENU_CADASTROS } from '@/features/cadastros/configuracoes'
@@ -31,6 +31,34 @@ export function Layout() {
       <NavLink to="/" end className={estiloLink} onClick={fechar}>
         <Home size={16} /> Início
       </NavLink>
+      <NavLink to="/painel" className={estiloLink} onClick={fechar}>
+        <BarChart3 size={16} /> Painel
+      </NavLink>
+
+      <Grupo titulo="Atendimento" />
+      <NavLink to="/judicial" className={estiloLink} onClick={fechar}>
+        <Gavel size={16} /> Judicial / MP
+      </NavLink>
+      <NavLink to="/pte" className={estiloLink} onClick={fechar}>
+        <Route size={16} /> PTE
+      </NavLink>
+      <NavLink to="/contratos" className={estiloLink} onClick={fechar}>
+        <FileSignature size={16} /> Contratos e termos
+      </NavLink>
+      <NavLink to="/documentos" className={estiloLink} onClick={fechar}>
+        <Files size={16} /> Documentos
+      </NavLink>
+
+      <Grupo titulo="Monitoramento" />
+      <NavLink to="/alertas" className={estiloLink} onClick={fechar}>
+        <Bell size={16} /> Alertas por e-mail
+      </NavLink>
+      <NavLink to="/riscos" className={estiloLink} onClick={fechar}>
+        <ShieldAlert size={16} /> Riscos
+      </NavLink>
+      <NavLink to="/exportar" className={estiloLink} onClick={fechar}>
+        <Download size={16} /> Exportação / Power BI
+      </NavLink>
 
       <Grupo titulo="Cadastros" />
       {MENU_CADASTROS.map((c) => (
@@ -45,6 +73,15 @@ export function Layout() {
           <NavLink to="/cadastros/usuarios" className={estiloLink} onClick={fechar}>
             <Users size={16} /> Usuários
           </NavLink>
+          <NavLink to="/cadastros/etapas_modelo" className={estiloLink} onClick={fechar}>
+            <Timer size={16} /> Etapas e SLA
+          </NavLink>
+          <NavLink to="/cadastros/checklist_modelo" className={estiloLink} onClick={fechar}>
+            <ListChecks size={16} /> Checklist por etapa
+          </NavLink>
+          <NavLink to="/cadastros/tipos_documento" className={estiloLink} onClick={fechar}>
+            <Files size={16} /> Tipos de documento
+          </NavLink>
           {podeVerAuditoria(usuario) && (
             <NavLink to="/auditoria" className={estiloLink} onClick={fechar}>
               <History size={16} /> Auditoria
@@ -53,9 +90,7 @@ export function Layout() {
         </>
       )}
 
-      <p className="mt-auto px-3 pt-6 text-xs text-marca-100/60">
-        Próximas fases: documentos, contratos, judicial, PTE, painel, riscos.
-      </p>
+      <p className="mt-auto px-3 pt-6 text-xs text-marca-100/60">Modo demonstração · dados fictícios</p>
     </nav>
   )
 

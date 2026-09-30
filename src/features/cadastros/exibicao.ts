@@ -23,6 +23,8 @@ export function valorExibido(campo: CampoConfig, r: Registro, refs: Referencias)
       return formatarNumero(v)
     case 'data':
       return formatarData(v)
+    case 'mes':
+      return String(v).split('-').reverse().join('/')
     case 'cpf_cnpj':
       return formatarCpfCnpj(v)
     default:

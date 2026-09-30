@@ -4,7 +4,7 @@
 // também em src/lib/dados/regras.ts.
 
 import { ROTULO_PAPEL } from '@/lib/permissoes'
-import type { Colecao, Registro } from '@/lib/dados/tipos'
+import type { Colecao, ColecaoCadastro, Registro } from '@/lib/dados/tipos'
 
 export type TipoCampo =
   | 'texto'
@@ -17,6 +17,9 @@ export type TipoCampo =
   | 'referencia'
   | 'booleano'
   | 'cpf_cnpj'
+  | 'mes'
+  | 'hora'
+  | 'multipla'
 
 export interface Opcao {
   valor: string
@@ -40,6 +43,12 @@ export interface CampoConfig {
   visivel?: (valores: Record<string, unknown>) => boolean
   /** Obrigatório só em certas condições. */
   obrigatorioSe?: (valores: Record<string, unknown>) => boolean
+  /** Título de seção exibido antes do primeiro campo do grupo. */
+  secao?: string
+  /** Mostra o botão "Não se aplica" (preenche o campo com esse texto). */
+  naoSeAplica?: boolean
+  /** Restringe as opções de uma referência (ex.: só Caixas da escola escolhida). */
+  filtroReferencia?: (opcao: Registro, valores: Record<string, unknown>) => boolean
 }
 
 export interface CadastroConfig {
@@ -63,9 +72,40 @@ export const ROTULO_REGISTRO: Record<Colecao, (r: Registro) => string> = {
   precos_referencia: (r) => `${r.unidade} – ${r.valor}`,
   feriados: (r) => `${r.data} – ${r.descricao}`,
   usuarios: (r) => String(r.nome),
+  processos: (r) => String(r.codigo),
+  instrumentos: (r) => `${r.numero}`,
+  aditivos: (r) => `${r.numero}º Termo Aditivo`,
+  parcelas: (r) => `Parcela ${r.numero}`,
+  fiscalizacoes: (r) => String(r.competencia),
+  ocorrencias: (r) => String(r.titulo),
+  prestacoes_contas: (r) => String(r.periodo_referencia),
+  tipos_documento: (r) => String(r.nome),
+  documentos: (r) => String(r.numero_sei ?? r.id),
+  documento_versoes: (r) => `v${r.versao} ${r.nome_arquivo}`,
+  etapas_modelo: (r) => `${r.codigo} – ${r.nome}`,
+  checklist_modelo: (r) => String(r.id),
+  processo_etapas: (r) => String(r.id),
+  demandas: (r) => String(r.numero_processo_origem),
+  demanda_alunos: (r) => String(r.id),
+  caracterizacoes: (r) => String(r.status),
+  caracterizacoes_saude: (r) => String(r.id),
+  responsaveis_legais: (r) => String(r.nome),
+  cotacoes: (r) => String(r.fornecedor),
+  autorizacoes_financeiras: (r) => `${r.tipo} ${r.numero}`,
+  liberacoes_recurso: (r) => String(r.numero_ordem_bancaria ?? r.data),
+  ciclos_pte: (r) => `Ciclo ${r.ano}`,
+  adesoes_pte: (r) => String(r.id),
+  pte_alunos: (r) => String(r.nome),
+  simade_registros: (r) => String(r.cod_simade),
+  divergencias: (r) => String(r.tipo),
+  calculos_repasse: (r) => `Versão ${r.versao}`,
+  demandas_extraordinarias: (r) => String(r.tipo),
+  alertas: (r) => String(r.titulo),
+  riscos: (r) => `${r.codigo} – ${r.titulo}`,
+  risco_ocorrencias: (r) => String(r.descricao),
 }
 
-const opcoes = (mapa: Record<string, string>): Opcao[] =>
+export const opcoes = (mapa: Record<string, string>): Opcao[] =>
   Object.entries(mapa).map(([valor, rotulo]) => ({ valor, rotulo }))
 
 export const UNIDADES_PRECO = opcoes({
@@ -79,7 +119,7 @@ const TURNOS = opcoes({ manha: 'Manhã', tarde: 'Tarde', noite: 'Noite', integra
 
 const ATIVO: CampoConfig = { nome: 'ativo', rotulo: 'Ativo', tipo: 'booleano', padrao: true, naTabela: true }
 
-export const CADASTROS: Record<Colecao, CadastroConfig> = {
+export const CADASTROS: Record<ColecaoCadastro, CadastroConfig> = {
   sres: {
     colecao: 'sres',
     titulo: 'Superintendências Regionais de Ensino',
@@ -260,7 +300,7 @@ export const CADASTROS: Record<Colecao, CadastroConfig> = {
 }
 
 /** Menu lateral: ordem e agrupamento dos cadastros. */
-export const MENU_CADASTROS: Colecao[] = [
+export const MENU_CADASTROS: ColecaoCadastro[] = [
   'sres',
   'municipios',
   'escolas',

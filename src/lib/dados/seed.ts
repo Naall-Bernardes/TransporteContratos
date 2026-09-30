@@ -3,8 +3,12 @@
 // Escolas, Caixas Escolares, alunos, transportadores, usuários e preços: TODOS FICTÍCIOS.
 // As siglas das SREs são uma sugestão inicial — podem ser alteradas no cadastro.
 
+import { hojeIso } from '../diasUteis'
 import { cnpjComDigitos, cpfComDigitos } from '../validacao'
-import type { Base, Colecao, Registro } from './tipos'
+import { criarConfiguracoes } from './seedConfiguracoes'
+import { criarContratosDemonstracao } from './seedContratos'
+import { criarModulosDemonstracao } from './seedModulos'
+import { COLECOES, type Base, type Colecao, type Registro } from './tipos'
 
 const SRES: [string, string][] = [
   ['ALM', 'Almenara'], ['ARA', 'Araçuaí'], ['BAR', 'Barbacena'], ['CBE', 'Campo Belo'],
@@ -52,6 +56,20 @@ const FERIADOS_2026: [string, string, string][] = [
   ['2026-11-15', 'Proclamação da República', 'nacional'],
   ['2026-11-20', 'Dia Nacional de Zumbi e da Consciência Negra', 'nacional'],
   ['2026-12-25', 'Natal', 'nacional'],
+  ['2027-01-01', 'Confraternização Universal', 'nacional'],
+  ['2027-02-08', 'Carnaval (ponto facultativo)', 'estadual'],
+  ['2027-02-09', 'Carnaval (ponto facultativo)', 'estadual'],
+  ['2027-03-26', 'Paixão de Cristo', 'nacional'],
+  ['2027-04-21', 'Tiradentes / Data Magna de MG', 'nacional'],
+  ['2027-05-01', 'Dia do Trabalho', 'nacional'],
+  ['2027-05-27', 'Corpus Christi (ponto facultativo)', 'estadual'],
+  ['2027-09-07', 'Independência do Brasil', 'nacional'],
+  ['2027-10-12', 'Nossa Senhora Aparecida', 'nacional'],
+  ['2027-10-28', 'Dia do Servidor Público (ponto facultativo)', 'estadual'],
+  ['2027-11-02', 'Finados', 'nacional'],
+  ['2027-11-15', 'Proclamação da República', 'nacional'],
+  ['2027-11-20', 'Dia Nacional de Zumbi e da Consciência Negra', 'nacional'],
+  ['2027-12-25', 'Natal', 'nacional'],
 ]
 
 const TIPOS_VEICULO: [string, number | null, boolean][] = [
@@ -164,17 +182,37 @@ export function criarBaseDemonstracao(versao: number): Base {
     novo({ nome: 'Mariana Analista – MOC (fictícia)', email: 'analista.moc@demo.exemplo', papel: 'analista_sre', sre_id: sre('MOC'), ativo: true }),
   ]
 
-  const colecoes: Record<Colecao, Registro[]> = {
+  const hoje = hojeIso()
+  const config = criarConfiguracoes(novo, usuarios[1].id)
+  const contratos = criarContratosDemonstracao({ novo, hoje, caixas, escolas, sres, municipios, transportadores, usuarios })
+  const modulos = criarModulosDemonstracao({
+    novo,
+    hoje,
+    feriados: new Set(feriados.map((f) => String(f.data))),
+    config,
+    contratos,
+    escolas,
+    caixas,
+    alunos,
+    usuarios,
     sres,
     municipios,
-    escolas,
-    caixas_escolares: caixas,
-    alunos,
-    transportadores,
-    tipos_veiculo: tiposVeiculo,
-    precos_referencia: precos,
-    feriados,
-    usuarios,
+    precos,
+    tiposVeiculo,
+  })
+
+  // Ocorrência de risco manual: liga ao risco pelo código
+  for (const o of modulos.risco_ocorrencias ?? []) {
+    o.risco_id = config.riscos.find((r) => r.codigo === o._risco_codigo)!.id
+    delete o._risco_codigo
   }
-  return { versao, colecoes, auditoria: [] }
+
+  const partes: Partial<Record<Colecao, Registro[]>>[] = [
+    { sres, municipios, escolas, caixas_escolares: caixas, alunos, transportadores, tipos_veiculo: tiposVeiculo, precos_referencia: precos, feriados, usuarios },
+    config,
+    contratos,
+    modulos,
+  ]
+  const colecoes = Object.fromEntries(COLECOES.map((c) => [c, partes.flatMap((p) => p[c] ?? [])])) as Record<Colecao, Registro[]>
+  return { versao, colecoes, auditoria: [], acessos: [] }
 }

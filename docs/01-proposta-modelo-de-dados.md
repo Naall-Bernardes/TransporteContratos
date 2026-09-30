@@ -458,5 +458,22 @@ Princípio: **regra de negócio crítica no banco** (checklist, cálculo de sald
 | D14 | SRE consulta escolas e preços; edita alunos, Caixas Escolares e transportadores (da sua regional) | 30/09/2026 |
 | D15 | Transportadores: cadastro único, visível a todas as SREs | 30/09/2026 |
 | D16 | Checklist: 8.10 exigido quando 4.13 ≠ "existe e pode atender"; 8.11 (termo LGPD) sempre obrigatório | 30/09/2026 |
+| D17 | Gestão contratual (Fase 3) antecipada, antes do repositório de documentos; anexos referenciados por nº SEI até a Fase 2 | 30/09/2026 |
+| D18 | Encerramento guardado no próprio instrumento (`encerrado_em`, `situacao_final`, `pendencias_encerramento`, `termo_encerramento_sei`) em vez de tabela separada | 30/09/2026 |
+| D19 | Diligência guardada na própria prestação de contas (ciclo único garante no máximo uma) | 30/09/2026 |
+| D20 | Aditivo assinado após o fim da vigência é recusado; acréscimos > 25% geram só alerta | 30/09/2026 |
+| D21 | Enquanto não há módulos Judicial/PTE, cada instrumento gera o próprio processo (código único) | 30/09/2026 |
+| D22 | Fases 2, 4, 5, 6 e 7 construídas de uma vez para revisão posterior (pedido do usuário) | 30/09/2026 |
+| D23 | Arquivos no IndexedDB do navegador (modo demonstração); metadados e versões em tabelas; nada é apagado | 30/09/2026 |
+| D24 | Checklist verificado por processo (documento do tipo exigido em qualquer etapa do processo atende) | 30/09/2026 |
+| D25 | Requisitos de DADOS da etapa (ex.: OP e PAF registrados) não são dispensáveis; só documentos podem ser dispensados, com justificativa do Diretor DAFI ou órgão central | 30/09/2026 |
+| D26 | Prazo judicial deixa de contar no semáforo quando o transporte é iniciado | 30/09/2026 |
+| D27 | Escalonamento: nível 1 a vencer (≤ 3 dias úteis); nível 2 vencida ou prazo judicial próximo; nível 3 vencida há > 3 dias úteis ou prazo judicial vencido | 30/09/2026 |
+| D28 | PTE: fórmula provisória = alunos válidos × valor/aluno + km/dia × valor/km × dias letivos; aluno com divergência aberta não conta | 30/09/2026 |
+| D29 | Etapa "1. Planejamento do ciclo" do PTE fica no nível do ciclo; cada adesão percorre as etapas 2 a 5 | 30/09/2026 |
+| D30 | Caracterização: seção 6.3 (outros estudantes) como texto livre, não como tabela separada | 30/09/2026 |
+| D31 | Dados de saúde e do responsável legal não entram na exportação CSV (LGPD) | 30/09/2026 |
+| D32 | Alertas por e-mail simulados numa caixa de saída; em produção, agendador diário + servidor de e-mail | 30/09/2026 |
+| D33 | Instrumento ganha periodicidade de prestação de contas e prazo; botões de gerar cronograma e prestações previstas | 30/09/2026 |
 
 Pendentes: nenhum bloqueante no momento.

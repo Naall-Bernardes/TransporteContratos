@@ -5,25 +5,28 @@ import { Botao } from '@/components/ui/Botao'
 import { Modal } from '@/components/ui/Modal'
 import { useUsuario } from '@/features/auth/Sessao'
 import { ErroPermissao, excluir } from '@/lib/dados/repositorio'
-import { COLECOES, type Colecao, type Registro } from '@/lib/dados/tipos'
+import { COLECOES_CADASTRO, type Colecao, type Registro } from '@/lib/dados/tipos'
+import { CONFIGURACOES } from '@/features/configuracoes'
 import { useColecoes } from '@/lib/dados/useColecao'
 import { baixarArquivo, gerarCsv } from '@/lib/csv'
 import { hojeIso } from '@/lib/diasUteis'
 import { podeEditarColecao } from '@/lib/permissoes'
-import { CADASTROS } from './configuracoes'
 import { valorExibido } from './exibicao'
 import { FormularioRegistro } from './FormularioRegistro'
 
 export function CadastroPage() {
   const { colecao } = useParams()
-  if (!COLECOES.includes(colecao as Colecao)) return <Navigate to="/" replace />
+  if (!ROTAS_CADASTRO.includes(colecao as Colecao)) return <Navigate to="/" replace />
   // key força recriar a tela (e limpar busca/modais) ao trocar de cadastro no menu
   return <Cadastro key={colecao} colecao={colecao as Colecao} />
 }
 
+/** Tabelas editáveis pela tela genérica: cadastros compartilhados + configurações do administrador. */
+export const ROTAS_CADASTRO: Colecao[] = [...COLECOES_CADASTRO, 'tipos_documento', 'etapas_modelo', 'checklist_modelo']
+
 function Cadastro({ colecao }: { colecao: Colecao }) {
   const usuario = useUsuario()
-  const config = CADASTROS[colecao]
+  const config = CONFIGURACOES[colecao]
   const colecoesReferenciadas = [...new Set(config.campos.flatMap((c) => (c.referencia ? [c.referencia] : [])))]
   const { dados, carregando, recarregar } = useColecoes([colecao, ...colecoesReferenciadas.filter((c) => c !== colecao)])
   const referencias = dados

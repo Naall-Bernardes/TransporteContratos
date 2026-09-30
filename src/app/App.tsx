@@ -4,7 +4,20 @@ import { AuditoriaPage } from '@/features/auditoria/AuditoriaPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProvedorSessao, useSessao } from '@/features/auth/Sessao'
 import { CadastroPage } from '@/features/cadastros/CadastroPage'
+import { ContratoDetalhePage } from '@/features/contratos/ContratoDetalhePage'
+import { ContratosPage } from '@/features/contratos/ContratosPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
+import { AlertasPage } from '@/features/alertas/AlertasPage'
+import { DocumentosPage } from '@/features/documentos/DocumentosPage'
+import { ExportacaoPage } from '@/features/exportacao/ExportacaoPage'
+import { CaracterizacaoPage } from '@/features/judicial/CaracterizacaoPage'
+import { DemandaDetalhePage } from '@/features/judicial/DemandaDetalhePage'
+import { JudicialPage } from '@/features/judicial/JudicialPage'
+import { RelatorioCumprimentoPage } from '@/features/judicial/RelatorioCumprimentoPage'
+import { PainelPage } from '@/features/painel/PainelPage'
+import { AdesaoPage } from '@/features/pte/AdesaoPage'
+import { PtePage } from '@/features/pte/PtePage'
+import { RiscosPage } from '@/features/riscos/RiscosPage'
 import { Layout } from './Layout'
 
 function RotaProtegida({ children }: { children: ReactNode }) {
@@ -27,8 +40,28 @@ export function App() {
           >
             <Route index element={<InicioPage />} />
             <Route path="cadastros/:colecao" element={<CadastroPage />} />
+            <Route path="contratos" element={<ContratosPage />} />
+            <Route path="contratos/:id" element={<ContratoDetalhePage />} />
             <Route path="auditoria" element={<AuditoriaPage />} />
+            <Route path="painel" element={<PainelPage />} />
+            <Route path="judicial" element={<JudicialPage />} />
+            <Route path="judicial/:id" element={<DemandaDetalhePage />} />
+            <Route path="judicial/:id/caracterizacao/:daId" element={<CaracterizacaoPage />} />
+            <Route path="pte" element={<PtePage />} />
+            <Route path="pte/adesoes/:id" element={<AdesaoPage />} />
+            <Route path="documentos" element={<DocumentosPage />} />
+            <Route path="alertas" element={<AlertasPage />} />
+            <Route path="riscos" element={<RiscosPage />} />
+            <Route path="exportar" element={<ExportacaoPage />} />
           </Route>
+          <Route
+            path="judicial/:id/relatorio"
+            element={
+              <RotaProtegida>
+                <RelatorioCumprimentoPage />
+              </RotaProtegida>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
