@@ -80,7 +80,7 @@ export function LiberacaoRapida({ demanda, codigo, valorSugerido, aoFechar, aoCo
   return (
     <div className="space-y-3 text-sm">
       <p className="text-slate-600">
-        Cumprimento <strong>{codigo}</strong>. Ao liberar, a demanda segue para o Registro do PAF.{' '}
+        Cumprimento <strong>{codigo}</strong>. Ao autorizar, a demanda segue para o Registro do PAF.{' '}
         <Link to={`/judicial/${demanda.id}?secao=C02`} className="text-marca-700 hover:underline">Ver dossiê completo</Link>
       </p>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -104,7 +104,7 @@ export function LiberacaoRapida({ demanda, codigo, valorSugerido, aoFechar, aoCo
       {erro && <p className="rounded-md bg-red-50 px-3 py-2 text-red-700">{erro}</p>}
       <div className="flex justify-end gap-2">
         <Botao variante="secundario" onClick={aoFechar}>Cancelar</Botao>
-        <Botao onClick={liberar}><CheckCircle2 size={16} /> Confirmar liberação</Botao>
+        <Botao onClick={liberar}><CheckCircle2 size={16} /> Confirmar autorização</Botao>
       </div>
     </div>
   )

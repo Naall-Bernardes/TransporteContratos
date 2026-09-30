@@ -225,11 +225,14 @@ export function JudicialPage() {
                 )}
                 {filaAutorizacao && (
                   <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                    {podeLiberar ? (
-                      <Botao onClick={() => setLiberando(l.demanda!.id)}><CheckCircle2 size={16} /> Liberar PAF</Botao>
-                    ) : (
-                      <span className="text-xs text-slate-500">Aguardando o(a) subsecretário(a)</span>
-                    )}
+                    <Botao
+                      className="whitespace-nowrap"
+                      disabled={!podeLiberar}
+                      title={podeLiberar ? undefined : 'Só o perfil Subsecretário(a) autoriza.'}
+                      onClick={() => setLiberando(l.demanda!.id)}
+                    >
+                      <CheckCircle2 size={16} /> AUTORIZAR PAF
+                    </Botao>
                   </td>
                 )}
               </tr>
@@ -240,7 +243,7 @@ export function JudicialPage() {
       </div>
       <p className="mt-2 text-xs text-slate-500">{filtradas.length} de {linhas.length} demanda(s).</p>
 
-      <Modal titulo="Liberar recurso (segue para o PAF)" aberto={liberando !== null} aoFechar={() => setLiberando(null)}>
+      <Modal titulo="Autorizar PAF" aberto={liberando !== null} aoFechar={() => setLiberando(null)}>
         {(() => {
           const l = linhas.find((x) => x.demanda!.id === liberando)
           return l ? (
