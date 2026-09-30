@@ -9,16 +9,17 @@ import { valorExibido } from '@/features/cadastros/exibicao'
 import { FormularioRegistro } from '@/features/cadastros/FormularioRegistro'
 import { PainelDocumentos } from '@/features/documentos/PainelDocumentos'
 import { ErroPermissao, ErroRegra, ErroValidacao, salvar } from '@/lib/dados/repositorio'
-import { feriadosDe, iniciarCumprimento } from '@/lib/dados/servicos'
+import { feriadosDe } from '@/lib/dados/servicos'
 import type { Colecao } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
 import { etapaAtual, montarDadosProcesso } from '@/lib/fluxo/processo'
-import { calcularSemaforo, prazoDaEtapa } from '@/lib/fluxo/sla'
+import { calcularSemaforo } from '@/lib/fluxo/sla'
 import { formatarData } from '@/lib/formatacao'
 import { ROTULO_SITUACAO_OFICIO, situacaoOficio } from '@/lib/judicial/oficios'
 import { ehCentral, podeEditar } from '@/lib/permissoes'
-import { INICIO_CUMPRIMENTO, OFICIO } from './configuracoes'
+import { OFICIO } from './configuracoes'
+import { IniciarContratacao } from './IniciarContratacao'
 import { TramitacaoOficio } from './TramitacaoOficio'
 
 function Bloco({ titulo, acao, children }: { titulo: string; acao?: ReactNode; children: ReactNode }) {
@@ -211,21 +212,11 @@ export function OficioDetalhePage() {
           />
         )}
         {modal === 'cumprimento' && (
-          <FormularioRegistro
-            config={INICIO_CUMPRIMENTO}
-            registro={null}
-            referencias={dados}
-            valoresPadrao={{
-              escola_id: oficio.escola_id,
-              caixa_escolar_id: lista('caixas_escolares').find((c) => c.escola_id === oficio.escola_id)?.id,
-              prazo_judicial: oficio.prazo_resposta,
-              prazo_devolucao_formulario: prazoDaEtapa(hoje, 10, feriados),
-              decisao_resumo: oficio.assunto,
-            }}
-            acao={(v) => iniciarCumprimento(usuario, oficio.id, v)}
-            rotuloSalvar="Iniciar contratação"
+          <IniciarContratacao
+            oficio={oficio}
+            dados={dados}
             aoCancelar={() => setModal(null)}
-            aoSalvar={async (r) => {
+            aoCriar={async (r) => {
               setModal(null)
               await recarregar()
               navegar(`/judicial/${r.id}`)

@@ -1,4 +1,4 @@
-import { CheckCircle2, Download, Mail, Search } from 'lucide-react'
+import { CheckCircle2, Download, FilePlus2, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Cartao } from '@/components/comum/Cartao'
@@ -123,8 +123,8 @@ export function JudicialPage() {
         <div className="flex gap-2">
           <Botao variante="secundario" onClick={exportar} disabled={!filtradas.length}><Download size={16} /> Exportar CSV</Botao>
           {!codigo && ehCentral(usuario) && (
-            <Link to="/oficios" className="inline-flex items-center gap-2 rounded-md bg-marca-600 px-3 py-2 text-sm font-medium text-white hover:bg-marca-700">
-              <Mail size={16} /> Iniciar a partir de um ofício
+            <Link to="/judicial/novo" className="inline-flex items-center gap-2 rounded-md bg-marca-600 px-3 py-2 text-sm font-medium text-white hover:bg-marca-700">
+              <FilePlus2 size={16} /> Cadastrar a partir de ofício
             </Link>
           )}
         </div>

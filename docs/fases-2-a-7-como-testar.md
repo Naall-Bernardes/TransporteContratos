@@ -141,3 +141,5 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 
 
 > Atualização: o menu "Judicial / MP" foi extinto; o item passa a se chamar **Contratações**, com as 5 etapas logo abaixo.
+
+> Atualização: em **Contratações**, a primeira tela do submenu é **Cadastro a partir de ofício** (`/judicial/novo`): lista as intimações sem contratação, com o botão **Cadastrar contratação**.

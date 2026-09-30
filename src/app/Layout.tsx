@@ -3,7 +3,7 @@
 //  - Cadastros: dados de base (rede, alunos, frota, preços, calendário) e administração.
 
 import {
-  BarChart3, Bus, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
+  BarChart3, Bus, FilePlus2, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
   Home, LayoutGrid, ListChecks, LogOut, Mail, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -66,14 +66,15 @@ export function Layout() {
   const fechar = () => setMenuAberto(false)
   const emJudicial = pathname.startsWith('/judicial')
 
-  // Submenu de Contratações: as etapas, com a quantidade de demandas em cada uma
+  // Submenu de Contratações: cadastro a partir de ofício e as etapas, com a quantidade em cada uma
   const etapasJudicial = carregarBase().colecoes.etapas_modelo.filter((m) => m.modulo === 'JUDICIAL').sort((a, b) => Number(a.ordem) - Number(b.ordem))
   const contagem = useMemo(() => {
-    if (!emJudicial) return { total: 0, porEtapa: {} as Record<string, number> }
+    if (!emJudicial) return { total: 0, porEtapa: {} as Record<string, number>, aCadastrar: 0 }
     const b = carregarBase()
     const consulta = consultaDe(b)
     const lista = (c: Colecao) => b.colecoes[c].filter((r) => podeVer(usuario, c, r, consulta))
-    return contarDemandasPorEtapa(lista, hojeIso(), feriadosDe(lista))
+    const aCadastrar = lista('oficios').filter((o) => o.tipo === 'intimacao_cumprimento' && !o.demanda_id).length
+    return { ...contarDemandasPorEtapa(lista, hojeIso(), feriadosDe(lista)), aCadastrar }
   }, [pathname, usuario, emJudicial]) // pathname: recalcula a cada navegação, refletindo etapas concluídas
   const Item = (p: { para: string; icone: ReactNode; children: ReactNode; fim?: boolean }) => <ItemMenu {...p} aoClicar={fechar} />
 
@@ -86,6 +87,7 @@ export function Layout() {
       <Item para="/judicial" icone={<Gavel size={16} />}>Contratações</Item>
       {emJudicial && (
         <div className="mt-0.5 mb-1 ml-5 border-l border-marca-700 pl-2">
+          <SubItem para="/judicial/novo" aoClicar={fechar} qtd={contagem.aCadastrar} icone={<FilePlus2 size={14} />}>Cadastro a partir de ofício</SubItem>
           {etapasJudicial.map((m) => {
             const Icone = iconeEtapa(m.codigo)
             return (
