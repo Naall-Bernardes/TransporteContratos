@@ -15,7 +15,7 @@ npm test      # 57 testes automáticos
 
 | Onde | Situação preparada |
 |---|---|
-| Judicial | 8 demandas, uma em cada ponto do fluxo: J01 recém-chegada, J03 caracterização em rascunho, duas em J04 aguardando o subsecretário (MOC, veículo adaptado; MTA, prazo judicial **vencido** e com uma devolução anterior), J07 execução, J08 prestação de contas |
+| Judicial | 8 demandas, uma em cada ponto do fluxo: J01 recém-chegada, J03 caracterização em rascunho, duas em J04 aguardando o subsecretário (MOC, veículo adaptado; MTA, prazo judicial **vencido** e com uma devolução anterior), quatro em J07 execução e fiscalização |
 | PTE | Ciclo 2025 encerrado (Januária) · ciclo 2026 aprovado, em execução (Montes Claros, 150 alunos) · ciclo 2027 em adesão (Uberlândia com 5 divergências TER × SIMADE; Januária com aluno duplicado) |
 | Contratos | Os 6 instrumentos da Fase 3, agora ligados às demandas e adesões pelo mesmo código único |
 | Documentos | ~150 documentos fictícios (ao abrir, o sistema gera um PDF ilustrativo) |
@@ -39,7 +39,7 @@ npm test      # 57 testes automáticos
 | 12 | Mesma demanda | Entrar como **Diana (DAFI)** → "Concluir com justificativa" | Avança para J02; justificativa fica no histórico |
 | 13–14 | (substituídos pela Rodada 4) | — | — |
 | 15 | Aba Contratação | "Registrar contrato" | Contrato nasce com o mesmo código da demanda |
-| 16 | Aba Cumprimento | "Visualizar / imprimir relatório" | Relatório para AGE/Judiciário com cronologia e evidências |
+| 16 | (removido — ver D46) | — | — |
 | **Fase 5 — PTE** |||
 | 17 | PTE → ciclo 2027 → Uberlândia → Conciliação | Ver divergências | Não encontrado, inativo, escola divergente, duplicado |
 | 18 | Mesma aba | "Tratar divergência" → justificada | Sai das abertas; mantida ao reexecutar a conciliação |
@@ -74,7 +74,7 @@ O sistema agora tem dois módulos (seletor no topo do menu): **Transporte Escola
 
 | # | Onde | Passo | Esperado |
 |---|---|---|---|
-| 43 | Menu → Judicial / MP | Clicar | Abre o submenu: "Todas as demandas" + as 9 etapas, cada uma com a quantidade de demandas |
+| 43 | Menu → Judicial / MP | Clicar | Abre o submenu: "Todas as demandas" + as 7 etapas, cada uma com a quantidade de demandas |
 | 44 | Submenu "3. Caracterização da demanda" | Clicar | Fila das demandas nessa etapa, com a coluna "O que falta para concluir" |
 | 45 | Clicar numa demanda da fila | — | A demanda abre direto na etapa 3, com alunos/formulários, checklist e botão Concluir |
 | 46 | Dentro da demanda, menu à esquerda | Clicar em outras etapas | Etapas concluídas mostram o que foi feito; futuras mostram o que será exigido |
@@ -82,7 +82,7 @@ O sistema agora tem dois módulos (seletor no topo do menu): **Transporte Escola
 
 ## Rodada 4 — Autorização do subsecretário e PAF
 
-As antigas etapas 4 (valor/cotações), 5 (OP/PAF) e 6 (liberação) viraram duas: **4. Autorização do subsecretário** e **5. Registro do PAF**. O fluxo agora tem 9 etapas.
+As antigas etapas 4 (valor/cotações), 5 (OP/PAF) e 6 (liberação) viraram duas: **4. Autorização do subsecretário** e **5. Registro do PAF**. Depois, as etapas de prestação de contas e comprovação do cumprimento também saíram (D46): o fluxo tem **7 etapas** e termina em Execução e fiscalização.
 
 | # | Onde | Passo | Esperado |
 |---|---|---|---|

@@ -10,7 +10,6 @@ import { InicioPage } from '@/features/inicio/InicioPage'
 import { CaracterizacaoPage } from '@/features/judicial/CaracterizacaoPage'
 import { DemandaDetalhePage } from '@/features/judicial/DemandaDetalhePage'
 import { JudicialPage } from '@/features/judicial/JudicialPage'
-import { RelatorioCumprimentoPage } from '@/features/judicial/RelatorioCumprimentoPage'
 import { PainelPage } from '@/features/painel/PainelPage'
 import { AdesaoPage } from '@/features/pte/AdesaoPage'
 import { PtePage } from '@/features/pte/PtePage'
@@ -49,14 +48,6 @@ export function App() {
             <Route path="pte" element={<PtePage />} />
             <Route path="pte/adesoes/:id" element={<AdesaoPage />} />
           </Route>
-          <Route
-            path="judicial/:id/relatorio"
-            element={
-              <RotaProtegida>
-                <RelatorioCumprimentoPage />
-              </RotaProtegida>
-            }
-          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

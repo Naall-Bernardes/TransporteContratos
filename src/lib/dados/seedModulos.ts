@@ -4,7 +4,7 @@
 
 import { gerarCodigoUnico } from '../codigoUnico'
 import { somarDias, somarMeses } from '../datas'
-import { diasUteisEntre, ehDiaUtil } from '../diasUteis'
+import { ehDiaUtil } from '../diasUteis'
 import { prazoDaEtapa } from '../fluxo/sla'
 import { conciliar, calcularRepasse, inconsistenciasRotas } from '../pte/pte'
 import { cnpjComDigitos } from '../validacao'
@@ -193,7 +193,6 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     inicioTransporte?: string
     statusCaracterizacao: string
     pcd?: boolean
-    relatorio?: boolean
     docsExtras?: string[]
     omitir?: string[]
     /** Duração (dias úteis) de etapas já concluídas, ex.: execução até a prestação de contas. */
@@ -233,7 +232,6 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
       meses_previstos: s.valor?.meses ?? null,
       valor_total: s.valor ? s.valor.mensal * s.valor.meses : null,
       data_inicio_transporte: s.inicioTransporte ?? null,
-      relatorio_gerado_em: s.relatorio ? hoje : null,
     }))
     for (const nome of s.alunos) {
       const da = push('demanda_alunos', novo({ demanda_id: dem.id, aluno_id: aluno(nome).id, incluido_em: inicio }))
@@ -297,10 +295,9 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const sergio = usuario('analista.udi@demo.exemplo')
   const mariana = usuario('analista.moc@demo.exemplo')
 
-  const execucao = (inst: Registro, fim: string) => ({ J07: diasUteisEntre(String(inst.vigencia_inicio), fim, feriados) })
-  demanda({ duracoes: execucao(c1, d(-45)), processo_id: c1.processo_id as string, sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Um', 'Aluno Fictício Sete'], etapa: 'J08', inicioEtapa: d(-45), prazo_judicial: somarDias(String(c1.vigencia_inicio), 3), origem: 'judicial', responsavel: sergio, valor: { mensal: 12000, meses: 8 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c1.vigencia_inicio), statusCaracterizacao: 'aprovada', omitir: ['parecer'] })
+  demanda({ processo_id: c1.processo_id as string, sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Um', 'Aluno Fictício Sete'], etapa: 'J07', inicioEtapa: String(c1.vigencia_inicio), prazo_judicial: somarDias(String(c1.vigencia_inicio), 3), origem: 'judicial', responsavel: sergio, valor: { mensal: 12000, meses: 8 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c1.vigencia_inicio), statusCaracterizacao: 'aprovada' })
   demanda({ processo_id: c2.processo_id as string, sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Dois'], etapa: 'J07', inicioEtapa: String(c2.vigencia_inicio), prazo_judicial: somarDias(String(c2.vigencia_inicio), 2), origem: 'judicial', responsavel: sergio, valor: { mensal: 10000, meses: 6 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c2.vigencia_inicio), statusCaracterizacao: 'aprovada', pcd: true })
-  demanda({ duracoes: execucao(c3, d(-10)), processo_id: c3.processo_id as string, sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluno Fictício Três'], etapa: 'J08', inicioEtapa: d(-10), prazo_judicial: somarDias(String(c3.vigencia_inicio), 5), origem: 'judicial', responsavel: mariana, valor: { mensal: 6000, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c3.vigencia_inicio), statusCaracterizacao: 'aprovada' })
+  demanda({ processo_id: c3.processo_id as string, sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluno Fictício Três'], etapa: 'J07', inicioEtapa: String(c3.vigencia_inicio), prazo_judicial: somarDias(String(c3.vigencia_inicio), 5), origem: 'judicial', responsavel: mariana, valor: { mensal: 6000, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c3.vigencia_inicio), statusCaracterizacao: 'aprovada' })
   demanda({ processo_id: c4.processo_id as string, sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Quatro'], etapa: 'J07', inicioEtapa: d(-30), prazo_judicial: d(-28), origem: 'ministerio_publico', responsavel: mariana, valor: { mensal: 3500, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: d(-30), statusCaracterizacao: 'aprovada' })
   // Novas, sem contrato ainda
   demanda({ sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Nove'], etapa: 'J03', inicioEtapa: d(-3), prazo_judicial: d(9), origem: 'ministerio_publico', responsavel: sergio, statusCaracterizacao: 'rascunho' })

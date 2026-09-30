@@ -13,12 +13,11 @@ import { INSTRUMENTO } from '@/features/contratos/configuracoes'
 import { SecaoRegistros } from '@/features/contratos/SecaoRegistros'
 import { PainelDocumentos } from '@/features/documentos/PainelDocumentos'
 import { EtapaDetalhe, HistoricoEtapas } from '@/features/fluxo/Etapas'
-import { PrestacaoContas } from '@/features/contratos/PrestacaoContas'
 import { ALOCACAO } from '@/features/frota/configuracoes'
 import { PainelConformidade } from '@/features/frota/PainelConformidade'
 import { calcularSituacao } from '@/lib/contratos/calculos'
 import { ErroPermissao, ErroRegra, salvar } from '@/lib/dados/repositorio'
-import { feriadosDe, incluirAluno, registrarRelatorioCumprimento } from '@/lib/dados/servicos'
+import { feriadosDe, incluirAluno } from '@/lib/dados/servicos'
 import type { Colecao } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
@@ -263,27 +262,6 @@ export function DemandaDetalhePage() {
                 <Link to={`/contratos/${contrato.id}`} className="mt-2 inline-flex items-center gap-1 text-marca-700 hover:underline">Registrar fiscalização e ocorrências no contrato <ExternalLink size={14} /></Link>
               </div>
             )}
-          </div>
-        )
-      case 'J08':
-        return contrato ? (
-          <PrestacaoContas instrumentoId={contrato.id} prestacoes={d.prestacoes} referencias={dados} podeEditar={pode} hoje={hoje} aoAlterar={recarregar} />
-        ) : (
-          <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">A prestação de contas depende do contrato (etapa 6).</p>
-        )
-      case 'J09':
-        return (
-          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-            <h3 className="font-semibold text-slate-900">Relatório de comprovação do cumprimento</h3>
-            <p className="mt-1 text-slate-600">Reúne decisão, alunos, cronologia das etapas, contrato, início do transporte, fiscalização, prestação de contas e a lista de evidências (documentos com nº SEI), para envio à AGE/Judiciário.</p>
-            {Boolean(demanda.relatorio_gerado_em) && <p className="mt-2 text-green-700">Relatório gerado em {formatarData(demanda.relatorio_gerado_em)}.</p>}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link to={`/judicial/${demanda.id}/relatorio`} target="_blank" className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <FileText size={16} /> Visualizar / imprimir relatório
-              </Link>
-              {pode && <Botao onClick={() => acao(() => registrarRelatorioCumprimento(usuario, demanda.id))}>Registrar relatório como gerado</Botao>}
-            </div>
-            <p className="mt-2 text-xs text-slate-500">Dica: na tela do relatório use "Imprimir → Salvar como PDF" e anexe o PDF em Documentos (tipo "Relatório de cumprimento").</p>
           </div>
         )
       default:

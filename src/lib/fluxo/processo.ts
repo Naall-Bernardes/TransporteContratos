@@ -116,12 +116,8 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
       exige(d.demanda?.data_inicio_transporte, 'Informe a data de início efetivo do transporte.')
       exige(d.fiscalizacoes.length > 0, 'Registre ao menos um mês de fiscalização.')
       break
-    case 'J08':
     case 'P05':
       exige(prestacoesDecididas, 'Todas as prestações de contas precisam estar decididas (aprovada, com ressalvas ou reprovada).')
-      break
-    case 'J09':
-      exige(d.demanda?.relatorio_gerado_em, 'Gere o relatório de comprovação do cumprimento.')
       break
     case 'P02':
       exige(d.rotas.length > 0, 'Cadastre as rotas do TER/MG (km, custo por km, passageiros).')

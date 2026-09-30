@@ -184,10 +184,6 @@ const STATUS_ADESAO: Record<string, string> = {
   P05: 'prestacao',
 }
 
-export function registrarRelatorioCumprimento(usuario: Usuario, demandaId: string) {
-  return transacao(usuario, (tx) => tx.salvar('demandas', { id: demandaId, relatorio_gerado_em: hojeIso() }))
-}
-
 // ---------- PTE ----------
 
 export function criarAdesao(usuario: Usuario, dados: Record<string, unknown>) {
