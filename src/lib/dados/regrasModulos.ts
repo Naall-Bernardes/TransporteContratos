@@ -55,6 +55,7 @@ export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Coleca
   { origem: 'documentos', campo: 'instrumento_id', alvo: 'instrumentos' },
   { origem: 'documentos', campo: 'aditivo_id', alvo: 'aditivos' },
   { origem: 'documentos', campo: 'prestacao_id', alvo: 'prestacoes_contas' },
+  { origem: 'documentos', campo: 'consulta_id', alvo: 'oficio_consultas' },
   { origem: 'documento_versoes', campo: 'documento_id', alvo: 'documentos' },
   { origem: 'checklist_modelo', campo: 'etapa_modelo_id', alvo: 'etapas_modelo' },
   { origem: 'checklist_modelo', campo: 'tipo_documento_id', alvo: 'tipos_documento' },

@@ -33,7 +33,8 @@ export function OficiosPage() {
   const { dados, recarregar } = useTodos()
   const hoje = hojeIso()
   const central = ehCentral(usuario)
-  const [filtro, setFiltro] = useState<Filtro>('pendentes')
+  // A regional abre direto nos ofícios que aguardam a resposta dela
+  const [filtro, setFiltro] = useState<Filtro>(ehCentral(usuario) ? 'pendentes' : 'aguardando_sre')
   const [tipo, setTipo] = useState('')
   const [orgao, setOrgao] = useState('')
   const [sre, setSre] = useState('')

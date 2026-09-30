@@ -127,3 +127,15 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 | 72 | Painel | — | Bloco "Ofícios" com pendentes, aguardando SRE, a vencer, vencidos e respondidos |
 
 > Atualização: **Ofícios** virou item próprio do menu (fora de Judicial/MP, endereço `/oficios`) e, dentro de Judicial/MP, "Cumprimento de sentença" passou a se chamar **Contratações**.
+
+## Rodada 7 — Ofício como chamado (central ⇄ regional)
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 73 | Carlos → Ofícios → um ofício "Aguardando análise" | Ver quadro "Tramitação" | "Com o órgão central" e os botões **Enviar à regional** e **Concluir ofício** |
+| 74 | "Enviar à regional" | Escolher a SRE, escrever o pedido | Passa para "Com a regional"; histórico ganha "Enviado à regional" |
+| 75 | Entrar como a analista da regional → Ofícios | — | A lista já abre em "Aguardando SRE"; ao abrir o ofício, aparece o pedido, o campo de informações e "Documentos desta resposta" |
+| 76 | Preencher, anexar um PDF, "Enviar ao órgão central" | — | Histórico: "Regional respondeu — voltou ao órgão central", com o documento listado |
+| 77 | Voltar como Carlos | "Devolver à regional" pedindo complemento | Volta para a regional; o histórico mostra os dois pedidos e respostas |
+| 78 | Depois da nova resposta | "Concluir ofício" com nº e data | "Concluído"; histórico fecha com a resposta ao órgão |
+

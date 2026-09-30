@@ -23,6 +23,8 @@ export interface MetadadosDocumento {
   instrumento_id?: string | null
   aditivo_id?: string | null
   prestacao_id?: string | null
+  /** Resposta da regional a que o documento pertence (tramitação do ofício). */
+  consulta_id?: string | null
 }
 
 function conferirArquivo(arquivo: File) {

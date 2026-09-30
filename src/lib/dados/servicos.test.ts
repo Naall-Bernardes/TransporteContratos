@@ -36,6 +36,11 @@ describe('fluxo judicial', () => {
     await expect(responderConsulta(usuario('analista.moc@demo.exemplo'), c.id, 'x')).rejects.toBeInstanceOf(ErroPermissao) // outra SRE
     await responderConsulta(sergio, c.id, 'Rota 12, van escolar.')
     expect(situacaoOficio(doOficio(), consultas())).toBe('informacao_recebida')
+    // central devolve pedindo complemento; o histórico guarda os dois pedidos
+    const c2 = await consultarSre(central(), of.id, { sre_id: udi.id, pergunta: 'Informe também a quilometragem.', prazo: '2099-01-01' })
+    expect(situacaoOficio(doOficio(), consultas())).toBe('aguardando_sre')
+    await responderConsulta(sergio, c2.id, '18 km por dia.')
+    expect(consultas().filter((x) => x.oficio_id === of.id)).toHaveLength(2)
     await registrarRespostaOficio(central(), of.id, { resposta_numero: 'OF 1/2026', resposta_data: hojeIso() })
     expect(situacaoOficio(doOficio(), consultas())).toBe('respondido')
   })
