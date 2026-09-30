@@ -99,7 +99,7 @@ export function PainelPage() {
         </div>
       </Bloco>
 
-      <Bloco titulo="Conformidade legal da frota em serviço" descricao="Contratado, veículos e condutores de contratos judiciais e das contratações do PTE (CTB arts. 136–138, 148-A e 329; DETRAN-MG; Res. SEE 3.670/2017)." link={{ para: '/frota', rotulo: 'Abrir frota e conformidade' }}>
+      <Bloco titulo="Conformidade legal da frota em serviço" descricao="Contratado, veículos e condutores de contratos judiciais e das contratações do PTE (CTB arts. 136–138, 148-A e 329; DETRAN-MG; Res. SEE 3.670/2017).">
         <div className="grid gap-3 sm:grid-cols-5">
           <Cartao titulo="Em serviço (contratados, veículos, condutores)" valor={p.conformidade.emServico} />
           <Cartao titulo="Com pendência obrigatória" valor={p.conformidade.comPendencia} cor={p.conformidade.comPendencia ? 'text-red-600' : undefined} />

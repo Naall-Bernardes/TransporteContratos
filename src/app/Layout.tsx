@@ -1,10 +1,10 @@
 // Layout com dois módulos:
-//  - Transporte Escolar: atendimento (Judicial/MP, PTE, contratos) e controle;
+//  - Transporte Escolar: atendimento (Judicial/MP, PTE, contratos) — documentos e frota ficam dentro de cada processo;
 //  - Cadastros: dados de base (rede, alunos, frota, preços, calendário) e administração.
 
 import {
   BarChart3, Bus, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
-  Home, LayoutGrid, ListChecks, LogOut, Menu, Route, School, ShieldCheck, Tag, Timer, Truck, UserRound, Users, X,
+  Home, LayoutGrid, ListChecks, LogOut, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -50,9 +50,6 @@ export function Layout() {
       <Item para="/judicial" icone={<Gavel size={16} />}>Judicial / MP</Item>
       <Item para="/pte" icone={<Route size={16} />}>PTE</Item>
       <Item para="/contratos" icone={<FileSignature size={16} />}>Contratos e termos</Item>
-      <Grupo titulo="Controle" />
-      <Item para="/frota" icone={<ShieldCheck size={16} />}>Frota e conformidade</Item>
-      <Item para="/documentos" icone={<Files size={16} />}>Documentos</Item>
     </>
   )
 

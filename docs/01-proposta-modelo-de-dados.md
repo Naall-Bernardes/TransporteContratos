@@ -484,5 +484,6 @@ Princípio: **regra de negócio crítica no banco** (checklist, cálculo de sald
 | D40 | Sistema dividido em dois módulos: Transporte Escolar e Cadastros (administração dentro de Cadastros) | 30/09/2026 |
 | D41 | Documentos de veículo/condutor/contratado não pertencem a um processo e ficam visíveis a todos os perfis (com log de acesso) | 30/09/2026 |
 | D42 | Removidos alertas por e-mail, registro de riscos e exportação CSV/Power BI (a pedido). Mantidos: alertas na tela, semáforo/escalonamento visual, CSV das listas e auditoria | 30/09/2026 |
+| D43 | Sem páginas avulsas de Documentos e de Frota: documentos e conformidade ficam só dentro de cada demanda, adesão e contrato | 30/09/2026 |
 
 Pendentes: nenhum bloqueante no momento.

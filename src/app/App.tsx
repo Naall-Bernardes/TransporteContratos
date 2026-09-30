@@ -7,7 +7,6 @@ import { CadastroPage } from '@/features/cadastros/CadastroPage'
 import { ContratoDetalhePage } from '@/features/contratos/ContratoDetalhePage'
 import { ContratosPage } from '@/features/contratos/ContratosPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
-import { DocumentosPage } from '@/features/documentos/DocumentosPage'
 import { CaracterizacaoPage } from '@/features/judicial/CaracterizacaoPage'
 import { DemandaDetalhePage } from '@/features/judicial/DemandaDetalhePage'
 import { JudicialPage } from '@/features/judicial/JudicialPage'
@@ -16,7 +15,6 @@ import { PainelPage } from '@/features/painel/PainelPage'
 import { AdesaoPage } from '@/features/pte/AdesaoPage'
 import { PtePage } from '@/features/pte/PtePage'
 import { CadastrosInicioPage } from '@/features/cadastros/CadastrosInicioPage'
-import { FrotaPage } from '@/features/frota/FrotaPage'
 import { Layout } from './Layout'
 
 function RotaProtegida({ children }: { children: ReactNode }) {
@@ -40,7 +38,6 @@ export function App() {
             <Route index element={<InicioPage />} />
             <Route path="cadastros" element={<CadastrosInicioPage />} />
             <Route path="cadastros/:colecao" element={<CadastroPage />} />
-            <Route path="frota" element={<FrotaPage />} />
             <Route path="contratos" element={<ContratosPage />} />
             <Route path="contratos/:id" element={<ContratoDetalhePage />} />
             <Route path="auditoria" element={<AuditoriaPage />} />
@@ -50,7 +47,6 @@ export function App() {
             <Route path="judicial/:id/caracterizacao/:daId" element={<CaracterizacaoPage />} />
             <Route path="pte" element={<PtePage />} />
             <Route path="pte/adesoes/:id" element={<AdesaoPage />} />
-            <Route path="documentos" element={<DocumentosPage />} />
           </Route>
           <Route
             path="judicial/:id/relatorio"

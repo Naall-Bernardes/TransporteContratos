@@ -14,7 +14,7 @@ export const VEICULO: CadastroConfig = {
   colecao: 'veiculos',
   titulo: 'Veículos e embarcações',
   singular: 'veículo',
-  descricao: 'Frota que transporta estudantes: dos transportadores contratados e a frota própria dos municípios. Os documentos obrigatórios ficam em Transporte Escolar → Frota e conformidade.',
+  descricao: 'Frota que transporta estudantes: dos transportadores contratados e a frota própria dos municípios. Os documentos obrigatórios de cada veículo/condutor são conferidos e enviados dentro do contrato (aba Frota e conformidade) ou da adesão PTE (aba Contratações e frota).',
   ordenarPor: (r) => String(r.placa ?? r.inscricao_capitania ?? ''),
   campos: [
     { nome: 'tipo_transporte', rotulo: 'Transporte', tipo: 'selecao', opcoes: opcoes({ rodoviario: 'Rodoviário', aquaviario: 'Aquaviário (embarcação)' }), padrao: 'rodoviario', naTabela: true },

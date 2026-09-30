@@ -29,7 +29,6 @@ npm test      # 57 testes automáticos
 | 2 | Mesma lista | Ícone de relógio → nova versão com motivo | Vira v2; a v1 continua acessível (seta ▸) |
 | 3 | Mesma lista | Enviar arquivo .docx ou > 20 MB | Recusado com a mensagem do motivo |
 | 4 | Mesma lista | "Baixar todos (ZIP)" | ZIP com pastas por tipo de documento |
-| 5 | Menu Documentos | Buscar por aluno "Nove", por código "MOC", por período | Filtra; ZIP do resultado |
 | 6 | Administração → Auditoria → aba Acessos (LGPD) | — | Cada visualização/download/ZIP registrado |
 | **Fase 4 — Judicial** |||
 | 7 | Judicial | Ver cartões e semáforo | 3 vermelhas, 1 amarela, 1 com prazo judicial vencido, escalonamento nível 2/3 |
@@ -61,7 +60,7 @@ O sistema agora tem dois módulos (seletor no topo do menu): **Transporte Escola
 
 | # | Onde | Passo | Esperado |
 |---|---|---|---|
-| 31 | Transporte Escolar → Frota e conformidade | Abrir | Cartões com pendências; lista de veículos/condutores/contratados com documentos vencidos ou não enviados |
+| 31 | Painel → Conformidade legal da frota em serviço | Abrir | Cartões com pendências de documentos |
 | 32 | Contratos → contrato 001/2026 (UDI) → aba Frota e conformidade | Ver João | Exame toxicológico **vencido** (CTB art. 148-A); laudo semestral a vencer |
 | 33 | Mesma aba | "Atualizar" no toxicológico, enviar PDF com data de hoje | Fica "Em dia" (validade = +30 meses) |
 | 34 | Contrato 001/2026 (MOC, picape) | — | Laudo semestral vencido; contratado com CNDT vencida |
