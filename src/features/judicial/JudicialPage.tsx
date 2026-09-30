@@ -1,9 +1,10 @@
-import { Download, Mail, Search } from 'lucide-react'
+import { CheckCircle2, Download, Mail, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Cartao } from '@/components/comum/Cartao'
 import { PontoSemaforo, ROTULO_COR } from '@/components/comum/Semaforo'
 import { Botao } from '@/components/ui/Botao'
+import { Modal } from '@/components/ui/Modal'
 import { useUsuario } from '@/features/auth/Sessao'
 import { baixarArquivo, gerarCsv } from '@/lib/csv'
 import { feriadosDe } from '@/lib/dados/servicos'
@@ -12,9 +13,10 @@ import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
 import { ROTULO_NIVEL } from '@/lib/fluxo/sla'
 import { avaliarEtapa, montarDadosProcesso } from '@/lib/fluxo/processo'
-import { formatarData } from '@/lib/formatacao'
+import { formatarData, formatarMoeda } from '@/lib/formatacao'
 import { situacaoDosProcessos } from '@/lib/monitoramento'
-import { ehCentral, ROTULO_PAPEL } from '@/lib/permissoes'
+import { ehCentral, podeAutorizarLiberacao, ROTULO_PAPEL } from '@/lib/permissoes'
+import { LiberacaoRapida, valorMensalSugerido } from './Autorizacao'
 import { ORIGENS } from './configuracoes'
 
 type Filtro = '' | 'ativas' | 'vermelho' | 'amarelo' | 'judicial_vencido' | 'nivel3' | 'cumpridas'
@@ -27,13 +29,16 @@ export function JudicialPage() {
   const { codigo } = useParams()
   const usuario = useUsuario()
   const navegar = useNavigate()
-  const { dados } = useTodos()
+  const { dados, recarregar } = useTodos()
   const hoje = hojeIso()
   const [filtro, setFiltro] = useState<Filtro>('ativas')
   const [etapaEscolhida, setEtapa] = useState('')
   const etapa = codigo ?? etapaEscolhida
   const [sre, setSre] = useState('')
   const [busca, setBusca] = useState('')
+  const [liberando, setLiberando] = useState<string | null>(null)
+  const filaAutorizacao = codigo === 'C02'
+  const podeLiberar = podeAutorizarLiberacao(usuario)
 
   const linhas = useMemo(() => {
     const lista = (c: Colecao) => dados[c] ?? []
@@ -51,12 +56,16 @@ export function JudicialPage() {
           sigla: String(achar('sres', s.sre_id)?.sigla ?? ''),
           responsavel: String(achar('usuarios', s.instancia?.responsavel_id)?.nome ?? '—'),
           judicialVencido: !s.demanda!.data_inicio_transporte && String(s.demanda!.prazo_judicial) < hoje && s.demanda!.situacao === 'ativa',
-          falta: codigo && s.modelo
+          ...(codigo && s.modelo
             ? (() => {
-                const av = avaliarEtapa(montarDadosProcesso(lista, s.processo.id, hoje), s.modelo, lista('checklist_modelo'), lista('tipos_documento'))
-                return [...av.pendencias, ...(av.faltantes.length ? [`Documento(s): ${av.faltantes.map((f) => f.nome).join(', ')}`] : [])]
+                const dp = montarDadosProcesso(lista, s.processo.id, hoje)
+                const av = avaliarEtapa(dp, s.modelo, lista('checklist_modelo'), lista('tipos_documento'))
+                return {
+                  falta: [...av.pendencias, ...(av.faltantes.length ? [`Documento(s): ${av.faltantes.map((f) => f.nome).join(', ')}`] : [])],
+                  valorMensal: valorMensalSugerido(dp),
+                }
               })()
-            : [],
+            : { falta: [] as string[], valorMensal: 0 }),
         }
       })
   }, [dados, hoje, codigo])
@@ -156,7 +165,9 @@ export function JudicialPage() {
               <th className="px-3 py-2 font-medium">Etapa atual</th>
               <th className="px-3 py-2 font-medium">Prazo judicial</th>
               <th className="px-3 py-2 font-medium">Semáforo</th>
-              {codigo && <th className="px-3 py-2 font-medium">O que falta para concluir</th>}
+              {filaAutorizacao && <th className="px-3 py-2 text-right font-medium">Valor mensal</th>}
+              {codigo && !filaAutorizacao && <th className="px-3 py-2 font-medium">O que falta para concluir</th>}
+              {filaAutorizacao && <th className="px-3 py-2 font-medium">Liberação</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -191,7 +202,13 @@ export function JudicialPage() {
                     </span>
                   </span>
                 </td>
-                {codigo && (
+                {filaAutorizacao && (
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <p className="font-medium">{l.valorMensal ? formatarMoeda(l.valorMensal) : '—'}</p>
+                    <p className="text-xs text-slate-500">aprovado pela SRE</p>
+                  </td>
+                )}
+                {codigo && !filaAutorizacao && (
                   <td className="px-3 py-2 text-xs">
                     {l.falta.length === 0 ? (
                       <span className="font-medium text-green-700">Pronta para concluir</span>
@@ -203,6 +220,15 @@ export function JudicialPage() {
                     )}
                   </td>
                 )}
+                {filaAutorizacao && (
+                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    {podeLiberar ? (
+                      <Botao onClick={() => setLiberando(l.demanda!.id)}><CheckCircle2 size={16} /> Liberar PAF</Botao>
+                    ) : (
+                      <span className="text-xs text-slate-500">Aguardando o(a) subsecretário(a)</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -210,6 +236,25 @@ export function JudicialPage() {
         {filtradas.length === 0 && <p className="px-3 py-8 text-center text-sm text-slate-500">Nenhuma demanda nesta seleção.</p>}
       </div>
       <p className="mt-2 text-xs text-slate-500">{filtradas.length} de {linhas.length} demanda(s).</p>
+
+      <Modal titulo="Liberar recurso (segue para o PAF)" aberto={liberando !== null} aoFechar={() => setLiberando(null)}>
+        {(() => {
+          const l = linhas.find((x) => x.demanda!.id === liberando)
+          return l ? (
+            <LiberacaoRapida
+              key={l.demanda!.id}
+              demanda={l.demanda!}
+              codigo={String(l.processo.codigo)}
+              valorSugerido={l.valorMensal}
+              aoFechar={() => setLiberando(null)}
+              aoConcluir={async () => {
+                setLiberando(null)
+                await recarregar()
+              }}
+            />
+          ) : null
+        })()}
+      </Modal>
 
     </div>
   )
