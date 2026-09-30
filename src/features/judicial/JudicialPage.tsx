@@ -16,7 +16,7 @@ import { avaliarEtapa, montarDadosProcesso } from '@/lib/fluxo/processo'
 import { formatarData, formatarMoeda } from '@/lib/formatacao'
 import { situacaoDosProcessos } from '@/lib/monitoramento'
 import { ehCentral, podeAutorizarLiberacao, ROTULO_PAPEL } from '@/lib/permissoes'
-import { LiberacaoRapida, valorMensalSugerido } from './Autorizacao'
+import { LiberacaoRapida, MESES_PADRAO, valorMensalSugerido } from './Autorizacao'
 import { ORIGENS } from './configuracoes'
 
 type Filtro = '' | 'ativas' | 'vermelho' | 'amarelo' | 'judicial_vencido' | 'nivel3' | 'cumpridas'
@@ -63,9 +63,10 @@ export function JudicialPage() {
                 return {
                   falta: [...av.pendencias, ...(av.faltantes.length ? [`Documento(s): ${av.faltantes.map((f) => f.nome).join(', ')}`] : [])],
                   valorMensal: valorMensalSugerido(dp),
+                  meses: Number(s.demanda!.meses_previstos || MESES_PADRAO),
                 }
               })()
-            : { falta: [] as string[], valorMensal: 0 }),
+            : { falta: [] as string[], valorMensal: 0, meses: MESES_PADRAO }),
         }
       })
   }, [dados, hoje, codigo])
@@ -162,10 +163,10 @@ export function JudicialPage() {
               <th className="px-3 py-2 font-medium">Código / SEI</th>
               <th className="px-3 py-2 font-medium">Origem</th>
               <th className="px-3 py-2 font-medium">Escola / alunos</th>
-              <th className="px-3 py-2 font-medium">Etapa atual</th>
+              {!filaAutorizacao && <th className="px-3 py-2 font-medium">Etapa atual</th>}
               <th className="px-3 py-2 font-medium">Prazo judicial</th>
               <th className="px-3 py-2 font-medium">Semáforo</th>
-              {filaAutorizacao && <th className="px-3 py-2 text-right font-medium">Valor mensal</th>}
+              {filaAutorizacao && <th className="px-3 py-2 text-right font-medium">Valor do contrato</th>}
               {codigo && !filaAutorizacao && <th className="px-3 py-2 font-medium">O que falta para concluir</th>}
               {filaAutorizacao && <th className="px-3 py-2 font-medium">Liberação</th>}
             </tr>
@@ -185,10 +186,12 @@ export function JudicialPage() {
                   <p>{l.escola}</p>
                   <p className="text-xs text-slate-500">{l.alunos.join(', ') || 'sem aluno'}</p>
                 </td>
-                <td className="px-3 py-2">
-                  {l.modelo ? <p>{String(l.modelo.ordem)}. {String(l.modelo.nome)}</p> : <p className="text-green-700">Cumprida</p>}
-                  <p className="text-xs text-slate-500">{l.responsavel}</p>
-                </td>
+                {!filaAutorizacao && (
+                  <td className="px-3 py-2">
+                    {l.modelo ? <p>{String(l.modelo.ordem)}. {String(l.modelo.nome)}</p> : <p className="text-green-700">Cumprida</p>}
+                    <p className="text-xs text-slate-500">{l.responsavel}</p>
+                  </td>
+                )}
                 <td className={`px-3 py-2 whitespace-nowrap ${l.judicialVencido ? 'font-medium text-red-600' : ''}`}>
                   {formatarData(l.demanda!.prazo_judicial)}
                   {Boolean(l.demanda!.data_inicio_transporte) && <p className="text-xs font-normal text-green-700">transporte iniciado</p>}
@@ -204,8 +207,8 @@ export function JudicialPage() {
                 </td>
                 {filaAutorizacao && (
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <p className="font-medium">{l.valorMensal ? formatarMoeda(l.valorMensal) : '—'}</p>
-                    <p className="text-xs text-slate-500">aprovado pela SRE</p>
+                    <p className="font-medium">{l.valorMensal ? formatarMoeda(l.valorMensal * l.meses) : '—'}</p>
+                    {l.valorMensal > 0 && <p className="text-xs text-slate-500">{formatarMoeda(l.valorMensal)}/mês × {l.meses} meses</p>}
                   </td>
                 )}
                 {codigo && !filaAutorizacao && (

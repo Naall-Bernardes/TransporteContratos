@@ -47,6 +47,9 @@ function Linha({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   )
 }
 
+/** Meses previstos quando a demanda ainda não tem: ano letivo (fevereiro a novembro). */
+export const MESES_PADRAO = 10
+
 /** Valor mensal sugerido para a liberação: soma do aprovado pela SRE (10.5) ou, na falta, do estimado (7.9) de cada aluno. */
 export function valorMensalSugerido(d: DadosProcesso): number {
   return d.alunosDemanda.reduce((t, da) => {
@@ -59,7 +62,7 @@ export function valorMensalSugerido(d: DadosProcesso): number {
 export function LiberacaoRapida({ demanda, codigo, valorSugerido, aoFechar, aoConcluir }: { demanda: Registro; codigo: string; valorSugerido: number; aoFechar: () => void; aoConcluir: () => Promise<void> | void }) {
   const usuario = useUsuario()
   const [valorMensal, setValorMensal] = useState(String(demanda.valor_mensal ?? (valorSugerido || '')))
-  const [meses, setMeses] = useState(String(demanda.meses_previstos ?? 10))
+  const [meses, setMeses] = useState(String(demanda.meses_previstos ?? MESES_PADRAO))
   const [parecer, setParecer] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const total = Number(valorMensal) * Number(meses)
@@ -90,8 +93,8 @@ export function LiberacaoRapida({ demanda, codigo, valorSugerido, aoFechar, aoCo
           <input className="campo mt-1" type="number" min="1" step="1" value={meses} onChange={(e) => setMeses(e.target.value)} />
         </label>
         <div>
-          <span className="text-xs text-slate-600">Valor total</span>
-          <p className="mt-2 font-semibold">{total > 0 ? formatarMoeda(total) : '—'}</p>
+          <span className="text-xs text-slate-600">Valor do contrato</span>
+          <p className="mt-1 text-lg font-semibold">{total > 0 ? formatarMoeda(total) : '—'}</p>
         </div>
       </div>
       <label className="block">
@@ -120,7 +123,7 @@ export function AutorizacaoSubsecretario({ demanda, d, dados, aoAlterar }: Props
   const podeDecidir = podeAutorizarLiberacao(usuario) && emAndamento
 
   const [valorMensal, setValorMensal] = useState(String(demanda.valor_mensal ?? (somaAprovada || '')))
-  const [meses, setMeses] = useState(String(demanda.meses_previstos ?? 10))
+  const [meses, setMeses] = useState(String(demanda.meses_previstos ?? MESES_PADRAO))
   const [parecer, setParecer] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const total = Number(valorMensal) * Number(meses)
