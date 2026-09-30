@@ -8,7 +8,7 @@ import { avaliarEtapa, montarDadosProcesso } from '../fluxo/processo'
 import { prazoDaEtapa } from '../fluxo/sla'
 import { formatarData } from '../formatacao'
 import { ehCentral, ehDiretorOuCentral } from '../permissoes'
-import { calcularRepasse, conciliar } from '../pte/pte'
+import { calcularRepasse, conciliar, DIVERGENCIAS_DE_ROTA, inconsistenciasRotas } from '../pte/pte'
 import { criarProcesso, ErroPermissao, ErroRegra, transacao, type Tx } from './repositorio'
 import type { Colecao, Registro, Usuario } from './tipos'
 
@@ -147,9 +147,14 @@ export function executarConciliacao(usuario: Usuario, adesaoId: string) {
         const municipio = String(tx.consulta('municipios', a.municipio_id)?.nome ?? '')
         return tx.lista('pte_alunos').filter((x) => x.adesao_id === a.id).map((aluno) => ({ aluno, municipio }))
       })
-    const encontradas = conciliar(informados, simade, outras)
+    const rotasCiclo = tx.lista('rotas_pte').filter((r) => tx.consulta('adesoes_pte', r.adesao_id)?.ciclo_id === adesao.ciclo_id && r.ativa !== false)
+    const mediaCusto = rotasCiclo.length ? rotasCiclo.reduce((t, r) => t + Number(r.custo_km || 0), 0) / rotasCiclo.length : 0
+    const encontradas = [
+      ...conciliar(informados, simade, outras),
+      ...inconsistenciasRotas(tx.lista('rotas_pte').filter((r) => r.adesao_id === adesaoId), informados, mediaCusto),
+    ]
     const existentes = tx.lista('divergencias').filter((d) => d.adesao_id === adesaoId)
-    const chave = (d: Record<string, unknown>) => `${d.cod_simade}|${d.tipo}`
+    const chave = (d: Record<string, unknown>) => `${d.referencia ?? d.cod_simade}|${d.tipo}`
     const atuais = new Set(encontradas.map((e) => chave({ ...e })))
 
     for (const e of existentes)
@@ -169,14 +174,20 @@ export function calcularAdesao(usuario: Usuario, adesaoId: string) {
   return transacao(usuario, (tx) => {
     const adesao = tx.consulta('adesoes_pte', adesaoId)!
     const ciclo = tx.consulta('ciclos_pte', adesao.ciclo_id)!
-    const abertas = new Set(tx.lista('divergencias').filter((d) => d.adesao_id === adesaoId && d.status === 'aberta').map((d) => String(d.cod_simade)))
-    const r = calcularRepasse(tx.lista('pte_alunos').filter((a) => a.adesao_id === adesaoId), abertas, {
-      valor_por_aluno: Number(ciclo.valor_por_aluno),
-      valor_por_km: Number(ciclo.valor_por_km),
-      dias_letivos: Number(ciclo.dias_letivos),
-    })
+    const abertas = tx.lista('divergencias').filter((d) => d.adesao_id === adesaoId && d.status === 'aberta')
+    const alunosDiv = new Set(abertas.filter((d) => !DIVERGENCIAS_DE_ROTA.includes(d.tipo as never)).map((d) => String(d.referencia)))
+    const rotasDiv = new Set(abertas.filter((d) => DIVERGENCIAS_DE_ROTA.includes(d.tipo as never)).map((d) => String(d.referencia).replace(/^ROTA /, '')))
+    const r = calcularRepasse(
+      tx.lista('rotas_pte').filter((x) => x.adesao_id === adesaoId),
+      tx.lista('pte_alunos').filter((a) => a.adesao_id === adesaoId),
+      alunosDiv,
+      rotasDiv,
+      { dias_letivos: Number(ciclo.dias_letivos || 200), pnate_estadual: Number(adesao.pnate_estadual || 0), saldo_reprogramado: Number(adesao.saldo_reprogramado || 0) },
+    )
     const versao = tx.lista('calculos_repasse').filter((c) => c.adesao_id === adesaoId).length + 1
-    return tx.salvar('calculos_repasse', { adesao_id: adesaoId, versao, ...r, calculado_em: hojeIso() })
+    const { rotas: _detalhe, ...resumo } = r
+    void _detalhe
+    return tx.salvar('calculos_repasse', { adesao_id: adesaoId, versao, ...resumo, calculado_em: hojeIso() })
   })
 }
 
@@ -213,11 +224,14 @@ export function gerarTermo(usuario: Usuario, adesaoId: string, dados: Record<str
       vigencia_fim: ciclo.vigencia_fim,
       valor_global: ultimo?.valor_calculado,
       status: 'vigente',
-      periodicidade_prestacao: 'final',
+      periodicidade_prestacao: 'anual',
       prazo_prestacao_dias: 60,
       ...dados,
     })
-    criarParcelas(tx, inst, Number(ciclo.num_parcelas), String(ciclo.vigencia_inicio), 12 / Math.max(1, Number(ciclo.num_parcelas)))
+    // Repasses mensais de fevereiro a novembro (Res. 5.267/2026, art. 16)
+    criarParcelas(tx, inst, Number(ciclo.num_parcelas || 10), `${ciclo.ano}-02-10`, 1)
+    // Prestação de contas anual até 28/02 do ano seguinte (art. 19, II; Decreto 46.946/2016, art. 9º)
+    tx.salvar('prestacoes_contas', { instrumento_id: inst.id, periodo_referencia: `Exercício ${ciclo.ano}`, data_limite: `${Number(ciclo.ano) + 1}-02-28`, status: 'pendente' })
     return inst
   })
 }
@@ -326,7 +340,8 @@ export function importarAlunosTer(usuario: Usuario, adesaoId: string, linhas: Re
       cod_simade: cod,
       nome: coluna(l, 'nome', 'nome_aluno', 'estudante'),
       escola_inep: coluna(l, 'escola_inep', 'inep', 'cod_inep', 'codigo_inep'),
-      km_ida: numero(coluna(l, 'km_ida', 'km', 'distancia_km', 'distancia')),
+      km_ida: numero(coluna(l, 'km_ida', 'km', 'distancia_km', 'distancia')) || null,
+      rota_codigo: coluna(l, 'rota', 'rota_codigo', 'codigo_rota') || null,
       zona: coluna(l, 'zona').toLowerCase() || null,
       turno: coluna(l, 'turno').toLowerCase().replace('ã', 'a') || null,
       origem: existente?.origem ?? 'TER',
@@ -350,6 +365,29 @@ export function importarSimade(usuario: Usuario, cicloId: string, linhas: Record
       escola_inep: coluna(l, 'escola_inep', 'inep', 'cod_inep', 'codigo_inep'),
       municipio_ibge: coluna(l, 'municipio_ibge', 'ibge', 'cod_ibge'),
       situacao: ['ativo', 'ativa', 'matriculado', ''].includes(situacao) ? 'ativo' : situacao,
+    })
+    return existente ? 'atualizado' : 'incluido'
+  })
+}
+
+/** Rotas do TER/MG. Colunas: rota/codigo, descricao, turno, km_diario, custo_km, passageiros, capacidade, urbana (sim/não). */
+export function importarRotas(usuario: Usuario, adesaoId: string, linhas: Record<string, string>[], numero: (v: string) => number) {
+  return importar(usuario, linhas, (tx, l) => {
+    const codigo = coluna(l, 'rota', 'codigo', 'codigo_rota')
+    const existente = tx.lista('rotas_pte').find((r) => r.adesao_id === adesaoId && r.codigo === codigo)
+    const sim = (v: string) => ['sim', 's', 'true', '1', 'x'].includes(v.trim().toLowerCase())
+    tx.salvar('rotas_pte', {
+      ...(existente ? { id: existente.id } : {}),
+      adesao_id: adesaoId,
+      codigo,
+      descricao: coluna(l, 'descricao', 'nome') || null,
+      turno: coluna(l, 'turno').toLowerCase().replace('ã', 'a') || null,
+      km_diario: numero(coluna(l, 'km_diario', 'km', 'quilometragem')),
+      custo_km: numero(coluna(l, 'custo_km', 'valor_km', 'custo')),
+      total_passageiros: numero(coluna(l, 'passageiros', 'total_passageiros')),
+      capacidade: numero(coluna(l, 'capacidade', 'lotacao')) || null,
+      urbana: sim(coluna(l, 'urbana')),
+      ativa: true,
     })
     return existente ? 'atualizado' : 'incluido'
   })

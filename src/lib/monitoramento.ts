@@ -2,7 +2,9 @@
 // e-mail com escalonamento e gatilhos automáticos de risco. Tudo derivado dos dados.
 // Em produção roda diariamente no banco (pg_cron) e envia e-mails por uma Edge Function.
 
+import { conformidadeDoContexto, ROTULO_STATUS_DOC, type ConformidadeEntidade } from './conformidade'
 import { alertasInstrumento } from './contratos/alertas'
+import { somarDiasUteis } from './diasUteis'
 import { calcularSituacao, situacaoPrazoPrestacao, type SituacaoInstrumento } from './contratos/calculos'
 import type { Colecao, Registro } from './dados/tipos'
 import { formatarData, formatarMoeda } from './formatacao'
@@ -60,7 +62,7 @@ export function situacaoDosInstrumentos(lista: Lista, hoje: string): { instrumen
 
 export interface AlertaGerado {
   chave: string
-  tipo: 'sla_etapa' | 'prazo_judicial' | 'vigencia' | 'prestacao_contas'
+  tipo: 'sla_etapa' | 'prazo_judicial' | 'vigencia' | 'prestacao_contas' | 'documentacao' | 'despesa_pte'
   nivel: number
   titulo: string
   mensagem: string
@@ -150,7 +152,105 @@ export function gerarAlertas(lista: Lista, hoje: string, feriados: ReadonlySet<s
       })
     }
   }
+
+  // Documentação obrigatória de contratado/veículos/condutores (CTB, DETRAN, SEE)
+  for (const g of gruposDeConformidade(lista, hoje)) {
+    for (const e of g.entidades) {
+      for (const item of e.itens.filter((i) => i.obrigatoria && i.status !== 'em_dia')) {
+        const grave = item.status === 'vencido' || item.status === 'ausente'
+        alertas.push({
+          chave: `doc|${e.registro.id}|${item.exigencia.codigo}|${item.status}|${item.validade ?? ''}`,
+          tipo: 'documentacao',
+          nivel: grave ? 2 : 1,
+          titulo: `[${g.codigo}] ${ROTULO_STATUS_DOC[item.status]}: ${item.exigencia.nome} — ${e.rotulo}`,
+          mensagem: `${g.descricao}.\n${e.rotulo}: ${item.exigencia.nome} (${ROTULO_STATUS_DOC[item.status]}${item.validade ? `, validade ${formatarData(item.validade)}` : ''}).\nBase legal: ${item.exigencia.base_legal ?? '-'}.`,
+          processo_id: g.processo_id,
+          instrumento_id: g.instrumento_id,
+          sre_id: g.sre_id,
+          destinatario_ids: destinatarios(lista, g.sre_id, grave ? 2 : 1, g.responsaveis),
+        })
+      }
+    }
+  }
+
+  // PTE: despesas do município sem comprovação em 30 dias úteis (Res. 5.267/2026, art. 22, § 1º)
+  for (const d of despesasAtrasadas(lista, hoje, feriados)) {
+    alertas.push({
+      chave: `despesa|${d.despesa.id}`,
+      tipo: 'despesa_pte',
+      nivel: 2,
+      titulo: `[${d.codigo}] Despesa sem comprovação há mais de 30 dias úteis — ${d.despesa.favorecido}`,
+      mensagem: `Despesa de ${formatarMoeda(d.despesa.valor)} em ${formatarData(d.despesa.data_transacao)} (${d.despesa.favorecido}).\nPrazo de comprovação no BB Gestão Ágil: ${formatarData(d.prazo)}.`,
+      processo_id: d.processo_id,
+      instrumento_id: null,
+      sre_id: d.sre_id,
+      destinatario_ids: destinatarios(lista, d.sre_id, 2, []),
+    })
+  }
   return alertas
+}
+
+interface GrupoConformidade {
+  codigo: string
+  descricao: string
+  processo_id: string | null
+  instrumento_id: string | null
+  sre_id: string | null
+  responsaveis: unknown[]
+  entidades: ConformidadeEntidade[]
+}
+
+/** Conformidade por contrato judicial (Caixa × transportador) e por contratação do município (PTE). */
+export function gruposDeConformidade(lista: Lista, hoje: string): GrupoConformidade[] {
+  const codigoDe = (id: unknown) => String(lista('processos').find((p) => p.id === id)?.codigo ?? '')
+  const grupos: GrupoConformidade[] = []
+  for (const { instrumento: i, situacao } of situacaoDosInstrumentos(lista, hoje)) {
+    if (i.tipo !== 'contrato_caixa' || situacao.faixa === 'encerrado') continue
+    grupos.push({
+      codigo: codigoDe(i.processo_id),
+      descricao: `Contrato ${i.numero}`,
+      processo_id: (i.processo_id as string) ?? null,
+      instrumento_id: i.id,
+      sre_id: (i.sre_id as string) ?? null,
+      responsaveis: [i.gestor_id, i.fiscal_id],
+      entidades: conformidadeDoContexto(lista, { instrumento_id: i.id }, hoje, i.transportador_id),
+    })
+  }
+  for (const c of lista('contratacoes_municipais').filter((x) => x.ativo !== false)) {
+    const adesao = lista('adesoes_pte').find((a) => a.id === c.adesao_id)
+    if (!adesao || adesao.status === 'encerrado') continue
+    const municipio = lista('municipios').find((m) => m.id === adesao.municipio_id)
+    const instancia = lista('processo_etapas').find((e) => e.processo_id === adesao.processo_id && e.status === 'em_andamento')
+    grupos.push({
+      codigo: codigoDe(adesao.processo_id),
+      descricao: `PTE ${municipio?.nome ?? ''} — ${c.tipo === 'frota_propria' ? 'frota própria' : `contrato ${c.numero_contrato ?? ''}`}`,
+      processo_id: (adesao.processo_id as string) ?? null,
+      instrumento_id: null,
+      sre_id: (adesao.sre_id as string) ?? null,
+      responsaveis: [instancia?.responsavel_id],
+      entidades: conformidadeDoContexto(lista, { contratacao_id: c.id }, hoje),
+    })
+  }
+  return grupos
+}
+
+/** Despesas do PTE sem comprovação após 30 dias úteis da transação. */
+export function despesasAtrasadas(lista: Lista, hoje: string, feriados: ReadonlySet<string>) {
+  return lista('despesas_pte')
+    .map((despesa) => {
+      const prazo = somarDiasUteis(String(despesa.data_transacao), 30, feriados)
+      const adesao = lista('adesoes_pte').find((a) => a.id === despesa.adesao_id)
+      return {
+        despesa,
+        prazo,
+        atrasada: !despesa.data_comprovacao && prazo < hoje,
+        comprovadaForaDoPrazo: !!despesa.data_comprovacao && String(despesa.data_comprovacao) > prazo,
+        processo_id: (adesao?.processo_id as string) ?? null,
+        sre_id: (adesao?.sre_id as string) ?? null,
+        codigo: String(lista('processos').find((p) => p.id === adesao?.processo_id)?.codigo ?? ''),
+      }
+    })
+    .filter((d) => d.atrasada)
 }
 
 // ---------- Gatilhos automáticos de risco ----------
@@ -174,6 +274,9 @@ export const GATILHOS: Record<string, string> = {
   prestacao_vencida: 'Prestação de contas não entregue no prazo',
   divergencia_aberta_prazo: 'Divergência TER × SIMADE aberta após o fim da adesão',
   saldo_menor_10pct: 'Saldo contratual abaixo de 10%',
+  documento_obrigatorio_vencido: 'Documento obrigatório de veículo/condutor/contratado vencido ou ausente',
+  comprovacao_despesa_atrasada: 'Despesa do PTE sem comprovação em 30 dias úteis',
+  interrupcao_sem_regularizacao: 'Interrupção do transporte não regularizada no prazo da notificação',
 }
 
 export function detectarRiscos(lista: Lista, hoje: string, feriados: ReadonlySet<string>): OcorrenciaRiscoGerada[] {
@@ -218,7 +321,18 @@ export function detectarRiscos(lista: Lista, hoje: string, feriados: ReadonlySet
     for (const p of lista('prestacoes_contas').filter((x) => x.instrumento_id === i.id))
       if (situacaoPrazoPrestacao(p, hoje) === 'vencida')
         add('prestacao_vencida', p.id, i.processo_id, i.id, `${cod}: prestação "${p.periodo_referencia}" venceu em ${formatarData(p.data_limite)}.`)
+    for (const oc of lista('ocorrencias').filter((x) => x.instrumento_id === i.id && x.tipo === 'interrupcao' && x.status !== 'resolvida'))
+      if (oc.notificacao_prazo && String(oc.notificacao_prazo) < hoje)
+        add('interrupcao_sem_regularizacao', oc.id, i.processo_id, i.id, `${cod}: interrupção "${oc.titulo}" não regularizada até ${formatarData(oc.notificacao_prazo)}${i.tipo === 'termo_pte' ? ' — sujeita à suspensão do repasse (Res. 5.267/2026, art. 25)' : ''}.`)
   }
+
+  for (const g of gruposDeConformidade(lista, hoje))
+    for (const e of g.entidades)
+      for (const item of e.pendentes)
+        add('documento_obrigatorio_vencido', `${e.registro.id}|${item.exigencia.codigo}|${item.validade ?? item.status}`, g.processo_id, g.instrumento_id, `${g.codigo} (${g.descricao}): ${e.rotulo} — ${item.exigencia.nome} ${item.status === 'ausente' ? 'não enviado' : `vencido em ${formatarData(item.validade)}`}.`)
+
+  for (const d of despesasAtrasadas(lista, hoje, feriados))
+    add('comprovacao_despesa_atrasada', d.despesa.id, d.processo_id, null, `${d.codigo}: despesa de ${formatarMoeda(d.despesa.valor)} (${d.despesa.favorecido}) sem comprovação desde ${formatarData(d.prazo)}.`)
   return o
 }
 

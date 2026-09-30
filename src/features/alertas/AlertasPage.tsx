@@ -14,6 +14,8 @@ const TIPOS: Record<string, string> = {
   prazo_judicial: 'Prazo judicial',
   vigencia: 'Vigência de instrumento',
   prestacao_contas: 'Prestação de contas',
+  documentacao: 'Documentação de veículo/condutor/contratado',
+  despesa_pte: 'Comprovação de despesa PTE',
 }
 
 export function AlertasPage() {

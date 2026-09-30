@@ -105,3 +105,26 @@ describe('monitoramento', () => {
     expect(gatilhos).toContain('prestacao_vencida')
   })
 })
+
+describe('frota e conformidade legal', () => {
+  it('recusa motorista com menos de 21 anos ou sem categoria D (CTB art. 138)', async () => {
+    const t = b().colecoes.transportadores[0]
+    const base = { funcao: 'motorista', nome: 'Teste', cpf: '52998224725', vinculo_tipo: 'transportador', transportador_id: t.id, cnh_numero: '1', cnh_validade: '2030-01-01' }
+    await expect(salvar('condutores', { ...base, data_nascimento: '2010-01-01', cnh_categoria: 'D' }, central())).rejects.toMatchObject({ erros: { data_nascimento: expect.stringContaining('21 anos') } })
+    await expect(salvar('condutores', { ...base, data_nascimento: '1990-01-01', cnh_categoria: 'B' }, central())).rejects.toMatchObject({ erros: { cnh_categoria: expect.stringContaining('categoria D') } })
+  })
+
+  it('etapa P03 do PTE fica bloqueada com documento obrigatório vencido', async () => {
+    const adesao = b().colecoes.adesoes_pte.find((a) => a.status === 'execucao')!
+    const { montarDadosProcesso, pendenciasDeDados } = await import('../fluxo/processo')
+    const d = montarDadosProcesso((c) => b().colecoes[c], String(adesao.processo_id))
+    expect(pendenciasDeDados('P03', d).some((p) => p.includes('art. 8º'))).toBe(true)
+  })
+
+  it('gera e-mails de documentação vencida e de despesa sem comprovação', async () => {
+    await processarAlertas(central())
+    const tipos = new Set(b().colecoes.alertas.map((a) => a.tipo))
+    expect(tipos).toContain('documentacao')
+    expect(tipos).toContain('despesa_pte')
+  })
+})

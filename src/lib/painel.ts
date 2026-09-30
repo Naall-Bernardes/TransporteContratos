@@ -5,7 +5,7 @@ import { feriadosDe } from './dados/servicos'
 import type { Colecao, Registro } from './dados/tipos'
 import { avaliarEtapa, montarDadosProcesso } from './fluxo/processo'
 import { duracaoDiasUteis } from './fluxo/sla'
-import { situacaoDosInstrumentos, situacaoDosProcessos } from './monitoramento'
+import { despesasAtrasadas, gruposDeConformidade, situacaoDosInstrumentos, situacaoDosProcessos } from './monitoramento'
 
 export function calcularPainel(lista: (c: Colecao) => Registro[], hoje: string) {
     const feriados = feriadosDe(lista)
@@ -84,7 +84,24 @@ export function calcularPainel(lista: (c: Colecao) => Registro[], hoje: string) 
       .filter((i) => i.valor > 0)
       .sort((a, b) => b.valor - a.valor)
 
+    // Conformidade legal da frota em serviço (contratos judiciais e contratações do PTE)
+    const entidadesEmServico = new Map<string, { pendentes: number; aVencer: number }>()
+    for (const g of gruposDeConformidade(lista, hoje))
+      for (const e of g.entidades)
+        entidadesEmServico.set(`${e.entidade}:${e.registro.id}`, {
+          pendentes: e.pendentes.length,
+          aVencer: e.itens.filter((i) => i.obrigatoria && i.status === 'a_vencer').length,
+        })
+    const conformidade = {
+      emServico: entidadesEmServico.size,
+      comPendencia: [...entidadesEmServico.values()].filter((x) => x.pendentes > 0).length,
+      pendencias: [...entidadesEmServico.values()].reduce((t, x) => t + x.pendentes, 0),
+      aVencer: [...entidadesEmServico.values()].reduce((t, x) => t + x.aVencer, 0),
+      despesasSemComprovacao: despesasAtrasadas(lista, hoje, feriados).length,
+    }
+
     return {
+      conformidade,
       ativas: ativas.length,
       vermelho: ativas.filter((s) => s.semaforo.cor === 'vermelho').length,
       amarelo: ativas.filter((s) => s.semaforo.cor === 'amarelo').length,

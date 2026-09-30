@@ -21,8 +21,12 @@ import { PainelDocumentos } from '@/features/documentos/PainelDocumentos'
 import { ErroRegra } from '@/lib/dados/repositorio'
 import { gerarCronograma, gerarPrestacoesPrevistas, PERIODICIDADES } from '@/lib/dados/servicos'
 import { somarMeses } from '@/lib/datas'
+import { ALOCACAO } from '@/features/frota/configuracoes'
+import { PainelConformidade } from '@/features/frota/PainelConformidade'
+import { conformidadeDoContexto, totalPendencias } from '@/lib/conformidade'
+import type { Colecao } from '@/lib/dados/tipos'
 
-type Aba = 'dados' | 'aditivos' | 'financeiro' | 'fiscalizacao' | 'ocorrencias' | 'prestacao' | 'encerramento' | 'documentos' | 'linha'
+type Aba = 'dados' | 'frota' | 'aditivos' | 'financeiro' | 'fiscalizacao' | 'ocorrencias' | 'prestacao' | 'encerramento' | 'documentos' | 'linha'
 
 const proximoNumero = (lista: Registro[]) => lista.reduce((m, r) => Math.max(m, Number(r.numero) || 0), 0) + 1
 const somar = (lista: Registro[], campo: string) => lista.reduce((s, r) => s + (Number(r[campo]) || 0), 0)
@@ -69,8 +73,11 @@ export function ContratoDetalhePage() {
   const consultaGeral = (c: Parameters<typeof podeEditarRegistro>[1], rid: unknown) => dados[c]?.find((r) => r.id === rid)
   const podeEditar = podeEditarRegistro(usuario, 'instrumentos', inst, consultaGeral) && (!encerrado || usuario.papel === 'admin')
   const podeLancar = podeEditar && !encerrado
+  const conformidade = termo ? [] : conformidadeDoContexto((c: Colecao) => dados[c] ?? [], { instrumento_id: inst.id }, hoje, inst.transportador_id)
+  const pendenciasDocs = totalPendencias(conformidade)
+  const adesaoDoTermo = termo ? dados.adesoes_pte?.find((x) => x.processo_id === inst.processo_id) : undefined
 
-  const ABAS: { id: Aba; rotulo: string; qtd?: number }[] = [
+  const ABAS: { id: Aba; rotulo: string; qtd?: number; alerta?: boolean }[] = [
     { id: 'dados', rotulo: 'Dados' },
     { id: 'aditivos', rotulo: 'Aditivos', qtd: aditivos.length },
     { id: 'financeiro', rotulo: termo ? 'Repasses' : 'Pagamentos', qtd: parcelas.length },
@@ -78,13 +85,14 @@ export function ContratoDetalhePage() {
     { id: 'ocorrencias', rotulo: 'Ocorrências', qtd: ocorrencias.length },
     { id: 'prestacao', rotulo: 'Prestação de contas', qtd: prestacoes.length },
     { id: 'encerramento', rotulo: 'Encerramento' },
+    { id: 'frota', rotulo: termo ? 'Frota do município' : 'Frota e conformidade', qtd: termo ? undefined : pendenciasDocs || undefined, alerta: pendenciasDocs > 0 },
     { id: 'documentos', rotulo: 'Documentos', qtd: (dados.documentos ?? []).filter((x) => x.instrumento_id === inst.id).length },
     { id: 'linha', rotulo: 'Linha do tempo' },
   ]
 
   const secao = (colecao: 'aditivos' | 'parcelas' | 'fiscalizacoes' | 'ocorrencias', registros: Registro[], extra: Partial<Parameters<typeof SecaoRegistros>[0]> = {}) => (
     <SecaoRegistros
-      config={colecao === 'parcelas' ? { ...CONFIGS_CONTRATO.parcelas, singular: termo ? 'repasse' : 'pagamento' } : CONFIGS_CONTRATO[colecao]}
+      config={extra.config ?? (colecao === 'parcelas' ? { ...CONFIGS_CONTRATO.parcelas, singular: termo ? 'repasse' : 'pagamento' } : CONFIGS_CONTRATO[colecao])}
       valoresFixos={{ instrumento_id: inst.id }}
       registros={registros}
       referencias={dados}
@@ -190,6 +198,7 @@ export function ContratoDetalhePage() {
             >
               {a.rotulo}
               {a.qtd !== undefined && <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-xs text-slate-600">{a.qtd}</span>}
+              {a.alerta && <span className="ml-1.5 inline-block size-2 rounded-full bg-red-500 align-middle" aria-label="pendência" />}
             </button>
           ))}
         </nav>
@@ -264,6 +273,26 @@ export function ContratoDetalhePage() {
             cabecalho: 'Registre falhas na execução e as notificações enviadas ao contratado, com o prazo de resposta.',
             destacarLinha: (o) => (o.status !== 'resolvida' && o.gravidade === 'alta' ? 'bg-red-50' : undefined),
           })}
+
+        {aba === 'frota' &&
+          (termo ? (
+            <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              No PTE quem contrata e mantém a frota é o município. Contratações, veículos, condutores e a situação documental ficam na adesão:{' '}
+              {adesaoDoTermo ? <Link to={`/pte/adesoes/${adesaoDoTermo.id}`} className="text-marca-700 underline">abrir adesão PTE</Link> : 'adesão não encontrada'}.
+            </p>
+          ) : (
+            <div className="space-y-5">
+              {secao('alocacoes' as never, (dados.alocacoes ?? []).filter((a) => a.instrumento_id === inst.id), {
+                config: ALOCACAO,
+                padraoNovo: { inicio: hoje },
+                cabecalho: 'Veículo, motorista e monitor que fazem o transporte deste contrato (CTB arts. 136 a 138). Cadastre-os antes em Cadastros → Veículos / Condutores.',
+              })}
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">Documentação obrigatória</h3>
+                <PainelConformidade entidades={conformidade} dados={dados} podeEnviar={podeEditar} aoAlterar={recarregar} />
+              </div>
+            </div>
+          ))}
 
         {aba === 'documentos' && item.processo && (
           <PainelDocumentos

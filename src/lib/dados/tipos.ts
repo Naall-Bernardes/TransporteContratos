@@ -52,7 +52,21 @@ export type ColecaoPte =
 /** Alertas (Fase 6) e riscos (Fase 7). */
 export type ColecaoGestao = 'alertas' | 'riscos' | 'risco_ocorrencias'
 
-export type Colecao = ColecaoCadastro | ColecaoContrato | ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao
+/**
+ * Frota e conformidade legal: veículos, condutores/monitores, quem roda em qual contrato
+ * (alocações) e o catálogo de documentos obrigatórios (CTB, CONTRAN, DETRAN, SEE).
+ * PTE: contratações feitas pelo município, rotas do TER/MG e despesas do município.
+ */
+export type ColecaoFrota =
+  | 'veiculos'
+  | 'condutores'
+  | 'alocacoes'
+  | 'exigencias_documentais'
+  | 'contratacoes_municipais'
+  | 'rotas_pte'
+  | 'despesas_pte'
+
+export type Colecao = ColecaoCadastro | ColecaoContrato | ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao | ColecaoFrota
 
 export const COLECOES_CADASTRO: ColecaoCadastro[] = [
   'sres',
@@ -77,7 +91,7 @@ export const COLECOES_CONTRATO: ColecaoContrato[] = [
   'prestacoes_contas',
 ]
 
-export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao)[] = [
+export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao | ColecaoFrota)[] = [
   'tipos_documento',
   'documentos',
   'documento_versoes',
@@ -102,6 +116,13 @@ export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicia
   'alertas',
   'riscos',
   'risco_ocorrencias',
+  'veiculos',
+  'condutores',
+  'alocacoes',
+  'exigencias_documentais',
+  'contratacoes_municipais',
+  'rotas_pte',
+  'despesas_pte',
 ]
 
 export const COLECOES: Colecao[] = [...COLECOES_CADASTRO, ...COLECOES_CONTRATO, ...COLECOES_MODULOS]

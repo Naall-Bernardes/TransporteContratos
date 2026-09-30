@@ -58,3 +58,22 @@ npm test      # 57 testes automáticos
 | **Contratos (pendências da Fase 3)** |||
 | 29 | Contrato → Pagamentos → "Gerar cronograma" | 12 parcelas mensais | Parcelas somam o valor ainda não previsto |
 | 30 | Contrato → Prestação de contas → "Gerar prestações previstas" | Periodicidade semestral | Uma prestação por semestre, sem duplicar |
+
+## Rodada 2 — frota, conformidade legal e PTE (Res. 5.267/2026)
+
+O sistema agora tem dois módulos (seletor no topo do menu): **Transporte Escolar** e **Cadastros**.
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 31 | Transporte Escolar → Frota e conformidade | Abrir | Cartões com pendências; lista de veículos/condutores/contratados com documentos vencidos ou não enviados |
+| 32 | Contratos → contrato 001/2026 (UDI) → aba Frota e conformidade | Ver João | Exame toxicológico **vencido** (CTB art. 148-A); laudo semestral a vencer |
+| 33 | Mesma aba | "Atualizar" no toxicológico, enviar PDF com data de hoje | Fica "Em dia" (validade = +30 meses) |
+| 34 | Contrato 001/2026 (MOC, picape) | — | Laudo semestral vencido; contratado com CNDT vencida |
+| 35 | Cadastros → Condutores → Novo motorista nascido em 2010 ou categoria B | Salvar | Recusado (CTB art. 138) |
+| 36 | PTE → ciclo 2026 → Montes Claros → Contratações e frota | — | Contrato com Transportes Sertão + frota própria; ônibus SRT1F22 com laudo vencido; motorista da prefeitura sem certidão criminal |
+| 37 | Mesma adesão → Rotas / Cálculo | — | 6 rotas; cálculo por rota = R$ 450.000 (memória por rota) |
+| 38 | Mesma adesão → Despesas do município | — | 1 despesa sem comprovação há mais de 30 dias úteis (vermelho) |
+| 39 | PTE → ciclo 2027 → Uberlândia → Conciliação | — | Divergências de estudantes **e** de rotas: km zero, lotação estourada, custo acima da média, rota urbana |
+| 40 | Alertas → Processar | — | E-mails de documentação vencida/a vencer e de despesa sem comprovação |
+| 41 | Riscos → Verificar gatilhos | — | Ocorrências de R-13 (documento vencido) e R-14 (despesa sem comprovação) |
+| 42 | Cadastros → Administração → Exigências documentais | — | Catálogo com base legal e validade, editável |

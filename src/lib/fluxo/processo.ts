@@ -1,7 +1,9 @@
 // Reúne os dados de um processo (demanda judicial ou adesão PTE) e avalia o que falta
 // para concluir cada etapa: documentos do checklist + requisitos de dados.
 
+import { conformidadeDoContexto, totalPendencias, type ConformidadeEntidade } from '../conformidade'
 import { ESTADOS_FINAIS_PRESTACAO } from '../contratos/calculos'
+import { hojeIso } from '../diasUteis'
 import type { Colecao, Registro } from '../dados/tipos'
 import { avaliarChecklist, condicoesAtivas, documentosFaltantes, type ItemChecklist } from './checklist'
 
@@ -27,9 +29,15 @@ export interface DadosProcesso {
   pteAlunos: Registro[]
   divergencias: Registro[]
   calculos: Registro[]
+  contratacoes: Registro[]
+  rotas: Registro[]
+  /** Alocações vigentes (veículo/condutor) do contrato judicial ou das contratações do município. */
+  alocacoes: Registro[]
+  /** Conformidade documental (CTB/DETRAN/SEE) do contratado, veículos e condutores. */
+  conformidade: ConformidadeEntidade[]
 }
 
-export function montarDadosProcesso(lista: Lista, processoId: string): DadosProcesso {
+export function montarDadosProcesso(lista: Lista, processoId: string, hoje = hojeIso()): DadosProcesso {
   const de = (c: Colecao, campo: string, valor: unknown) => (valor ? lista(c).filter((r) => r[campo] === valor) : [])
   const demanda = lista('demandas').find((d) => d.processo_id === processoId)
   const adesao = lista('adesoes_pte').find((a) => a.processo_id === processoId)
@@ -37,7 +45,19 @@ export function montarDadosProcesso(lista: Lista, processoId: string): DadosProc
   const instrumentos = de('instrumentos', 'processo_id', processoId)
   const ids = new Set(instrumentos.map((i) => i.id))
   const doInstrumento = (c: Colecao) => lista(c).filter((r) => ids.has(r.instrumento_id as string))
+  const contratacoes = de('contratacoes_municipais', 'adesao_id', adesao?.id)
+  const contrato = instrumentos.find((i) => i.tipo === 'contrato_caixa')
+  const conformidade = contrato
+    ? conformidadeDoContexto(lista, { instrumento_id: contrato.id }, hoje, contrato.transportador_id)
+    : contratacoes.flatMap((c) => conformidadeDoContexto(lista, { contratacao_id: c.id }, hoje))
+  const alocacoes = lista('alocacoes').filter(
+    (a) => (!a.fim || String(a.fim) >= hoje) && ((contrato && a.instrumento_id === contrato.id) || contratacoes.some((c) => c.id === a.contratacao_id)),
+  )
   return {
+    contratacoes,
+    rotas: de('rotas_pte', 'adesao_id', adesao?.id),
+    alocacoes,
+    conformidade,
     processo: lista('processos').find((p) => p.id === processoId),
     demanda,
     adesao,
@@ -91,9 +111,13 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
     case 'J06':
       exige(d.liberacoes.length > 0, 'Registre a liberação do recurso à Caixa Escolar.')
       break
-    case 'J07':
+    case 'J07': {
       exige(d.instrumentos.some((i) => i.tipo === 'contrato_caixa'), 'Registre o contrato firmado pela Caixa Escolar.')
+      exige(d.alocacoes.some((a) => a.veiculo_id) && d.alocacoes.some((a) => a.condutor_id), 'Informe o veículo e o motorista que farão o transporte (aba Frota e conformidade do contrato).')
+      const pend = totalPendencias(d.conformidade)
+      exige(pend === 0, `${pend} documento(s) obrigatório(s) do contratado, veículo ou condutor ausente(s) ou vencido(s) (CTB arts. 136–138 e 329; Res. SEE 3.670/2017).`)
       break
+    }
     case 'J08':
       exige(d.demanda?.data_inicio_transporte, 'Informe a data de início efetivo do transporte.')
       exige(d.fiscalizacoes.length > 0, 'Registre ao menos um mês de fiscalização.')
@@ -106,15 +130,21 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
       exige(d.demanda?.relatorio_gerado_em, 'Gere o relatório de comprovação do cumprimento.')
       break
     case 'P02':
+      exige(d.rotas.length > 0, 'Cadastre as rotas do TER/MG (km, custo por km, passageiros).')
+      exige(d.contratacoes.length > 0, 'Informe como o município executa o transporte: contratação de terceiros e/ou frota própria.')
       exige(d.pteAlunos.length > 0, 'Informe a lista de alunos atendidos (TER).')
       exige(d.adesao?.conciliado_em, 'Execute a conciliação com o SIMADE.')
       exige(!d.divergencias.some((x) => x.status === 'aberta'), `Há ${d.divergencias.filter((x) => x.status === 'aberta').length} divergência(s) em aberto.`)
       break
-    case 'P03':
+    case 'P03': {
+      exige(d.alocacoes.length > 0, 'Vincule os veículos e condutores às contratações do município.')
+      const pend = totalPendencias(d.conformidade)
+      exige(pend === 0, `${pend} documento(s) obrigatório(s) de veículos/condutores ausente(s) ou vencido(s) — exigido pelo art. 8º da Res. SEE/SEGOV 5.267/2026 (CTB arts. 136–139).`)
       exige(d.ciclo?.aprovado_em, 'O cálculo do ciclo ainda não foi aprovado.')
       exige(d.instrumentos.some((i) => i.tipo === 'termo_pte'), 'Registre o termo/convênio com o município.')
       exige(d.parcelas.some((x) => x.valor_pago), 'Registre ao menos um repasse efetivado.')
       break
+    }
     case 'P04':
       exige(d.fiscalizacoes.length > 0, 'Registre ao menos um acompanhamento da execução.')
       break

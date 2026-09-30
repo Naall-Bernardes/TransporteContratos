@@ -2,9 +2,10 @@
 
 import { hojeIso } from '../diasUteis'
 import type { ContextoValidacao } from './regrasContratos'
-import type { Colecao, ColecaoDocumento, ColecaoFluxo, ColecaoGestao, ColecaoJudicial, ColecaoPte, Consulta, Registro } from './tipos'
+import { validarCpf } from '../validacao'
+import type { Colecao, ColecaoDocumento, ColecaoFluxo, ColecaoFrota, ColecaoGestao, ColecaoJudicial, ColecaoPte, Consulta, Registro } from './tipos'
 
-export type ColecaoModulo = ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao
+export type ColecaoModulo = ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao | ColecaoFrota
 type Campos = Record<string, unknown>
 type Erros = Record<string, string>
 
@@ -16,7 +17,7 @@ export const TIPOS_ARQUIVO_ACEITOS = ['application/pdf', 'image/jpeg', 'image/pn
 
 export const OBRIGATORIOS_MODULOS: Record<ColecaoModulo, string[]> = {
   tipos_documento: ['codigo', 'nome', 'modulo'],
-  documentos: ['processo_id', 'tipo_documento_id', 'data_documento', 'versao_atual'],
+  documentos: ['tipo_documento_id', 'data_documento', 'versao_atual'],
   documento_versoes: ['documento_id', 'versao', 'nome_arquivo', 'mime', 'tamanho_bytes'],
   etapas_modelo: ['modulo', 'ordem', 'codigo', 'nome', 'papel_responsavel'],
   checklist_modelo: ['etapa_modelo_id', 'tipo_documento_id', 'condicao'],
@@ -29,16 +30,23 @@ export const OBRIGATORIOS_MODULOS: Record<ColecaoModulo, string[]> = {
   cotacoes: ['demanda_id', 'fornecedor', 'valor_mensal', 'data'],
   autorizacoes_financeiras: ['demanda_id', 'tipo', 'numero', 'data', 'valor'],
   liberacoes_recurso: ['demanda_id', 'data', 'valor'],
-  ciclos_pte: ['ano', 'status', 'valor_por_aluno', 'valor_por_km', 'dias_letivos', 'num_parcelas'],
+  ciclos_pte: ['ano', 'status', 'dias_letivos', 'num_parcelas'],
   adesoes_pte: ['processo_id', 'ciclo_id', 'municipio_id', 'data_adesao', 'status'],
-  pte_alunos: ['adesao_id', 'cod_simade', 'nome', 'escola_inep', 'km_ida'],
+  pte_alunos: ['adesao_id', 'cod_simade', 'nome', 'escola_inep'],
   simade_registros: ['ciclo_id', 'cod_simade', 'escola_inep', 'situacao'],
-  divergencias: ['adesao_id', 'cod_simade', 'tipo', 'status'],
+  divergencias: ['adesao_id', 'referencia', 'tipo', 'status'],
   calculos_repasse: ['adesao_id', 'valor_calculado'],
   demandas_extraordinarias: ['adesao_id', 'tipo', 'data_solicitacao', 'justificativa', 'status'],
   alertas: ['chave', 'tipo', 'titulo'],
   riscos: ['codigo', 'titulo', 'categoria', 'probabilidade', 'impacto', 'estrategia', 'status'],
   risco_ocorrencias: ['risco_id', 'data', 'descricao', 'origem', 'status'],
+  veiculos: ['tipo_transporte', 'tipo_veiculo_id', 'lotacao', 'proprietario_tipo'],
+  condutores: ['funcao', 'nome', 'cpf', 'vinculo_tipo'],
+  alocacoes: ['inicio'],
+  exigencias_documentais: ['codigo', 'nome', 'aplica_a', 'condicao', 'tipo_documento_id', 'forca'],
+  contratacoes_municipais: ['adesao_id', 'tipo'],
+  rotas_pte: ['adesao_id', 'codigo', 'km_diario', 'custo_km', 'total_passageiros'],
+  despesas_pte: ['adesao_id', 'data_transacao', 'favorecido', 'categoria', 'valor'],
 }
 
 export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Colecao }[] = [
@@ -84,6 +92,27 @@ export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Coleca
   { origem: 'risco_ocorrencias', campo: 'risco_id', alvo: 'riscos' },
   { origem: 'risco_ocorrencias', campo: 'processo_id', alvo: 'processos' },
   { origem: 'risco_ocorrencias', campo: 'instrumento_id', alvo: 'instrumentos' },
+  { origem: 'documentos', campo: 'veiculo_id', alvo: 'veiculos' },
+  { origem: 'documentos', campo: 'condutor_id', alvo: 'condutores' },
+  { origem: 'documentos', campo: 'transportador_id', alvo: 'transportadores' },
+  { origem: 'veiculos', campo: 'tipo_veiculo_id', alvo: 'tipos_veiculo' },
+  { origem: 'veiculos', campo: 'transportador_id', alvo: 'transportadores' },
+  { origem: 'veiculos', campo: 'municipio_id', alvo: 'municipios' },
+  { origem: 'condutores', campo: 'transportador_id', alvo: 'transportadores' },
+  { origem: 'condutores', campo: 'municipio_id', alvo: 'municipios' },
+  { origem: 'alocacoes', campo: 'instrumento_id', alvo: 'instrumentos' },
+  { origem: 'alocacoes', campo: 'contratacao_id', alvo: 'contratacoes_municipais' },
+  { origem: 'alocacoes', campo: 'veiculo_id', alvo: 'veiculos' },
+  { origem: 'alocacoes', campo: 'condutor_id', alvo: 'condutores' },
+  { origem: 'alocacoes', campo: 'monitor_id', alvo: 'condutores' },
+  { origem: 'exigencias_documentais', campo: 'tipo_documento_id', alvo: 'tipos_documento' },
+  { origem: 'contratacoes_municipais', campo: 'adesao_id', alvo: 'adesoes_pte' },
+  { origem: 'contratacoes_municipais', campo: 'transportador_id', alvo: 'transportadores' },
+  { origem: 'rotas_pte', campo: 'adesao_id', alvo: 'adesoes_pte' },
+  { origem: 'rotas_pte', campo: 'contratacao_id', alvo: 'contratacoes_municipais' },
+  { origem: 'rotas_pte', campo: 'veiculo_id', alvo: 'veiculos' },
+  { origem: 'despesas_pte', campo: 'adesao_id', alvo: 'adesoes_pte' },
+  { origem: 'despesas_pte', campo: 'contratacao_id', alvo: 'contratacoes_municipais' },
 ]
 
 export const UNICOS_MODULOS: Partial<Record<Colecao, { campos: string[]; mensagem: string }[]>> = {
@@ -105,7 +134,23 @@ export const UNICOS_MODULOS: Partial<Record<Colecao, { campos: string[]; mensage
   alertas: [{ campos: ['chave'], mensagem: 'Alerta já gerado.' }],
   riscos: [{ campos: ['codigo'], mensagem: 'Código de risco já utilizado.' }],
   risco_ocorrencias: [{ campos: ['chave_automatica'], mensagem: 'Ocorrência automática já registrada.' }],
+  veiculos: [
+    { campos: ['placa'], mensagem: 'Já existe veículo com esta placa.' },
+    { campos: ['inscricao_capitania'], mensagem: 'Já existe embarcação com esta inscrição.' },
+  ],
+  condutores: [{ campos: ['cpf'], mensagem: 'Já existe condutor/monitor com este CPF.' }],
+  exigencias_documentais: [{ campos: ['codigo'], mensagem: 'Código já utilizado.' }],
+  rotas_pte: [{ campos: ['codigo', 'adesao_id'], mensagem: 'Já existe rota com este código neste município.' }],
 }
+
+/** Idade em anos completos na data de referência. */
+export function idade(nascimento: string, em: string): number {
+  const [a1, m1, d1] = nascimento.split('-').map(Number)
+  const [a2, m2, d2] = em.split('-').map(Number)
+  return a2 - a1 - (m2 < m1 || (m2 === m1 && d2 < d1) ? 1 : 0)
+}
+
+export const PLACA_VALIDA = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/
 
 /**
  * Campos da caracterização que precisam estar preenchidos para "enviar" o formulário
@@ -138,6 +183,22 @@ export function normalizarModulo(colecao: ColecaoModulo, d: Campos, consulta: Co
       if (d.cod_simade) d.cod_simade = String(d.cod_simade).replace(/\D/g, '')
       if (d.escola_inep) d.escola_inep = String(d.escola_inep).replace(/\D/g, '')
       break
+    case 'veiculos':
+      if (d.placa) d.placa = String(d.placa).toUpperCase().replace(/[^A-Z0-9]/g, '')
+      if (d.renavam) d.renavam = String(d.renavam).replace(/\D/g, '')
+      if (d.proprietario_tipo === 'transportador') d.municipio_id = null
+      if (d.proprietario_tipo === 'municipio') d.transportador_id = null
+      if (d.tipo_transporte === 'aquaviario') d.placa = null
+      break
+    case 'condutores':
+      if (d.cpf) d.cpf = String(d.cpf).replace(/\D/g, '')
+      if (d.cnh_categoria) d.cnh_categoria = String(d.cnh_categoria).toUpperCase()
+      if (d.vinculo_tipo === 'transportador') d.municipio_id = null
+      if (d.vinculo_tipo === 'municipio') d.transportador_id = null
+      break
+    case 'contratacoes_municipais':
+      if (d.tipo === 'frota_propria') d.transportador_id = null
+      break
     case 'risco_ocorrencias':
       if (vazio(d.origem) && !('id' in d && d.id)) d.origem = 'manual'
       break
@@ -161,6 +222,72 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
 
     case 'documentos':
       if (r.data_documento && String(r.data_documento) > hoje) erros.data_documento = 'Data do documento no futuro.'
+      if (!r.processo_id && !r.veiculo_id && !r.condutor_id && !r.transportador_id)
+        erros._geral = 'O documento precisa estar vinculado a um processo, veículo, condutor ou contratado.'
+      if (r.data_validade && r.data_documento && String(r.data_validade) < String(r.data_documento))
+        erros.data_validade = 'A validade é anterior à data do documento.'
+      break
+
+    case 'veiculos':
+      if (r.tipo_transporte === 'rodoviario') {
+        if (vazio(r.placa)) erros.placa = 'Informe a placa.'
+        else if (!PLACA_VALIDA.test(String(r.placa))) erros.placa = 'Placa inválida (ex.: ABC1D23 ou ABC1234).'
+        if (r.renavam && String(r.renavam).length !== 11) erros.renavam = 'O RENAVAM tem 11 dígitos.'
+      }
+      if (r.tipo_transporte === 'aquaviario' && vazio(r.inscricao_capitania)) erros.inscricao_capitania = 'Informe a inscrição na Capitania dos Portos.'
+      if (r.proprietario_tipo === 'transportador' && vazio(r.transportador_id)) erros.transportador_id = 'Informe o transportador.'
+      if (r.proprietario_tipo === 'municipio' && vazio(r.municipio_id)) erros.municipio_id = 'Informe o município.'
+      if (!vazio(r.lotacao) && num(r.lotacao) <= 0) erros.lotacao = 'A lotação deve ser maior que zero.'
+      if (!vazio(r.ano_fabricacao) && (num(r.ano_fabricacao) < 1950 || num(r.ano_fabricacao) > Number(hoje.slice(0, 4)) + 1))
+        erros.ano_fabricacao = 'Ano de fabricação inválido.'
+      break
+
+    case 'condutores':
+      if (r.cpf && !validarCpf(String(r.cpf))) erros.cpf = 'CPF inválido.'
+      if (r.vinculo_tipo === 'transportador' && vazio(r.transportador_id)) erros.transportador_id = 'Informe o transportador.'
+      if (r.vinculo_tipo === 'municipio' && vazio(r.municipio_id)) erros.municipio_id = 'Informe o município.'
+      if (r.funcao === 'motorista') {
+        // CTB art. 138: idade superior a 21 anos e habilitação na categoria D
+        if (vazio(r.data_nascimento)) erros.data_nascimento = 'Obrigatório para motorista (CTB art. 138, I).'
+        else if (idade(String(r.data_nascimento), hoje) < 21) erros.data_nascimento = 'Motorista de escolares deve ter mais de 21 anos (CTB art. 138, I).'
+        if (vazio(r.cnh_numero)) erros.cnh_numero = 'Informe o nº da CNH.'
+        if (vazio(r.cnh_categoria)) erros.cnh_categoria = 'Informe a categoria.'
+        else if (!/[DE]/.test(String(r.cnh_categoria))) erros.cnh_categoria = 'Exige categoria D ou E (CTB art. 138, II).'
+        if (vazio(r.cnh_validade)) erros.cnh_validade = 'Informe a validade da CNH.'
+      }
+      break
+
+    case 'alocacoes': {
+      if (!r.instrumento_id === !r.contratacao_id) erros._geral = 'A alocação deve estar ligada a um contrato (Judicial) ou a uma contratação do município (PTE).'
+      if (vazio(r.veiculo_id) && vazio(r.condutor_id)) erros._geral = 'Informe ao menos o veículo ou o condutor.'
+      const condutor = ctx.consulta('condutores', r.condutor_id)
+      if (condutor && condutor.funcao === 'monitor') erros.condutor_id = 'Selecione um motorista/condutor (monitor vai no campo próprio).'
+      const monitor = ctx.consulta('condutores', r.monitor_id)
+      if (monitor && monitor.funcao !== 'monitor') erros.monitor_id = 'Selecione uma pessoa cadastrada como monitor.'
+      if (r.fim && r.inicio && String(r.fim) < String(r.inicio)) erros.fim = 'O fim é anterior ao início.'
+      break
+    }
+
+    case 'exigencias_documentais':
+      if (!vazio(r.validade_meses) && num(r.validade_meses) < 0) erros.validade_meses = 'Não pode ser negativo.'
+      break
+
+    case 'contratacoes_municipais':
+      if (r.tipo === 'terceirizado') {
+        for (const [c, m] of [['transportador_id', 'Informe o contratado.'], ['numero_contrato', 'Informe o nº do contrato.'], ['modalidade', 'Informe a modalidade.'], ['vigencia_inicio', 'Informe a vigência.'], ['vigencia_fim', 'Informe a vigência.'], ['valor', 'Informe o valor.']] as const)
+          if (vazio(r[c])) erros[c] = m
+      }
+      if (r.vigencia_fim && r.vigencia_inicio && String(r.vigencia_fim) < String(r.vigencia_inicio)) erros.vigencia_fim = 'O fim é anterior ao início.'
+      break
+
+    case 'rotas_pte':
+      for (const c of ['km_diario', 'custo_km', 'total_passageiros', 'capacidade'])
+        if (!vazio(r[c]) && num(r[c]) < 0) erros[c] = 'Não pode ser negativo.'
+      break
+
+    case 'despesas_pte':
+      if (num(r.valor) <= 0) erros.valor = 'O valor deve ser maior que zero.'
+      if (r.data_comprovacao && r.data_transacao && String(r.data_comprovacao) < String(r.data_transacao)) erros.data_comprovacao = 'Anterior à transação.'
       break
 
     case 'demandas':
@@ -208,16 +335,17 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
       break
 
     case 'ciclos_pte':
-      for (const c of ['valor_por_aluno', 'valor_por_km', 'dias_letivos', 'num_parcelas'])
+      for (const c of ['dias_letivos', 'num_parcelas'])
         if (!vazio(r[c]) && num(r[c]) < 0) erros[c] = 'Não pode ser negativo.'
+      if (!vazio(r.num_parcelas) && num(r.num_parcelas) > 10) erros.num_parcelas = 'Repasses de fevereiro a novembro: no máximo 10 parcelas (Res. 5.267/2026, art. 16).'
       if (ctx.anterior?.aprovado_em && !ctx.usuarioEhAdmin) {
-        const mudouParametro = ['valor_por_aluno', 'valor_por_km', 'dias_letivos', 'num_parcelas'].some((c) => ctx.anterior![c] !== r[c])
+        const mudouParametro = ['dias_letivos', 'num_parcelas'].some((c) => ctx.anterior![c] !== r[c])
         if (mudouParametro) erros._geral = 'Ciclo aprovado: os parâmetros de cálculo não podem mais ser alterados.'
       }
       break
 
     case 'pte_alunos': {
-      if (num(r.km_ida) < 0) erros.km_ida = 'Não pode ser negativo.'
+      if (!vazio(r.km_ida) && num(r.km_ida) < 0) erros.km_ida = 'Não pode ser negativo.'
       const adesao = ctx.consulta('adesoes_pte', r.adesao_id)
       const ciclo = ctx.consulta('ciclos_pte', adesao?.ciclo_id)
       if (ciclo?.aprovado_em && r.origem !== 'extraordinaria' && !ctx.usuarioEhAdmin)

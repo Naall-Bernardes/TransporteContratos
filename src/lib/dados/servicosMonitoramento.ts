@@ -16,6 +16,7 @@ export function processarAlertas(usuario: Usuario) {
     let novos = 0
     for (const a of gerarAlertas(tx.lista, hoje, feriadosDe(tx.lista))) {
       if (existentes.has(a.chave)) continue
+      existentes.add(a.chave) // o mesmo contratado/veículo pode aparecer em mais de um contrato
       const usuarios = a.destinatario_ids.map((id) => tx.consulta('usuarios', id)).filter(Boolean)
       tx.salvar('alertas', {
         chave: a.chave,
@@ -44,6 +45,7 @@ export function verificarGatilhosDeRisco(usuario: Usuario) {
     let novas = 0
     for (const g of detectarRiscos(tx.lista, hoje, feriadosDe(tx.lista))) {
       if (existentes.has(g.chave_automatica)) continue
+      existentes.add(g.chave_automatica)
       const risco = tx.lista('riscos').find((r) => r.gatilho === g.gatilho && r.status !== 'encerrado')
       if (!risco) continue
       tx.salvar('risco_ocorrencias', {

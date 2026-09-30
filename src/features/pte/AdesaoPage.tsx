@@ -16,7 +16,13 @@ import { calcularSituacao } from '@/lib/contratos/calculos'
 import { baixarArquivo, gerarCsv } from '@/lib/csv'
 import { numeroBr } from '@/lib/csvImport'
 import { ErroPermissao, ErroRegra } from '@/lib/dados/repositorio'
-import { calcularAdesao, executarConciliacao, feriadosDe, gerarTermo, importarAlunosTer } from '@/lib/dados/servicos'
+import { calcularAdesao, executarConciliacao, feriadosDe, gerarTermo, importarAlunosTer, importarRotas } from '@/lib/dados/servicos'
+import { ALOCACAO, CONTRATACAO_MUNICIPAL, DESPESA_PTE, ROTA_PTE } from '@/features/frota/configuracoes'
+import { PainelConformidade } from '@/features/frota/PainelConformidade'
+import { conformidadeDoContexto, totalPendencias } from '@/lib/conformidade'
+import { estaduaisPorRota } from '@/lib/pte/pte'
+import { somarDiasUteis } from '@/lib/diasUteis'
+import { ADESAO } from './configuracoes'
 import type { Colecao, Registro } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
@@ -27,7 +33,7 @@ import { podeEditar as podeEditarRegistro, ehCentral } from '@/lib/permissoes'
 import { ROTULO_DIVERGENCIA, type TipoDivergencia } from '@/lib/pte/pte'
 import { DEMANDA_EXTRA, DIVERGENCIA, GERAR_TERMO, PTE_ALUNO, STATUS_ADESAO } from './configuracoes'
 
-type IdAba = 'fluxo' | 'alunos' | 'conciliacao' | 'calculo' | 'termo' | 'extraordinarias' | 'documentos'
+type IdAba = 'fluxo' | 'rotas' | 'contratacoes' | 'alunos' | 'conciliacao' | 'calculo' | 'termo' | 'despesas' | 'extraordinarias' | 'documentos'
 
 export function AdesaoPage() {
   const { id } = useParams()
@@ -35,6 +41,7 @@ export function AdesaoPage() {
   const { dados, carregando, recarregar } = useTodos()
   const [aba, setAba] = useState<IdAba>('fluxo')
   const [termo, setTermo] = useState(false)
+  const [editandoDeducoes, setEditandoDeducoes] = useState(false)
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null)
   const hoje = hojeIso()
   const adesao = dados.adesoes_pte?.find((a) => a.id === id)
@@ -79,10 +86,13 @@ export function AdesaoPage() {
 
   const ABAS = [
     { id: 'fluxo' as const, rotulo: 'Fluxo e etapas' },
+    { id: 'rotas' as const, rotulo: 'Rotas (TER/MG)', qtd: d.rotas.length },
+    { id: 'contratacoes' as const, rotulo: 'Contratações e frota', qtd: d.contratacoes.length, alerta: totalPendencias(d.conformidade) > 0 },
     { id: 'alunos' as const, rotulo: 'Alunos (TER)', qtd: d.pteAlunos.length },
     { id: 'conciliacao' as const, rotulo: 'Conciliação SIMADE', qtd: abertas.length, alerta: abertas.length > 0 },
     { id: 'calculo' as const, rotulo: 'Cálculo', qtd: calculos.length },
     { id: 'termo' as const, rotulo: 'Termo e repasses' },
+    { id: 'despesas' as const, rotulo: 'Despesas do município', qtd: lista('despesas_pte').filter((x) => x.adesao_id === adesao.id).length },
     { id: 'extraordinarias' as const, rotulo: 'Demandas extraordinárias', qtd: lista('demandas_extraordinarias').filter((x) => x.adesao_id === adesao.id).length },
     { id: 'documentos' as const, rotulo: 'Documentos', qtd: d.documentos.length },
   ]
@@ -150,8 +160,11 @@ export function AdesaoPage() {
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-4 text-sm">
               <p>
-                Fórmula (provisória): alunos válidos × {formatarMoeda(ciclo.valor_por_aluno)} + km/dia (ida e volta) × {formatarMoeda(ciclo.valor_por_km)} × {String(ciclo.dias_letivos)} dias.
+                Res. SEE/SEGOV 5.267/2026, art. 14: por rota, km/dia × custo/km × {String(ciclo.dias_letivos ?? 200)} dias × (estudantes estaduais ÷ passageiros).
+                Deduções: PNATE estadual {formatarMoeda(adesao.pnate_estadual ?? 0)} e saldo reprogramado {formatarMoeda(adesao.saldo_reprogramado ?? 0)}.
+                Rotas com inconsistência aberta e estudantes com divergência aberta ficam fora.
               </p>
+              {pode && !travado && <Botao variante="secundario" onClick={() => setEditandoDeducoes(true)}>Deduções</Botao>}
               {ehCentral(usuario) && !travado && <Botao onClick={() => executar(() => calcularAdesao(usuario, adesao.id), 'Cálculo registrado.')}><Calculator size={16} /> Calcular</Botao>}
             </div>
             {calculos.map((c, i) => (
@@ -203,6 +216,80 @@ export function AdesaoPage() {
           )
         )}
 
+        {aba === 'rotas' && (
+          <SecaoRegistros
+            config={ROTA_PTE}
+            valoresFixos={{ adesao_id: adesao.id }}
+            registros={d.rotas}
+            referencias={{ ...dados, contratacoes_municipais: d.contratacoes }}
+            podeEditar={pode && !travado}
+            aoAlterar={recarregar}
+            padraoNovo={{ custo_km: d.rotas[0]?.custo_km, turno: 'manha' }}
+            cabecalho={(() => {
+              const est = estaduaisPorRota(d.pteAlunos)
+              return (
+                <>
+                  Rotas do Sistema Transcolar Rural. Estudantes estaduais por rota (pela lista TER):{' '}
+                  {d.rotas.map((r) => `${r.codigo}: ${est.get(String(r.codigo)) ?? 0}/${r.total_passageiros}`).join(' · ') || '—'}
+                </>
+              )
+            })()}
+            destacarLinha={(r) => (d.divergencias.some((x) => x.status === 'aberta' && x.referencia === `ROTA ${r.codigo}`) ? 'bg-red-50' : undefined)}
+            acoesCabecalho={pode && !travado ? <ImportarCsv titulo="Importar rotas" colunas="rota, descricao, turno, km_diario, custo_km, passageiros, capacidade, urbana" importar={(l) => importarRotas(usuario, adesao.id, l, numeroBr)} aoConcluir={recarregar} /> : undefined}
+          />
+        )}
+
+        {aba === 'contratacoes' && (
+          <div className="space-y-6">
+            <SecaoRegistros config={CONTRATACAO_MUNICIPAL} valoresFixos={{ adesao_id: adesao.id }} registros={d.contratacoes} referencias={dados} podeEditar={pode} aoAlterar={recarregar} />
+            {d.contratacoes.map((c) => {
+              const conf = conformidadeDoContexto(lista, { contratacao_id: c.id }, hoje)
+              return (
+                <div key={c.id} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {c.tipo === 'frota_propria' ? 'Frota própria do município' : `Contrato ${c.numero_contrato} — ${String(achar('transportadores', c.transportador_id)?.razao_social ?? '')}`}
+                  </h3>
+                  <div className="mt-3">
+                    <SecaoRegistros
+                      config={ALOCACAO}
+                      valoresFixos={{ contratacao_id: c.id }}
+                      registros={lista('alocacoes').filter((a) => a.contratacao_id === c.id)}
+                      referencias={dados}
+                      podeEditar={pode}
+                      aoAlterar={recarregar}
+                      padraoNovo={{ inicio: hoje }}
+                      cabecalho="Veículos e condutores mantidos com recursos do PTE — devem cumprir o CTB, arts. 136 a 139 (Res. 5.267/2026, art. 8º)."
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <PainelConformidade entidades={conf} dados={dados} podeEnviar={pode} aoAlterar={recarregar} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {aba === 'despesas' && (
+          <SecaoRegistros
+            config={DESPESA_PTE}
+            valoresFixos={{ adesao_id: adesao.id }}
+            registros={lista('despesas_pte').filter((x) => x.adesao_id === adesao.id)}
+            referencias={{ ...dados, contratacoes_municipais: d.contratacoes }}
+            podeEditar={pode}
+            aoAlterar={recarregar}
+            padraoNovo={{ data_transacao: hoje }}
+            cabecalho={(() => {
+              const desp = lista('despesas_pte').filter((x) => x.adesao_id === adesao.id)
+              const feriados = feriadosDe(lista)
+              const atrasadas = desp.filter((x) => !x.data_comprovacao && somarDiasUteis(String(x.data_transacao), 30, feriados) < hoje).length
+              const total = desp.reduce((t, x) => t + Number(x.valor || 0), 0)
+              return `Total pago: ${formatarMoeda(total)}. ${atrasadas} despesa(s) sem comprovação há mais de 30 dias úteis (em vermelho). Prestação de contas anual até 28/02 do ano seguinte.`
+            })()}
+            destacarLinha={(x) => (!x.data_comprovacao && somarDiasUteis(String(x.data_transacao), 30, feriadosDe(lista)) < hoje ? 'bg-red-50' : undefined)}
+          />
+        )}
+
         {aba === 'extraordinarias' && (
           <SecaoRegistros config={DEMANDA_EXTRA} valoresFixos={{ adesao_id: adesao.id }} registros={lista('demandas_extraordinarias').filter((x) => x.adesao_id === adesao.id)} referencias={dados} podeEditar={pode} aoAlterar={recarregar} padraoNovo={{ data_solicitacao: hoje, status: 'solicitada' }} />
         )}
@@ -211,6 +298,21 @@ export function AdesaoPage() {
           <PainelDocumentos processoId={String(processo.id)} codigoProcesso={String(processo.codigo)} dados={dados} podeEnviar={pode} aoAlterar={recarregar} etapas={modelos.map((m) => ({ codigo: String(m.codigo), nome: String(m.nome) }))} />
         )}
       </div>
+
+      <Modal titulo="Deduções do cálculo" aberto={editandoDeducoes} aoFechar={() => setEditandoDeducoes(false)} largura="md">
+        {editandoDeducoes && (
+          <FormularioRegistro
+            config={{ ...ADESAO, campos: ADESAO.campos.filter((c) => c.nome === 'pnate_estadual' || c.nome === 'saldo_reprogramado') }}
+            registro={adesao}
+            referencias={dados}
+            aoCancelar={() => setEditandoDeducoes(false)}
+            aoSalvar={async () => {
+              setEditandoDeducoes(false)
+              await recarregar()
+            }}
+          />
+        )}
+      </Modal>
 
       <Modal titulo="Gerar termo PTE" aberto={termo} aoFechar={() => setTermo(false)}>
         {termo && (

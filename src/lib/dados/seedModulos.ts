@@ -6,7 +6,9 @@ import { gerarCodigoUnico } from '../codigoUnico'
 import { somarDias } from '../datas'
 import { diasUteisEntre, ehDiaUtil } from '../diasUteis'
 import { prazoDaEtapa } from '../fluxo/sla'
-import { conciliar, calcularRepasse } from '../pte/pte'
+import { conciliar, calcularRepasse, inconsistenciasRotas } from '../pte/pte'
+import { cnpjComDigitos } from '../validacao'
+import { criarFabricaFrota } from './seedFrota'
 import { CHECKLIST } from './seedConfiguracoes'
 import type { Colecao, Registro } from './tipos'
 
@@ -16,7 +18,8 @@ interface Contexto {
   novo: Novo
   hoje: string
   feriados: ReadonlySet<string>
-  config: { etapas_modelo: Registro[]; tipos_documento: Registro[] }
+  config: { etapas_modelo: Registro[]; tipos_documento: Registro[]; exigencias_documentais: Registro[] }
+  transportadores: Registro[]
   contratos: Record<'processos' | 'instrumentos' | 'fiscalizacoes', Registro[]>
   escolas: Registro[]
   caixas: Registro[]
@@ -322,9 +325,9 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const udi = c.municipios.find((m) => m.nome === 'Uberlândia')!
   const jan = c.municipios.find((m) => m.nome === 'Januária')!
 
-  const ciclo2025 = push('ciclos_pte', novo({ ano: 2025, status: 'encerrado', valor_por_aluno: 1100, valor_por_km: 1.7, dias_letivos: 200, num_parcelas: 1, data_abertura: somarDias(String(t2.vigencia_inicio), -90), data_fim_adesao: somarDias(String(t2.vigencia_inicio), -40), vigencia_inicio: t2.vigencia_inicio, vigencia_fim: t2.vigencia_fim, aprovado_em: somarDias(String(t2.vigencia_inicio), -20), aprovado_por: usuario('central@demo.exemplo') }))
-  const ciclo2026 = push('ciclos_pte', novo({ ano: 2026, status: 'aprovado', valor_por_aluno: 1200, valor_por_km: 1.8, dias_letivos: 200, num_parcelas: 3, data_abertura: somarDias(String(t1.vigencia_inicio), -100), data_fim_adesao: somarDias(String(t1.vigencia_inicio), -45), vigencia_inicio: t1.vigencia_inicio, vigencia_fim: t1.vigencia_fim, aprovado_em: somarDias(String(t1.vigencia_inicio), -15), aprovado_por: usuario('central@demo.exemplo') }))
-  const ciclo2027 = push('ciclos_pte', novo({ ano: 2027, status: 'adesao', valor_por_aluno: 1260, valor_por_km: 1.9, dias_letivos: 200, num_parcelas: 3, data_abertura: d(-20), data_fim_adesao: d(20), vigencia_inicio: '2027-02-01', vigencia_fim: '2027-12-20', observacao: 'Parâmetros provisórios (fictícios) — regras de cálculo a detalhar.' }))
+  const ciclo2025 = push('ciclos_pte', novo({ ano: 2025, status: 'encerrado', dias_letivos: 200, num_parcelas: 10, data_abertura: somarDias(String(t2.vigencia_inicio), -90), data_fim_adesao: somarDias(String(t2.vigencia_inicio), -40), vigencia_inicio: t2.vigencia_inicio, vigencia_fim: t2.vigencia_fim, aprovado_em: somarDias(String(t2.vigencia_inicio), -20), aprovado_por: usuario('central@demo.exemplo') }))
+  const ciclo2026 = push('ciclos_pte', novo({ ano: 2026, status: 'aprovado', dias_letivos: 200, num_parcelas: 10, data_abertura: somarDias(String(t1.vigencia_inicio), -100), data_fim_adesao: somarDias(String(t1.vigencia_inicio), -45), vigencia_inicio: t1.vigencia_inicio, vigencia_fim: t1.vigencia_fim, aprovado_em: somarDias(String(t1.vigencia_inicio), -15), aprovado_por: usuario('central@demo.exemplo') }))
+  const ciclo2027 = push('ciclos_pte', novo({ ano: 2027, status: 'adesao', dias_letivos: 200, num_parcelas: 10, data_abertura: d(-20), data_fim_adesao: d(20), vigencia_inicio: '2027-02-01', vigencia_fim: '2027-12-20', observacao: 'Dados do TER/MG considerados até 31/03 (Res. 5.267/2026, art. 17).' }))
 
   function adesao(ciclo: Registro, municipio: Registro, processoId: string | null, etapa: string | null, inicioEtapa: string, status: string) {
     const processo = processoId
@@ -334,9 +337,13 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     return push('adesoes_pte', novo({ processo_id: processo.id, ciclo_id: ciclo.id, municipio_id: municipio.id, sre_id: municipio.sre_id, data_adesao: inicio, status, numero_sei: processo.numero_sei, conciliado_em: etapa === 'P02' ? null : inicio }))
   }
 
-  const alunosPte = (ad: Registro, qtd: number, escolaInep: string, prefixo: number, km: (i: number) => number) =>
+  const alunosPte = (ad: Registro, qtd: number, escolaInep: string, prefixo: number, km: (i: number) => number, rota: (i: number) => string | null = () => null) =>
     Array.from({ length: qtd }, (_, i) =>
-      push('pte_alunos', novo({ adesao_id: ad.id, cod_simade: String(prefixo + i), nome: `Estudante PTE fictício ${prefixo + i}`, escola_inep: escolaInep, km_ida: km(i), zona: 'rural', turno: i % 2 ? 'tarde' : 'manha', origem: 'TER', ativo: true })),
+      push('pte_alunos', novo({ adesao_id: ad.id, cod_simade: String(prefixo + i), nome: `Estudante PTE fictício ${prefixo + i}`, escola_inep: escolaInep, km_ida: km(i), rota_codigo: rota(i), zona: 'rural', turno: i % 2 ? 'tarde' : 'manha', origem: 'TER', ativo: true })),
+    )
+  const rotas = (ad: Registro, lista: [codigo: string, km: number, custo: number, passageiros: number, capacidade: number, urbana?: boolean][]) =>
+    lista.map(([codigo, km_diario, custo_km, total_passageiros, capacidade, urbana]) =>
+      push('rotas_pte', novo({ adesao_id: ad.id, codigo, descricao: `Rota ${codigo} (fictícia)`, turno: 'manha', km_diario, custo_km, total_passageiros, capacidade, urbana: !!urbana, ativa: true })),
     )
 
   // 2025 – Januária, encerrado
@@ -347,9 +354,11 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
 
   // 2026 – Montes Claros, em execução
   const aMoc26 = adesao(ciclo2026, moc, t1.processo_id as string, 'P04', String(t1.vigencia_inicio), 'execucao')
-  const listaMoc = alunosPte(aMoc26, 150, escola('Vereda').cod_inep as string, 7710001, () => 2.5)
+  const rotasMoc = rotas(aMoc26, [['R01', 120, 4.5, 30, 44], ['R02', 90, 4.5, 30, 44], ['R03', 110, 4.5, 30, 44], ['R04', 80, 4.5, 30, 44], ['R05', 100, 4.5, 30, 44], ['R06', 100, 4.5, 30, 44]])
+  const listaMoc = alunosPte(aMoc26, 150, escola('Vereda').cod_inep as string, 7710001, () => 2.5, (i) => String(rotasMoc[Math.floor(i / 25)].codigo))
   for (const a of listaMoc) push('simade_registros', novo({ ciclo_id: ciclo2026.id, cod_simade: a.cod_simade, nome: a.nome, escola_inep: a.escola_inep, municipio_ibge: moc.cod_ibge, situacao: 'ativo' }))
-  const calc26 = calcularRepasse(listaMoc, new Set(), { valor_por_aluno: 1200, valor_por_km: 1.8, dias_letivos: 200 })
+  const { rotas: _r26, ...calc26 } = calcularRepasse(rotasMoc, listaMoc, new Set(), new Set(), { dias_letivos: 200 })
+  void _r26
   push('calculos_repasse', novo({ adesao_id: aMoc26.id, versao: 1, ...calc26, calculado_em: somarDias(String(t1.vigencia_inicio), -25) }))
   documentos(aMoc26.processo_id as string, ['P02', 'P03'], somarDias(String(t1.vigencia_inicio), -30))
   for (let i = 0; i < 3; i++)
@@ -359,9 +368,12 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const aUdi27 = adesao(ciclo2027, udi, null, 'P02', d(-6), 'aderido')
   const inepAurora = escola('Aurora').cod_inep as string
   const inepRio = escola('Rio das Pedras').cod_inep as string
-  const listaUdi = alunosPte(aUdi27, 12, inepAurora, 7720001, (i) => 3 + i)
+  const rotasUdi = rotas(aUdi27, [['R1', 64, 4.8, 12, 16], ['R2', 0, 4.8, 6, 16], ['R3', 22, 4.2, 8, 16, true], ['R4', 58, 9.6, 20, 16]])
+  const listaUdi = alunosPte(aUdi27, 12, inepAurora, 7720001, (i) => 3 + i, (i) => (i < 7 ? 'R1' : i < 9 ? 'R2' : 'R4'))
+  Object.assign(aUdi27, { pnate_estadual: 3200, saldo_reprogramado: 1500 })
   const aJan27 = adesao(ciclo2027, jan, null, 'P02', d(-4), 'aderido')
-  const listaJan = alunosPte(aJan27, 6, escola('Margem').cod_inep as string, 7730001, () => 4)
+  rotas(aJan27, [['J1', 48, 5.1, 10, 16], ['J2', 36, 5.1, 8, 16]])
+  const listaJan = alunosPte(aJan27, 6, escola('Margem').cod_inep as string, 7730001, () => 4, (i) => (i < 4 ? 'J1' : 'J2'))
   listaJan.push(push('pte_alunos', novo({ adesao_id: aJan27.id, cod_simade: '7720003', nome: 'Estudante PTE fictício 7720003', escola_inep: inepAurora, km_ida: 5, zona: 'rural', turno: 'manha', origem: 'TER', ativo: true })))
   const simade27 = [...listaUdi, ...listaJan.slice(0, 6)]
     .filter((a) => !['7720011', '7720012'].includes(String(a.cod_simade)))
@@ -375,11 +387,88 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
         situacao: a.cod_simade === '7720008' ? 'transferido' : 'ativo',
       })),
     )
-  for (const div of conciliar(listaUdi, simade27, listaJan.map((a) => ({ aluno: a, municipio: 'Januária' }))))
+  const todasRotas27 = out.rotas_pte!.filter((r) => r.adesao_id === aUdi27.id || r.adesao_id === aJan27.id)
+  const media27 = todasRotas27.reduce((t, r) => t + Number(r.custo_km), 0) / todasRotas27.length
+  for (const div of [
+    ...conciliar(listaUdi, simade27, listaJan.map((a) => ({ aluno: a, municipio: 'Januária' }))),
+    ...inconsistenciasRotas(rotasUdi, listaUdi, media27),
+  ])
     push('divergencias', novo({ adesao_id: aUdi27.id, ...div, status: 'aberta' }))
   out.adesoes_pte!.find((a) => a.id === aUdi27.id)!.conciliado_em = d(-2)
   documentos(aUdi27.processo_id as string, ['P02'], d(-6), [], ['lista_ter'])
   documentos(aJan27.processo_id as string, ['P02'], d(-4))
 
+  // ---------- Frota e conformidade documental ----------
+  const f = criarFabricaFrota(novo, hoje, c.config.exigencias_documentais)
+  const tipo = (p: string) => c.tiposVeiculo.find((t) => String(t.nome).startsWith(p))!.id
+  const transp = (trecho: string) => c.transportadores.find((t) => String(t.razao_social).includes(trecho))!
+
+  // Judicial — contratados pelas Caixas Escolares (habilitação: Res. SEE 3.670/2017)
+  const tFict = transp('Transportes Fictícios')
+  const tNorte = transp('Rota Norte')
+  const tAuto = transp('Motorista Autônomo')
+  f.documentar('contratado', tFict, { pj_fgts: 'a_vencer' })
+  f.documentar('contratado', tNorte, { pj_cndt: 'vencido' })
+  f.documentar('contratado', tAuto)
+
+  const vanUdi = f.veiculo({ placa: 'QWE1A23', renavam: '12345678901', tipo_veiculo_id: tipo('Van'), marca_modelo: 'Van escolar 16 lug. (fictícia)', ano_fabricacao: 2019, lotacao: 15, proprietario_tipo: 'transportador', transportador_id: tFict.id }, { v_laudo: 'a_vencer', v_seguro: 'ausente' })
+  const adaptadoUdi = f.veiculo({ placa: 'RTY2B34', renavam: '23456789012', tipo_veiculo_id: tipo('Veículo adaptado'), marca_modelo: 'Van com plataforma elevatória (fictícia)', ano_fabricacao: 2021, lotacao: 10, adaptado_pcd: true, proprietario_tipo: 'transportador', transportador_id: tFict.id })
+  const joao = f.condutor({ nome: 'João Motorista (fictício)', vinculo_tipo: 'transportador', transportador_id: tFict.id }, { c_toxicologico: 'vencido' })
+  const pedro = f.condutor({ nome: 'Pedro Motorista (fictício)', vinculo_tipo: 'transportador', transportador_id: tFict.id })
+  const maria = f.condutor({ nome: 'Maria Monitora (fictícia)', funcao: 'monitor', vinculo_tipo: 'transportador', transportador_id: tFict.id, cnh_numero: null, cnh_categoria: null, cnh_validade: null })
+  f.alocar({ instrumento_id: c1.id, veiculo_id: vanUdi.id, condutor_id: joao.id, rota: 'Comunidade rural → E.E. Professora Aurora', inicio: c1.vigencia_inicio })
+  f.alocar({ instrumento_id: c2.id, veiculo_id: adaptadoUdi.id, condutor_id: pedro.id, monitor_id: maria.id, rota: 'Residência → E.E. Rio das Pedras', inicio: c2.vigencia_inicio })
+
+  const picape = f.veiculo({ placa: 'MOC4C56', renavam: '34567890123', tipo_veiculo_id: tipo('Veículo com tração'), marca_modelo: 'Picape 4x4 adaptada (fictícia)', ano_fabricacao: 2020, lotacao: 4, proprietario_tipo: 'transportador', transportador_id: tNorte.id }, { v_laudo: 'vencido' })
+  const antonio = f.condutor({ nome: 'Antônio Motorista (fictício)', vinculo_tipo: 'transportador', transportador_id: tNorte.id }, { c_curso: 'a_vencer' })
+  f.alocar({ instrumento_id: c3.id, veiculo_id: picape.id, condutor_id: antonio.id, rota: 'Zona rural → E.E. Serra Verde', inicio: c3.vigencia_inicio })
+
+  const carro = f.veiculo({ placa: 'AUT5D67', renavam: '45678901234', tipo_veiculo_id: tipo('Automóvel'), marca_modelo: 'Automóvel escolar (fictício)', ano_fabricacao: 2022, lotacao: 4, proprietario_tipo: 'transportador', transportador_id: tAuto.id })
+  const autonomo = f.condutor({ nome: 'Motorista Autônomo (fictício)', cpf: tAuto.cpf_cnpj, vinculo_tipo: 'transportador', transportador_id: tAuto.id })
+  f.alocar({ instrumento_id: c4.id, veiculo_id: carro.id, condutor_id: autonomo.id, rota: 'Residência → E.E. Vereda Grande', inicio: c4.vigencia_inicio })
+
+  // PTE — quem o município contratou, frota própria, rotas e despesas
+  const novosTransp = [
+    novo({ tipo_pessoa: 'PJ', cpf_cnpj: cnpjComDigitos('880000010001'), razao_social: 'Transportes Sertão Fictício Ltda', telefone: '(38) 0000-0001', email: null, ativo: true }),
+    novo({ tipo_pessoa: 'PJ', cpf_cnpj: cnpjComDigitos('880000020001'), razao_social: 'Cooperativa Rural de Transporte Fictícia', telefone: '(34) 0000-0002', email: null, ativo: true }),
+  ]
+  out.transportadores = novosTransp
+  const [sertao, coop] = novosTransp
+
+  const cMoc = push('contratacoes_municipais', novo({ adesao_id: aMoc26.id, tipo: 'terceirizado', transportador_id: sertao.id, numero_contrato: '045/2026', modalidade: 'pregao', numero_processo: 'PE 012/2026', data_assinatura: somarDias(String(t1.vigencia_inicio), -10), vigencia_inicio: t1.vigencia_inicio, vigencia_fim: t1.vigencia_fim, valor: 380000, objeto: 'Rotas R01 a R04 (fictício)', fiscal_nome: 'Fiscal municipal (fictício)', ativo: true }))
+  const cMocFrota = push('contratacoes_municipais', novo({ adesao_id: aMoc26.id, tipo: 'frota_propria', objeto: 'Rotas R05 e R06 com ônibus da prefeitura (fictício)', fiscal_nome: 'Fiscal municipal (fictício)', ativo: true }))
+  const onibus1 = f.veiculo({ placa: 'SRT1F22', renavam: '56789012345', tipo_veiculo_id: tipo('Ônibus'), marca_modelo: 'Ônibus rural (fictício)', ano_fabricacao: 2016, lotacao: 44, proprietario_tipo: 'transportador', transportador_id: sertao.id }, { v_laudo: 'vencido', v_tacografo: 'a_vencer' })
+  const onibus2 = f.veiculo({ placa: 'SRT2G33', renavam: '67890123456', tipo_veiculo_id: tipo('Ônibus'), marca_modelo: 'Ônibus rural (fictício)', ano_fabricacao: 2018, lotacao: 44, proprietario_tipo: 'transportador', transportador_id: sertao.id })
+  const onibusPref = f.veiculo({ placa: 'MOC0E11', renavam: '78901234567', tipo_veiculo_id: tipo('Ônibus'), marca_modelo: 'Ônibus escolar Caminho da Escola (fictício)', ano_fabricacao: 2020, lotacao: 44, proprietario_tipo: 'municipio', municipio_id: moc.id }, { v_seguro: 'ausente' })
+  const mot1 = f.condutor({ nome: 'Carlos Motorista Sertão (fictício)', vinculo_tipo: 'transportador', transportador_id: sertao.id }, { c_cnh: 'a_vencer' })
+  const mot2 = f.condutor({ nome: 'Ana Motorista Sertão (fictícia)', vinculo_tipo: 'transportador', transportador_id: sertao.id, data_nascimento: '1990-08-20' })
+  const motPref = f.condutor({ nome: 'José Motorista da Prefeitura (fictício)', vinculo_tipo: 'municipio', municipio_id: moc.id }, { c_criminal: 'ausente' })
+  f.alocar({ contratacao_id: cMoc.id, veiculo_id: onibus1.id, condutor_id: mot1.id, rota: 'R01 e R02', inicio: t1.vigencia_inicio })
+  f.alocar({ contratacao_id: cMoc.id, veiculo_id: onibus2.id, condutor_id: mot2.id, rota: 'R03 e R04', inicio: t1.vigencia_inicio })
+  f.alocar({ contratacao_id: cMocFrota.id, veiculo_id: onibusPref.id, condutor_id: motPref.id, rota: 'R05 e R06', inicio: t1.vigencia_inicio })
+  for (const [codigo, veic, contr] of [['R01', onibus1, cMoc], ['R02', onibus1, cMoc], ['R03', onibus2, cMoc], ['R04', onibus2, cMoc], ['R05', onibusPref, cMocFrota], ['R06', onibusPref, cMocFrota]] as const)
+    Object.assign(rotasMoc.find((r) => r.codigo === codigo)!, { veiculo_id: veic.id, contratacao_id: contr.id })
+
+  // Despesas do município (comprovação em até 30 dias úteis — art. 22, § 1º)
+  for (let i = 0; i < 7; i++) {
+    const data = somarDias(`${Number(String(t1.vigencia_inicio).slice(0, 4))}-03-05`, 30 * i)
+    const semComprovacao = i === 5
+    push('despesas_pte', novo({ adesao_id: aMoc26.id, contratacao_id: cMoc.id, data_transacao: data, favorecido: sertao.razao_social, cpf_cnpj: sertao.cpf_cnpj, categoria: 'servico_terceirizado', descricao: `Serviço de transporte — medição ${i + 1} (fictício)`, valor: 31000, nf_numero: semComprovacao ? null : `NF-e ${1200 + i}`, data_comprovacao: semComprovacao ? null : somarDias(data, 12) }))
+    push('despesas_pte', novo({ adesao_id: aMoc26.id, contratacao_id: cMocFrota.id, data_transacao: somarDias(data, 3), favorecido: 'Posto de Combustível Fictício Ltda', cpf_cnpj: cnpjComDigitos('990000990001'), categoria: 'combustivel', descricao: 'Diesel — ônibus da prefeitura (fictício)', valor: 6800, nf_numero: `NF-e ${5400 + i}`, data_comprovacao: somarDias(data, 8) }))
+  }
+
+  // UDI 2027 — cooperativa contratada
+  const cUdi = push('contratacoes_municipais', novo({ adesao_id: aUdi27.id, tipo: 'terceirizado', transportador_id: coop.id, numero_contrato: '010/2027', modalidade: 'credenciamento', numero_processo: 'Credenciamento 002/2026', data_assinatura: d(-5), vigencia_inicio: '2027-02-01', vigencia_fim: '2027-12-20', valor: 96000, objeto: 'Rotas R1 a R4 (fictício)', fiscal_nome: 'Fiscal municipal (fictício)', ativo: true }))
+  const vanCoop = f.veiculo({ placa: 'COP3H44', renavam: '89012345678', tipo_veiculo_id: tipo('Van'), marca_modelo: 'Van escolar (fictícia)', ano_fabricacao: 2023, lotacao: 16, proprietario_tipo: 'transportador', transportador_id: coop.id })
+  const motCoop = f.condutor({ nome: 'Rita Motorista Cooperativa (fictícia)', vinculo_tipo: 'transportador', transportador_id: coop.id })
+  f.alocar({ contratacao_id: cUdi.id, veiculo_id: vanCoop.id, condutor_id: motCoop.id, rota: 'R1 a R4', inicio: d(-5) })
+
+  Object.assign(out, {
+    veiculos: f.veiculos,
+    condutores: f.condutores,
+    alocacoes: f.alocacoes,
+    documentos: [...(out.documentos ?? []), ...f.documentos],
+    documento_versoes: [...(out.documento_versoes ?? []), ...f.versoes],
+  })
   return out
 }

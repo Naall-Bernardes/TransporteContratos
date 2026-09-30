@@ -1,95 +1,117 @@
-import { BarChart3, Bell, Bus, Download, FileSignature, Files, Gavel, History, Home, ListChecks, LogOut, Menu, Route, ShieldAlert, Timer, Users, X } from 'lucide-react'
-import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import { CADASTROS, MENU_CADASTROS } from '@/features/cadastros/configuracoes'
+// Layout com dois módulos:
+//  - Transporte Escolar: atendimento (Judicial/MP, PTE, contratos), controle e monitoramento;
+//  - Cadastros: dados de base (rede, alunos, frota, preços, calendário) e administração.
+
+import {
+  BarChart3, Bell, Bus, CalendarDays, CarFront, ClipboardCheck, Database, Download, FileSignature, Files, Gavel, History,
+  Home, LayoutGrid, ListChecks, LogOut, Menu, Route, School, ShieldAlert, ShieldCheck, Tag, Timer, Truck, UserRound, Users, X,
+} from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useSessao, useUsuario } from '@/features/auth/Sessao'
 import { carregarBase } from '@/lib/dados/armazenamento'
 import { ehCentral, podeVerAuditoria, ROTULO_PAPEL } from '@/lib/permissoes'
 
 const estiloLink = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
-    isActive ? 'bg-marca-600 text-white' : 'text-marca-100 hover:bg-marca-800'
-  }`
+  `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${isActive ? 'bg-marca-600 text-white' : 'text-marca-100 hover:bg-marca-800'}`
 
 function Grupo({ titulo }: { titulo: string }) {
   return <p className="mt-5 mb-1 px-3 text-xs font-semibold tracking-wide text-marca-100/70 uppercase">{titulo}</p>
 }
 
+function ItemMenu({ para, icone, children, fim, aoClicar }: { para: string; icone: ReactNode; children: ReactNode; fim?: boolean; aoClicar: () => void }) {
+  return (
+    <NavLink to={para} end={fim} className={estiloLink} onClick={aoClicar}>
+      {icone} {children}
+    </NavLink>
+  )
+}
+
+export type Modulo = 'transporte' | 'cadastros'
+
+/** Em qual módulo está a página atual. */
+export const moduloDaRota = (caminho: string): Modulo => (caminho.startsWith('/cadastros') || caminho.startsWith('/auditoria') ? 'cadastros' : 'transporte')
+
 export function Layout() {
   const usuario = useUsuario()
   const { sair } = useSessao()
+  const { pathname } = useLocation()
+  const modulo = moduloDaRota(pathname)
   const [menuAberto, setMenuAberto] = useState(false)
   const sre = carregarBase().colecoes.sres.find((s) => s.id === usuario.sre_id)
   const fechar = () => setMenuAberto(false)
+  const Item = (p: { para: string; icone: ReactNode; children: ReactNode; fim?: boolean }) => <ItemMenu {...p} aoClicar={fechar} />
 
-  const menu = (
-    <nav className="flex h-full flex-col overflow-y-auto bg-marca-900 p-3">
-      <div className="mb-4 flex items-center gap-2 px-3 py-2 text-white">
-        <Bus size={20} />
-        <span className="text-sm font-semibold">Transporte Escolar</span>
-      </div>
-      <NavLink to="/" end className={estiloLink} onClick={fechar}>
-        <Home size={16} /> Início
-      </NavLink>
-      <NavLink to="/painel" className={estiloLink} onClick={fechar}>
-        <BarChart3 size={16} /> Painel
-      </NavLink>
-
+  const menuTransporte = (
+    <>
+      <Item para="/" fim icone={<Home size={16} />}>Início</Item>
+      <Item para="/painel" icone={<BarChart3 size={16} />}>Painel</Item>
       <Grupo titulo="Atendimento" />
-      <NavLink to="/judicial" className={estiloLink} onClick={fechar}>
-        <Gavel size={16} /> Judicial / MP
-      </NavLink>
-      <NavLink to="/pte" className={estiloLink} onClick={fechar}>
-        <Route size={16} /> PTE
-      </NavLink>
-      <NavLink to="/contratos" className={estiloLink} onClick={fechar}>
-        <FileSignature size={16} /> Contratos e termos
-      </NavLink>
-      <NavLink to="/documentos" className={estiloLink} onClick={fechar}>
-        <Files size={16} /> Documentos
-      </NavLink>
-
+      <Item para="/judicial" icone={<Gavel size={16} />}>Judicial / MP</Item>
+      <Item para="/pte" icone={<Route size={16} />}>PTE</Item>
+      <Item para="/contratos" icone={<FileSignature size={16} />}>Contratos e termos</Item>
+      <Grupo titulo="Controle" />
+      <Item para="/frota" icone={<ShieldCheck size={16} />}>Frota e conformidade</Item>
+      <Item para="/documentos" icone={<Files size={16} />}>Documentos</Item>
       <Grupo titulo="Monitoramento" />
-      <NavLink to="/alertas" className={estiloLink} onClick={fechar}>
-        <Bell size={16} /> Alertas por e-mail
-      </NavLink>
-      <NavLink to="/riscos" className={estiloLink} onClick={fechar}>
-        <ShieldAlert size={16} /> Riscos
-      </NavLink>
-      <NavLink to="/exportar" className={estiloLink} onClick={fechar}>
-        <Download size={16} /> Exportação / Power BI
-      </NavLink>
+      <Item para="/alertas" icone={<Bell size={16} />}>Alertas por e-mail</Item>
+      <Item para="/riscos" icone={<ShieldAlert size={16} />}>Riscos</Item>
+      <Item para="/exportar" icone={<Download size={16} />}>Exportação / Power BI</Item>
+    </>
+  )
 
-      <Grupo titulo="Cadastros" />
-      {MENU_CADASTROS.map((c) => (
-        <NavLink key={c} to={`/cadastros/${c}`} className={estiloLink} onClick={fechar}>
-          {CADASTROS[c].titulo}
-        </NavLink>
-      ))}
-
+  const menuCadastros = (
+    <>
+      <Item para="/cadastros" fim icone={<LayoutGrid size={16} />}>Visão geral</Item>
+      <Grupo titulo="Rede e território" />
+      <Item para="/cadastros/sres" icone={<Database size={16} />}>SREs</Item>
+      <Item para="/cadastros/municipios" icone={<Database size={16} />}>Municípios</Item>
+      <Item para="/cadastros/escolas" icone={<School size={16} />}>Escolas estaduais</Item>
+      <Item para="/cadastros/caixas_escolares" icone={<School size={16} />}>Caixas Escolares</Item>
+      <Grupo titulo="Estudantes" />
+      <Item para="/cadastros/alunos" icone={<UserRound size={16} />}>Alunos</Item>
+      <Grupo titulo="Transporte" />
+      <Item para="/cadastros/transportadores" icone={<Truck size={16} />}>Transportadores</Item>
+      <Item para="/cadastros/veiculos" icone={<CarFront size={16} />}>Veículos e embarcações</Item>
+      <Item para="/cadastros/condutores" icone={<UserRound size={16} />}>Condutores e monitores</Item>
+      <Item para="/cadastros/tipos_veiculo" icone={<Bus size={16} />}>Tipos de veículo</Item>
+      <Item para="/cadastros/precos_referencia" icone={<Tag size={16} />}>Preços de referência</Item>
+      <Grupo titulo="Calendário" />
+      <Item para="/cadastros/feriados" icone={<CalendarDays size={16} />}>Feriados</Item>
       {ehCentral(usuario) && (
         <>
           <Grupo titulo="Administração" />
-          <NavLink to="/cadastros/usuarios" className={estiloLink} onClick={fechar}>
-            <Users size={16} /> Usuários
-          </NavLink>
-          <NavLink to="/cadastros/etapas_modelo" className={estiloLink} onClick={fechar}>
-            <Timer size={16} /> Etapas e SLA
-          </NavLink>
-          <NavLink to="/cadastros/checklist_modelo" className={estiloLink} onClick={fechar}>
-            <ListChecks size={16} /> Checklist por etapa
-          </NavLink>
-          <NavLink to="/cadastros/tipos_documento" className={estiloLink} onClick={fechar}>
-            <Files size={16} /> Tipos de documento
-          </NavLink>
-          {podeVerAuditoria(usuario) && (
-            <NavLink to="/auditoria" className={estiloLink} onClick={fechar}>
-              <History size={16} /> Auditoria
-            </NavLink>
-          )}
+          <Item para="/cadastros/usuarios" icone={<Users size={16} />}>Usuários</Item>
+          <Item para="/cadastros/etapas_modelo" icone={<Timer size={16} />}>Etapas e SLA</Item>
+          <Item para="/cadastros/checklist_modelo" icone={<ListChecks size={16} />}>Checklist por etapa</Item>
+          <Item para="/cadastros/tipos_documento" icone={<Files size={16} />}>Tipos de documento</Item>
+          <Item para="/cadastros/exigencias_documentais" icone={<ClipboardCheck size={16} />}>Exigências documentais</Item>
+          {podeVerAuditoria(usuario) && <Item para="/auditoria" icone={<History size={16} />}>Auditoria</Item>}
         </>
       )}
+    </>
+  )
 
+  const menu = (
+    <nav className="flex h-full flex-col overflow-y-auto bg-marca-900 p-3">
+      <div className="mb-3 flex items-center gap-2 px-3 py-2 text-white">
+        <Bus size={20} />
+        <span className="text-sm font-semibold">SEE/MG · Transporte Escolar</span>
+      </div>
+      {/* Seletor de módulo */}
+      <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-marca-800 p-1 text-xs font-medium">
+        {(
+          [
+            ['transporte', '/', 'Transporte Escolar'],
+            ['cadastros', '/cadastros', 'Cadastros'],
+          ] as const
+        ).map(([id, para, rotulo]) => (
+          <Link key={id} to={para} onClick={fechar} className={`rounded px-2 py-1.5 text-center ${modulo === id ? 'bg-white text-marca-900' : 'text-marca-100 hover:bg-marca-700'}`}>
+            {rotulo}
+          </Link>
+        ))}
+      </div>
+      {modulo === 'transporte' ? menuTransporte : menuCadastros}
       <p className="mt-auto px-3 pt-6 text-xs text-marca-100/60">Modo demonstração · dados fictícios</p>
     </nav>
   )
@@ -112,9 +134,8 @@ export function Layout() {
           <button className="rounded p-1.5 text-slate-600 hover:bg-slate-100 lg:hidden" onClick={() => setMenuAberto(true)} aria-label="Abrir menu">
             {menuAberto ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <span className="hidden rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 sm:inline">
-            Modo demonstração
-          </span>
+          <span className="text-sm font-semibold text-marca-800">{modulo === 'transporte' ? 'Transporte Escolar' : 'Cadastros'}</span>
+          <span className="hidden rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 sm:inline">Modo demonstração</span>
           <div className="ml-auto flex items-center gap-3">
             <div className="text-right">
               <p className="text-sm font-medium text-slate-900">{usuario.nome}</p>

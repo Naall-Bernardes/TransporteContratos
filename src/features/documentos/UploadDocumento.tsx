@@ -13,7 +13,8 @@ interface Props {
   aberto: boolean
   aoFechar: () => void
   aoEnviar: () => Promise<void>
-  processoId: string
+  /** Processo do documento; em branco para documentos de veículo/condutor/contratado. */
+  processoId?: string | null
   tipos: Registro[]
   /** Etapas do fluxo para vincular (código + nome). */
   etapas?: { codigo: string; nome: string }[]
@@ -21,13 +22,17 @@ interface Props {
   /** Vínculos fixos (ex.: instrumento_id quando enviado da tela do contrato). */
   vinculos?: Partial<MetadadosDocumento>
   inicial?: { tipo_documento_id?: string; etapa_codigo?: string }
+  /** Pede a data de validade (documentos que vencem: CNH, CRLV, certidões…). */
+  pedirValidade?: boolean
+  /** Texto de apoio (ex.: exigência e base legal). */
+  orientacao?: string
   /** Quando informado, envia nova versão deste documento. */
   novaVersaoDe?: Registro
 }
 
 const ACEITOS = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp'
 
-export function UploadDocumento({ aberto, aoFechar, aoEnviar, processoId, tipos, etapas = [], alunos = [], vinculos = {}, inicial = {}, novaVersaoDe }: Props) {
+export function UploadDocumento({ aberto, aoFechar, aoEnviar, processoId, tipos, etapas = [], alunos = [], vinculos = {}, inicial = {}, novaVersaoDe, pedirValidade, orientacao }: Props) {
   const usuario = useUsuario()
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [tipo, setTipo] = useState(inicial.tipo_documento_id ?? '')
@@ -36,6 +41,7 @@ export function UploadDocumento({ aberto, aoFechar, aoEnviar, processoId, tipos,
   const [sei, setSei] = useState('')
   const [data, setData] = useState(hojeIso())
   const [obs, setObs] = useState('')
+  const [validade, setValidade] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
@@ -44,13 +50,14 @@ export function UploadDocumento({ aberto, aoFechar, aoEnviar, processoId, tipos,
     if (!arquivo) return setErro('Escolha o arquivo.')
     if (!novaVersaoDe && !tipo) return setErro('Escolha o tipo de documento.')
     if (novaVersaoDe && !obs.trim()) return setErro('Informe o motivo da nova versão.')
+    if (pedirValidade && !validade) return setErro('Informe a data de validade do documento.')
     setEnviando(true)
     try {
       if (novaVersaoDe) await enviarNovaVersao(usuario, novaVersaoDe.id, arquivo, obs)
       else
         await enviarDocumento(
           usuario,
-          { processo_id: processoId, tipo_documento_id: tipo, numero_sei: sei || null, data_documento: data, observacao: obs || null, etapa_codigo: etapa || null, aluno_id: aluno || null, ...vinculos },
+          { processo_id: processoId ?? null, tipo_documento_id: tipo, numero_sei: sei || null, data_documento: data, data_validade: validade || null, observacao: obs || null, etapa_codigo: etapa || null, aluno_id: aluno || null, ...vinculos },
           arquivo,
         )
       await aoEnviar()
@@ -67,6 +74,7 @@ export function UploadDocumento({ aberto, aoFechar, aoEnviar, processoId, tipos,
   const rotulo = 'mb-1 block text-sm font-medium text-slate-700'
   return (
     <Modal titulo={novaVersaoDe ? 'Enviar nova versão' : 'Enviar documento'} aberto={aberto} aoFechar={aoFechar}>
+      {orientacao && <p className="mb-4 rounded-md bg-marca-50 px-3 py-2 text-sm text-marca-900">{orientacao}</p>}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label className={rotulo} htmlFor="arquivo">
@@ -93,6 +101,11 @@ export function UploadDocumento({ aberto, aoFechar, aoEnviar, processoId, tipos,
             <div>
               <label className={rotulo} htmlFor="data">Data do documento <span className="text-red-600">*</span></label>
               <input id="data" type="date" className="campo" value={data} max={hojeIso()} onChange={(e) => setData(e.target.value)} />
+            </div>
+            <div>
+              <label className={rotulo} htmlFor="validade">Válido até {pedirValidade && <span className="text-red-600">*</span>}</label>
+              <input id="validade" type="date" className="campo" value={validade} onChange={(e) => setValidade(e.target.value)} />
+              <p className="mt-1 text-xs text-slate-500">{pedirValidade ? 'Data impressa no documento.' : 'Deixe em branco se o sistema calcula pela periodicidade.'}</p>
             </div>
             {etapas.length > 0 && (
               <div>

@@ -100,6 +100,16 @@ export function PainelPage() {
         </div>
       </Bloco>
 
+      <Bloco titulo="Conformidade legal da frota em serviço" descricao="Contratado, veículos e condutores de contratos judiciais e das contratações do PTE (CTB arts. 136–138, 148-A e 329; DETRAN-MG; Res. SEE 3.670/2017)." link={{ para: '/frota', rotulo: 'Abrir frota e conformidade' }}>
+        <div className="grid gap-3 sm:grid-cols-5">
+          <Cartao titulo="Em serviço (contratados, veículos, condutores)" valor={p.conformidade.emServico} />
+          <Cartao titulo="Com pendência obrigatória" valor={p.conformidade.comPendencia} cor={p.conformidade.comPendencia ? 'text-red-600' : undefined} />
+          <Cartao titulo="Documentos vencidos ou não enviados" valor={p.conformidade.pendencias} cor={p.conformidade.pendencias ? 'text-red-600' : undefined} />
+          <Cartao titulo="Documentos a vencer (30 dias)" valor={p.conformidade.aVencer} cor={p.conformidade.aVencer ? 'text-amber-600' : undefined} />
+          <Cartao titulo="Despesas PTE sem comprovação (> 30 dias úteis)" valor={p.conformidade.despesasSemComprovacao} cor={p.conformidade.despesasSemComprovacao ? 'text-red-600' : undefined} />
+        </div>
+      </Bloco>
+
       <Bloco titulo="PTE" link={{ para: '/pte', rotulo: 'Abrir PTE' }}>
         <div className="grid gap-4 lg:grid-cols-2">
           {[p.pteExecucao && { titulo: `Ciclo ${p.pteExecucao.ano} (em execução)`, r: p.pteExecucao }, p.pteAdesao && { titulo: `Ciclo ${p.pteAdesao.ano} (em adesão)`, r: p.pteAdesao }]

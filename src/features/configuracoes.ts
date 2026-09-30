@@ -6,6 +6,7 @@ import { CADASTROS, type CadastroConfig, type CampoConfig } from './cadastros/co
 import { CONFIGS_CONTRATO, ENCERRAMENTO } from './contratos/configuracoes'
 import { AUTORIZACAO, CARACTERIZACAO, COTACAO, DEMANDA, EXECUCAO, LIBERACAO, RESPONSAVEL, SAUDE, VALOR } from './judicial/configuracoes'
 import { ADESAO, CICLO, DEMANDA_EXTRA, DIVERGENCIA, PTE_ALUNO } from './pte/configuracoes'
+import { ALOCACAO, CONDUTOR, CONTRATACAO_MUNICIPAL, DESPESA_PTE, EXIGENCIA, ROTA_PTE, VEICULO } from './frota/configuracoes'
 import type { Colecao } from '@/lib/dados/tipos'
 
 const simples = (colecao: Colecao, titulo: string, campos: CampoConfig[] = []): CadastroConfig => ({
@@ -76,4 +77,11 @@ export const CONFIGURACOES: Record<Colecao, CadastroConfig> = {
   alertas: simples('alertas', 'Alertas'),
   riscos: RISCO,
   risco_ocorrencias: OCORRENCIA_RISCO,
+  veiculos: VEICULO,
+  condutores: CONDUTOR,
+  alocacoes: ALOCACAO,
+  exigencias_documentais: EXIGENCIA,
+  contratacoes_municipais: CONTRATACAO_MUNICIPAL,
+  rotas_pte: ROTA_PTE,
+  despesas_pte: DESPESA_PTE,
 }

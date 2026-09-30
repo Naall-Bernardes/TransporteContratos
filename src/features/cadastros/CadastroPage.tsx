@@ -22,7 +22,7 @@ export function CadastroPage() {
 }
 
 /** Tabelas editáveis pela tela genérica: cadastros compartilhados + configurações do administrador. */
-export const ROTAS_CADASTRO: Colecao[] = [...COLECOES_CADASTRO, 'tipos_documento', 'etapas_modelo', 'checklist_modelo']
+export const ROTAS_CADASTRO: Colecao[] = [...COLECOES_CADASTRO, 'veiculos', 'condutores', 'tipos_documento', 'etapas_modelo', 'checklist_modelo', 'exigencias_documentais']
 
 function Cadastro({ colecao }: { colecao: Colecao }) {
   const usuario = useUsuario()

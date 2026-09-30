@@ -199,6 +199,7 @@ export function criarBaseDemonstracao(versao: number): Base {
     municipios,
     precos,
     tiposVeiculo,
+    transportadores,
   })
 
   // Ocorrência de risco manual: liga ao risco pelo código

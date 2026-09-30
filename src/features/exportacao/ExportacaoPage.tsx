@@ -12,7 +12,8 @@ import { COLECOES, type Colecao, type Registro } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
 import { duracaoDiasUteis } from '@/lib/fluxo/sla'
-import { situacaoDosProcessos } from '@/lib/monitoramento'
+import { gruposDeConformidade, situacaoDosProcessos } from '@/lib/monitoramento'
+import { ROTULO_STATUS_DOC } from '@/lib/conformidade'
 
 /** Tabelas com dados pessoais sensíveis: não saem na exportação (LGPD). */
 const FORA_DA_EXPORTACAO: Colecao[] = ['caracterizacoes_saude', 'responsaveis_legais']
@@ -80,6 +81,19 @@ export function ExportacaoPage() {
       }),
     },
   ]
+
+  visoes.push({
+    nome: 'vw_conformidade',
+    descricao: 'Uma linha por documento exigido de cada contratado, veículo e condutor em serviço: situação, validade e base legal.',
+    linhas: () => ({
+      cabecalho: ['codigo_processo', 'contexto', 'entidade', 'identificacao', 'exigencia', 'forca', 'situacao', 'validade', 'base_legal'],
+      linhas: gruposDeConformidade(lista, hoje).flatMap((g) =>
+        g.entidades.flatMap((e) =>
+          e.itens.map((i) => [g.codigo, g.descricao, e.entidade, e.rotulo, String(i.exigencia.nome), String(i.exigencia.forca), ROTULO_STATUS_DOC[i.status], valorCsv(i.validade), valorCsv(i.exigencia.base_legal)]),
+        ),
+      ),
+    }),
+  })
 
   const tabelas: Conjunto[] = COLECOES.filter((c) => !FORA_DA_EXPORTACAO.includes(c)).map((c) => ({
     nome: c,

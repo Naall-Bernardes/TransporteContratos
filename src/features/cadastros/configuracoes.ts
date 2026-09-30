@@ -103,6 +103,13 @@ export const ROTULO_REGISTRO: Record<Colecao, (r: Registro) => string> = {
   alertas: (r) => String(r.titulo),
   riscos: (r) => `${r.codigo} – ${r.titulo}`,
   risco_ocorrencias: (r) => String(r.descricao),
+  veiculos: (r) => `${r.placa ?? r.inscricao_capitania ?? ''} ${r.marca_modelo ? `· ${r.marca_modelo}` : ''}`.trim(),
+  condutores: (r) => `${r.nome}${r.funcao === 'monitor' ? ' (monitor)' : ''}`,
+  alocacoes: (r) => String(r.rota ?? r.id),
+  exigencias_documentais: (r) => String(r.nome),
+  contratacoes_municipais: (r) => (r.tipo === 'frota_propria' ? 'Frota própria do município' : `Contrato ${r.numero_contrato ?? ''}`),
+  rotas_pte: (r) => `Rota ${r.codigo}`,
+  despesas_pte: (r) => `${r.favorecido} ${r.data_transacao}`,
 }
 
 export const opcoes = (mapa: Record<string, string>): Opcao[] =>

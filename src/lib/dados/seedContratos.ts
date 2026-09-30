@@ -271,23 +271,27 @@ export function criarContratosDemonstracao(c: Contexto): Record<ColecaoContrato,
     gestor_id: usuario('central@demo.exemplo'),
     fiscal_id: usuario('analista.moc@demo.exemplo'),
   })
-  for (let i = 0; i < 3; i++) {
-    const prevista = d(-230 + 100 * i)
+  // Repasses mensais de fevereiro a novembro (Res. SEE/SEGOV 5.267/2026, art. 16)
+  const anoT1 = Number(String(t1.vigencia_inicio).slice(0, 4))
+  for (let i = 0; i < 10; i++) {
+    const prevista = `${anoT1}-${String(2 + i).padStart(2, '0')}-10`
+    const pago = somarDias(prevista, 5) <= hoje
     out.parcelas.push(
       novo({
         instrumento_id: t1.id,
         numero: i + 1,
         competencia: mesDe(prevista),
-        valor_previsto: 150000,
+        valor_previsto: 45000,
         data_prevista: prevista,
-        valor_pago: i < 2 ? 150000 : null,
-        data_pagamento: i < 2 ? somarDias(prevista, 5) : null,
-        documento_sei: i < 2 ? `OB-PTE-${i + 1}` : null,
+        valor_pago: pago ? 45000 : null,
+        data_pagamento: pago ? somarDias(prevista, 5) : null,
+        documento_sei: pago ? `OB-PTE-${i + 1}` : null,
       }),
     )
   }
+  Object.assign(t1, { periodicidade_prestacao: 'anual', prazo_prestacao_dias: 60 })
   out.prestacoes_contas.push(
-    novo({ instrumento_id: t1.id, periodo_referencia: '1ª parcela', data_limite: d(8), status: 'pendente' }),
+    novo({ instrumento_id: t1.id, periodo_referencia: `Exercício ${anoT1}`, data_limite: `${anoT1 + 1}-02-28`, status: 'pendente' }),
   )
 
   // 6) PTE – termo com Januária, já encerrado e com prestação aprovada

@@ -18,6 +18,8 @@ import { PainelPage } from '@/features/painel/PainelPage'
 import { AdesaoPage } from '@/features/pte/AdesaoPage'
 import { PtePage } from '@/features/pte/PtePage'
 import { RiscosPage } from '@/features/riscos/RiscosPage'
+import { CadastrosInicioPage } from '@/features/cadastros/CadastrosInicioPage'
+import { FrotaPage } from '@/features/frota/FrotaPage'
 import { Layout } from './Layout'
 
 function RotaProtegida({ children }: { children: ReactNode }) {
@@ -39,7 +41,9 @@ export function App() {
             }
           >
             <Route index element={<InicioPage />} />
+            <Route path="cadastros" element={<CadastrosInicioPage />} />
             <Route path="cadastros/:colecao" element={<CadastroPage />} />
+            <Route path="frota" element={<FrotaPage />} />
             <Route path="contratos" element={<ContratosPage />} />
             <Route path="contratos/:id" element={<ContratoDetalhePage />} />
             <Route path="auditoria" element={<AuditoriaPage />} />

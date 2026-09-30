@@ -9,7 +9,11 @@ import { formatarData } from '../formatacao'
 import { gravarArquivo, hashSha256, lerArquivo, pdfFicticio } from './arquivos'
 
 export interface MetadadosDocumento {
-  processo_id: string
+  processo_id?: string | null
+  veiculo_id?: string | null
+  condutor_id?: string | null
+  transportador_id?: string | null
+  data_validade?: string | null
   tipo_documento_id: string
   numero_sei?: string | null
   data_documento: string

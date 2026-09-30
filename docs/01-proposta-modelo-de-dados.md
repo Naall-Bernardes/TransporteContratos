@@ -475,5 +475,13 @@ Princípio: **regra de negócio crítica no banco** (checklist, cálculo de sald
 | D31 | Dados de saúde e do responsável legal não entram na exportação CSV (LGPD) | 30/09/2026 |
 | D32 | Alertas por e-mail simulados numa caixa de saída; em produção, agendador diário + servidor de e-mail | 30/09/2026 |
 | D33 | Instrumento ganha periodicidade de prestação de contas e prazo; botões de gerar cronograma e prestações previstas | 30/09/2026 |
+| D34 | Documentos obrigatórios de veículos, condutores e contratados conforme levantamento legal (docs/02-exigencias-documentais.md), em catálogo editável com base legal e validade | 30/09/2026 |
+| D35 | Exigências "Lei" e "Norma SEE" bloqueiam a conclusão da contratação (J07) e da definição/repasse do PTE (P03); "Recomendadas" só avisam | 30/09/2026 |
+| D36 | Documento a vencer = até 30 dias; prontuário do condutor conferido a cada 12 meses (critério adotado) | 30/09/2026 |
+| D37 | PTE segue a Res. Conjunta SEE/SEGOV 5.267/2026: cálculo por rota (km × custo/km × 200 × estaduais ÷ passageiros), menos PNATE estadual e saldo reprogramado; 10 repasses (fev–nov); prestação anual até 28/02 | 30/09/2026 |
+| D38 | Inconsistências do TER/MG (art. 13) viram divergências de rota; custo "muito acima da média" = mais de 1,5× a média do ciclo (critério adotado) | 30/09/2026 |
+| D39 | PTE registra quem o município contratou (Lei 14.133), frota própria, veículos/condutores alocados, rotas e despesas (comprovação em 30 dias úteis) | 30/09/2026 |
+| D40 | Sistema dividido em dois módulos: Transporte Escolar e Cadastros (administração dentro de Cadastros) | 30/09/2026 |
+| D41 | Documentos de veículo/condutor/contratado não pertencem a um processo e ficam visíveis a todos os perfis (com log de acesso) | 30/09/2026 |
 
 Pendentes: nenhum bloqueante no momento.

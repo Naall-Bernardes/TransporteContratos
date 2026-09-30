@@ -45,10 +45,13 @@ const PAI: Partial<Record<Colecao, [string, Colecao]>> = {
   calculos_repasse: ['adesao_id', 'adesoes_pte'],
   demandas_extraordinarias: ['adesao_id', 'adesoes_pte'],
   risco_ocorrencias: ['processo_id', 'processos'],
+  contratacoes_municipais: ['adesao_id', 'adesoes_pte'],
+  rotas_pte: ['adesao_id', 'adesoes_pte'],
+  despesas_pte: ['adesao_id', 'adesoes_pte'],
 }
 
 /** Configurações de sistema: só o administrador altera. */
-const SOMENTE_ADMIN: Colecao[] = ['usuarios', 'tipos_documento', 'etapas_modelo', 'checklist_modelo']
+const SOMENTE_ADMIN: Colecao[] = ['usuarios', 'tipos_documento', 'etapas_modelo', 'checklist_modelo', 'exigencias_documentais']
 
 /** Só o órgão central altera (a SRE apenas consulta). */
 const SOMENTE_CENTRAL: Colecao[] = [
@@ -84,10 +87,15 @@ export function sreDoRegistro(colecao: Colecao, r: Registro | undefined, consult
     if (colecao === 'usuarios' || colecao === 'alertas') return (r.sre_id as string | null) ?? null
     return (r.sre_id as string | null) ?? SEM_SRE
   }
+  if (colecao === 'alocacoes')
+    return r.instrumento_id
+      ? sreDoRegistro('instrumentos', consulta('instrumentos', r.instrumento_id), consulta, profundidade + 1)
+      : sreDoRegistro('contratacoes_municipais', consulta('contratacoes_municipais', r.contratacao_id), consulta, profundidade + 1)
   const pai = PAI[colecao]
   if (!pai) return null
   const [campo, tabela] = pai
-  if (!r[campo]) return colecao === 'risco_ocorrencias' ? null : SEM_SRE
+  // sem processo: ocorrência geral de risco, ou documento de veículo/condutor/contratado (cadastro geral)
+  if (!r[campo]) return colecao === 'risco_ocorrencias' || colecao === 'documentos' ? null : SEM_SRE
   return sreDoRegistro(tabela, consulta(tabela, r[campo]), consulta, profundidade + 1)
 }
 
