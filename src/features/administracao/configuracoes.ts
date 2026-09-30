@@ -1,9 +1,8 @@
 // Configurações de sistema (somente administrador): tipos de documento, etapas/SLA e checklist;
-// e telas de riscos, documentos e alertas (para rótulos da auditoria).
+// e a tela de documentos (para rótulos da auditoria).
 
 import { opcoes, type CadastroConfig } from '@/features/cadastros/configuracoes'
 import { CONDICOES } from '@/lib/fluxo/checklist'
-import { GATILHOS } from '@/lib/monitoramento'
 
 const MODULOS = opcoes({ JUDICIAL: 'Judicial/MP', PTE: 'PTE', AMBOS: 'Ambos' })
 
@@ -50,61 +49,6 @@ export const CHECKLIST: CadastroConfig = {
   ],
 }
 
-export const CATEGORIAS_RISCO = opcoes({
-  prazo: 'Prazo',
-  financeiro: 'Financeiro',
-  contratual: 'Contratual',
-  operacional: 'Operacional',
-  seguranca_aluno: 'Segurança do estudante',
-  conformidade: 'Conformidade',
-  conformidade_lgpd: 'LGPD',
-  informacao: 'Informação/dados',
-})
-
-export const RISCO: CadastroConfig = {
-  colecao: 'riscos',
-  titulo: 'Registro de riscos',
-  singular: 'risco',
-  descricao: '',
-  ordenarPor: (r) => String(r.codigo),
-  campos: [
-    { nome: 'codigo', rotulo: 'Código', tipo: 'texto', naTabela: true },
-    { nome: 'titulo', rotulo: 'Risco', tipo: 'texto', naTabela: true },
-    { nome: 'categoria', rotulo: 'Categoria', tipo: 'selecao', opcoes: CATEGORIAS_RISCO, naTabela: true },
-    { nome: 'modulo', rotulo: 'Módulo', tipo: 'selecao', opcoes: MODULOS },
-    { nome: 'descricao', rotulo: 'Descrição', tipo: 'texto_longo' },
-    { nome: 'causa', rotulo: 'Causas', tipo: 'texto_longo' },
-    { nome: 'consequencia', rotulo: 'Consequências', tipo: 'texto_longo' },
-    { nome: 'probabilidade', rotulo: 'Probabilidade (1–5)', tipo: 'numero', naTabela: true },
-    { nome: 'impacto', rotulo: 'Impacto (1–5)', tipo: 'numero', naTabela: true },
-    { nome: 'nivel', rotulo: 'Nível (P×I)', tipo: 'numero', naTabela: true, emFormulario: false },
-    { nome: 'estrategia', rotulo: 'Estratégia', tipo: 'selecao', opcoes: opcoes({ evitar: 'Evitar', mitigar: 'Mitigar', transferir: 'Transferir', aceitar: 'Aceitar' }), naTabela: true },
-    { nome: 'plano_acao', rotulo: 'Plano de ação', tipo: 'texto_longo' },
-    { nome: 'responsavel_id', rotulo: 'Responsável', tipo: 'referencia', referencia: 'usuarios' },
-    { nome: 'gatilho', rotulo: 'Gatilho automático', tipo: 'selecao', opcoes: opcoes(GATILHOS), ajuda: 'Em branco = só registro manual.' },
-    { nome: 'etapas', rotulo: 'Etapas do fluxo relacionadas', tipo: 'multipla', opcoes: opcoes({ J01: 'J01', J02: 'J02', J03: 'J03', J04: 'J04', J05: 'J05', J06: 'J06', J07: 'J07', J08: 'J08', J09: 'J09', J10: 'J10', P02: 'P02', P03: 'P03', P04: 'P04', P05: 'P05' }) },
-    { nome: 'data_revisao', rotulo: 'Próxima revisão', tipo: 'data' },
-    { nome: 'status', rotulo: 'Situação', tipo: 'selecao', opcoes: opcoes({ ativo: 'Ativo', monitorado: 'Monitorado', encerrado: 'Encerrado' }), padrao: 'ativo', naTabela: true },
-  ],
-}
-
-export const OCORRENCIA_RISCO: CadastroConfig = {
-  colecao: 'risco_ocorrencias',
-  titulo: 'Ocorrências de risco',
-  singular: 'ocorrência de risco',
-  descricao: '',
-  ordenarPor: (r) => String(r.data),
-  campos: [
-    { nome: 'risco_id', rotulo: 'Risco', tipo: 'referencia', referencia: 'riscos', naTabela: true },
-    { nome: 'data', rotulo: 'Data', tipo: 'data', naTabela: true },
-    { nome: 'processo_id', rotulo: 'Processo (código único)', tipo: 'referencia', referencia: 'processos', naTabela: true },
-    { nome: 'descricao', rotulo: 'Descrição', tipo: 'texto_longo', naTabela: true },
-    { nome: 'origem', rotulo: 'Origem', tipo: 'selecao', opcoes: opcoes({ manual: 'Manual', automatica: 'Automática' }), padrao: 'manual', naTabela: true, emFormulario: false },
-    { nome: 'impacto_real', rotulo: 'Impacto verificado', tipo: 'texto_longo' },
-    { nome: 'acao_tomada', rotulo: 'Ação tomada', tipo: 'texto_longo' },
-    { nome: 'status', rotulo: 'Situação', tipo: 'selecao', opcoes: opcoes({ aberta: 'Aberta', tratada: 'Tratada', encerrada: 'Encerrada' }), padrao: 'aberta', naTabela: true },
-  ],
-}
 
 export const DOCUMENTO: CadastroConfig = {
   colecao: 'documentos',

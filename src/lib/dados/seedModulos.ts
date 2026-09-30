@@ -308,16 +308,6 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const dMta = out.demandas!.at(-1)!
   Object.assign(dMta, { valor_mensal: null, meses_previstos: null, valor_total: null })
 
-  push('risco_ocorrencias', novo({
-    risco_id: null, // preenchido em seed.ts (depende dos riscos)
-    processo_id: out.demandas![4].processo_id,
-    data: d(-2),
-    descricao: 'Formulário de caracterização devolvido sem o comprovante de residência (fictício).',
-    origem: 'manual',
-    status: 'aberta',
-    _risco_codigo: 'R-03',
-  }))
-
   // ---------- PTE ----------
   const t1 = instrumento('TC 015/2026', 'Repasse')
   const t2 = instrumento('TC 022/2025', 'ciclo anterior')

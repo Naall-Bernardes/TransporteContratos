@@ -7,9 +7,7 @@ import { CadastroPage } from '@/features/cadastros/CadastroPage'
 import { ContratoDetalhePage } from '@/features/contratos/ContratoDetalhePage'
 import { ContratosPage } from '@/features/contratos/ContratosPage'
 import { InicioPage } from '@/features/inicio/InicioPage'
-import { AlertasPage } from '@/features/alertas/AlertasPage'
 import { DocumentosPage } from '@/features/documentos/DocumentosPage'
-import { ExportacaoPage } from '@/features/exportacao/ExportacaoPage'
 import { CaracterizacaoPage } from '@/features/judicial/CaracterizacaoPage'
 import { DemandaDetalhePage } from '@/features/judicial/DemandaDetalhePage'
 import { JudicialPage } from '@/features/judicial/JudicialPage'
@@ -17,7 +15,6 @@ import { RelatorioCumprimentoPage } from '@/features/judicial/RelatorioCumprimen
 import { PainelPage } from '@/features/painel/PainelPage'
 import { AdesaoPage } from '@/features/pte/AdesaoPage'
 import { PtePage } from '@/features/pte/PtePage'
-import { RiscosPage } from '@/features/riscos/RiscosPage'
 import { CadastrosInicioPage } from '@/features/cadastros/CadastrosInicioPage'
 import { FrotaPage } from '@/features/frota/FrotaPage'
 import { Layout } from './Layout'
@@ -54,9 +51,6 @@ export function App() {
             <Route path="pte" element={<PtePage />} />
             <Route path="pte/adesoes/:id" element={<AdesaoPage />} />
             <Route path="documentos" element={<DocumentosPage />} />
-            <Route path="alertas" element={<AlertasPage />} />
-            <Route path="riscos" element={<RiscosPage />} />
-            <Route path="exportar" element={<ExportacaoPage />} />
           </Route>
           <Route
             path="judicial/:id/relatorio"

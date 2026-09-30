@@ -1,5 +1,5 @@
 // Configurações iniciais (editáveis pelo administrador): etapas dos fluxos com SLA,
-// tipos de documento, checklist por etapa e registro de riscos.
+// tipos de documento, checklist por etapa e exigências documentais.
 
 import type { Registro } from './tipos'
 
@@ -166,40 +166,8 @@ export const CHECKLIST: [etapa: string, documento: string, condicao: string][] =
   ['P05', 'parecer', 'sempre'],
 ]
 
-// [código, título, categoria, módulo, P, I, estratégia, gatilho, etapas]
-const RISCOS: [string, string, string, string, number, number, string, string | null, string[], string, string][] = [
-  ['R-01', 'Descumprimento de prazo judicial', 'prazo', 'JUDICIAL', 3, 5, 'mitigar', 'prazo_judicial_vencido', ['J01', 'J02', 'J03', 'J04', 'J05', 'J06', 'J07'],
-    'Fluxo lento entre SEE, SRE, escola e Caixa Escolar', 'Multa diária, responsabilização do gestor, dano ao estudante'],
-  ['R-02', 'Etapa do fluxo acima do SLA', 'prazo', 'AMBOS', 4, 3, 'mitigar', 'sla_vencido_nivel3', [], 'Sobrecarga, falta de responsável definido', 'Atraso em cascata no atendimento'],
-  ['R-03', 'Caracterização incompleta ou documentação pendente', 'operacional', 'JUDICIAL', 4, 3, 'mitigar', null, ['J03'],
-    'Formulário devolvido sem anexos', 'Suspensão da análise e risco ao prazo judicial'],
-  ['R-04', 'Valor contratado acima da menor cotação/referência', 'financeiro', 'JUDICIAL', 2, 4, 'evitar', 'valor_acima_cotacao', ['J04'],
-    'Escolha de fornecedor sem justificativa', 'Apontamento de órgãos de controle'],
-  ['R-05', 'Atraso na emissão de OP/PAF ou na liberação do recurso', 'financeiro', 'JUDICIAL', 3, 4, 'mitigar', 'sla_etapa_5_6', ['J05', 'J06'],
-    'Disponibilidade orçamentária, fila de pagamentos', 'Caixa Escolar sem recurso para contratar'],
-  ['R-06', 'Contrato vencido sem aditivo com transporte em curso', 'contratual', 'AMBOS', 3, 5, 'evitar', 'contrato_vencido_sem_aditivo', ['J08'],
-    'Falta de acompanhamento da vigência', 'Serviço sem cobertura contratual; pagamento irregular'],
-  ['R-07', 'Interrupção do transporte', 'operacional', 'AMBOS', 3, 5, 'mitigar', 'ocorrencia_interrupcao', ['J08', 'P04'],
-    'Quebra de veículo, abandono do contratado', 'Estudante sem acesso à escola; descumprimento judicial'],
-  ['R-08', 'Veículo ou condutor sem requisitos legais', 'seguranca_aluno', 'AMBOS', 2, 5, 'evitar', 'ocorrencia_veiculo_irregular', ['J07', 'J08', 'P04'],
-    'Falta de verificação de CNH D, curso e vistoria DETRAN', 'Risco à integridade física dos estudantes'],
-  ['R-09', 'Prestação de contas não entregue no prazo', 'conformidade', 'AMBOS', 3, 3, 'mitigar', 'prestacao_vencida', ['J09', 'P05'],
-    'Desconhecimento do prazo, falta de documentos', 'Bloqueio de novos repasses; tomada de contas'],
-  ['R-10', 'Divergência TER × SIMADE não resolvida', 'informacao', 'PTE', 3, 3, 'mitigar', 'divergencia_aberta_prazo', ['P02'],
-    'Cadastros desatualizados no município ou no SIMADE', 'Repasse calculado sobre base incorreta'],
-  ['R-11', 'Saldo contratual insuficiente', 'financeiro', 'AMBOS', 2, 3, 'mitigar', 'saldo_menor_10pct', ['J08', 'P04'],
-    'Execução acima do previsto, reajuste', 'Interrupção por falta de pagamento'],
-  ['R-13', 'Documento obrigatório de veículo, condutor ou contratado vencido/ausente', 'seguranca_aluno', 'AMBOS', 3, 5, 'evitar', 'documento_obrigatorio_vencido', ['J07', 'J08', 'P03', 'P04'],
-    'Falta de controle de validade (laudo semestral, CNH, toxicológico, certidões)', 'Transporte irregular; suspensão do repasse PTE (Res. 5.267/2026, art. 19, III)'],
-  ['R-14', 'Despesa do PTE sem comprovação em 30 dias úteis', 'conformidade', 'PTE', 3, 3, 'mitigar', 'comprovacao_despesa_atrasada', ['P04'],
-    'Município não insere a NF no BB Gestão Ágil', 'Glosa da despesa; reprovação da prestação de contas'],
-  ['R-15', 'Interrupção do transporte PTE não regularizada', 'operacional', 'PTE', 2, 5, 'mitigar', 'interrupcao_sem_regularizacao', ['P04'],
-    'Quebra de contrato do município, frota parada', 'Suspensão do repasse (art. 25); comunicação ao MP (art. 24, § 4º)'],
-  ['R-12', 'Acesso indevido a dados pessoais de estudantes', 'conformidade_lgpd', 'AMBOS', 2, 4, 'mitigar', null, ['J03'],
-    'Compartilhamento por canais informais (WhatsApp, e-mail pessoal)', 'Violação da LGPD; dano a menores'],
-]
 
-export function criarConfiguracoes(novo: Novo, responsavelId: string) {
+export function criarConfiguracoes(novo: Novo) {
   const etapas_modelo = ETAPAS.map(([modulo, ordem, codigo, nome, papel_responsavel, sla]) =>
     novo({ modulo, ordem, codigo, nome, papel_responsavel, sla_dias_uteis: sla }),
   )
@@ -207,27 +175,8 @@ export function criarConfiguracoes(novo: Novo, responsavelId: string) {
   const etapa = (c: string) => etapas_modelo.find((e) => e.codigo === c)!.id
   const tipo = (c: string) => tipos_documento.find((t) => t.codigo === c)!.id
   const checklist_modelo = CHECKLIST.map(([e, d, condicao]) => novo({ etapa_modelo_id: etapa(e), tipo_documento_id: tipo(d), condicao }))
-  const riscos = RISCOS.map(([codigo, titulo, categoria, modulo, probabilidade, impacto, estrategia, gatilho, etapas, causa, consequencia]) =>
-    novo({
-      codigo,
-      titulo,
-      categoria,
-      modulo,
-      probabilidade,
-      impacto,
-      nivel: probabilidade * impacto,
-      estrategia,
-      gatilho,
-      etapas,
-      causa,
-      consequencia,
-      plano_acao: 'Monitorar pelo painel e tratar as ocorrências abertas (definir plano específico).',
-      responsavel_id: responsavelId,
-      status: 'ativo',
-    }),
-  )
   const exigencias_documentais = EXIGENCIAS.map(([codigo, nome, aplica_a, condicao, doc, forca, validade_meses, momento, base_legal]) =>
     novo({ codigo, nome, aplica_a, condicao, tipo_documento_id: tipo(doc), forca, validade_meses, momento, base_legal, ativo: true }),
   )
-  return { etapas_modelo, tipos_documento, checklist_modelo, riscos, exigencias_documentais }
+  return { etapas_modelo, tipos_documento, checklist_modelo, exigencias_documentais }
 }

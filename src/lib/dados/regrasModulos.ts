@@ -1,11 +1,11 @@
-// Regras de integridade dos módulos: documentos, fluxo, Judicial, PTE, alertas e riscos.
+// Regras de integridade dos módulos: documentos, fluxo, Judicial, PTE e frota.
 
 import { hojeIso } from '../diasUteis'
 import type { ContextoValidacao } from './regrasContratos'
 import { validarCpf } from '../validacao'
-import type { Colecao, ColecaoDocumento, ColecaoFluxo, ColecaoFrota, ColecaoGestao, ColecaoJudicial, ColecaoPte, Consulta, Registro } from './tipos'
+import type { Colecao, ColecaoDocumento, ColecaoFluxo, ColecaoFrota, ColecaoJudicial, ColecaoPte, Consulta, Registro } from './tipos'
 
-export type ColecaoModulo = ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao | ColecaoFrota
+export type ColecaoModulo = ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoFrota
 type Campos = Record<string, unknown>
 type Erros = Record<string, string>
 
@@ -37,9 +37,6 @@ export const OBRIGATORIOS_MODULOS: Record<ColecaoModulo, string[]> = {
   divergencias: ['adesao_id', 'referencia', 'tipo', 'status'],
   calculos_repasse: ['adesao_id', 'valor_calculado'],
   demandas_extraordinarias: ['adesao_id', 'tipo', 'data_solicitacao', 'justificativa', 'status'],
-  alertas: ['chave', 'tipo', 'titulo'],
-  riscos: ['codigo', 'titulo', 'categoria', 'probabilidade', 'impacto', 'estrategia', 'status'],
-  risco_ocorrencias: ['risco_id', 'data', 'descricao', 'origem', 'status'],
   veiculos: ['tipo_transporte', 'tipo_veiculo_id', 'lotacao', 'proprietario_tipo'],
   condutores: ['funcao', 'nome', 'cpf', 'vinculo_tipo'],
   alocacoes: ['inicio'],
@@ -88,10 +85,6 @@ export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Coleca
   { origem: 'divergencias', campo: 'adesao_id', alvo: 'adesoes_pte' },
   { origem: 'calculos_repasse', campo: 'adesao_id', alvo: 'adesoes_pte' },
   { origem: 'demandas_extraordinarias', campo: 'adesao_id', alvo: 'adesoes_pte' },
-  { origem: 'riscos', campo: 'responsavel_id', alvo: 'usuarios' },
-  { origem: 'risco_ocorrencias', campo: 'risco_id', alvo: 'riscos' },
-  { origem: 'risco_ocorrencias', campo: 'processo_id', alvo: 'processos' },
-  { origem: 'risco_ocorrencias', campo: 'instrumento_id', alvo: 'instrumentos' },
   { origem: 'documentos', campo: 'veiculo_id', alvo: 'veiculos' },
   { origem: 'documentos', campo: 'condutor_id', alvo: 'condutores' },
   { origem: 'documentos', campo: 'transportador_id', alvo: 'transportadores' },
@@ -131,9 +124,6 @@ export const UNICOS_MODULOS: Partial<Record<Colecao, { campos: string[]; mensage
   adesoes_pte: [{ campos: ['municipio_id', 'ciclo_id'], mensagem: 'Município já aderiu a este ciclo.' }],
   pte_alunos: [{ campos: ['cod_simade', 'adesao_id'], mensagem: 'Aluno já consta na lista deste município.' }],
   simade_registros: [{ campos: ['cod_simade', 'ciclo_id'], mensagem: 'Matrícula já importada neste ciclo.' }],
-  alertas: [{ campos: ['chave'], mensagem: 'Alerta já gerado.' }],
-  riscos: [{ campos: ['codigo'], mensagem: 'Código de risco já utilizado.' }],
-  risco_ocorrencias: [{ campos: ['chave_automatica'], mensagem: 'Ocorrência automática já registrada.' }],
   veiculos: [
     { campos: ['placa'], mensagem: 'Já existe veículo com esta placa.' },
     { campos: ['inscricao_capitania'], mensagem: 'Já existe embarcação com esta inscrição.' },
@@ -198,12 +188,6 @@ export function normalizarModulo(colecao: ColecaoModulo, d: Campos, consulta: Co
       break
     case 'contratacoes_municipais':
       if (d.tipo === 'frota_propria') d.transportador_id = null
-      break
-    case 'risco_ocorrencias':
-      if (vazio(d.origem) && !('id' in d && d.id)) d.origem = 'manual'
-      break
-    case 'riscos':
-      if (!vazio(d.probabilidade) && !vazio(d.impacto)) d.nivel = num(d.probabilidade) * num(d.impacto)
       break
   }
   return d
@@ -372,10 +356,6 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
       if (r.tipo === 'inclusao_aluno' && num(r.qtd_alunos) <= 0) erros.qtd_alunos = 'Informe quantos alunos.'
       break
 
-    case 'riscos':
-      for (const c of ['probabilidade', 'impacto'])
-        if (!vazio(r[c]) && (num(r[c]) < 1 || num(r[c]) > 5)) erros[c] = 'De 1 a 5.'
-      break
   }
   return erros
 }

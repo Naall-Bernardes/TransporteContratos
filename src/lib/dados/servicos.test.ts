@@ -3,7 +3,6 @@ import { hojeIso } from '../diasUteis'
 import { carregarBase, restaurarDemonstracao } from './armazenamento'
 import { ErroPermissao, ErroRegra, salvar, transacao } from './repositorio'
 import { aprovarCiclo, calcularAdesao, concluirEtapa, criarDemanda, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas } from './servicos'
-import { processarAlertas, verificarGatilhosDeRisco } from './servicosMonitoramento'
 import type { Registro, Usuario } from './tipos'
 
 beforeEach(() => {
@@ -87,24 +86,6 @@ describe('contratos: cronograma e prestações previstas', () => {
   })
 })
 
-describe('monitoramento', () => {
-  it('gera alertas com escalonamento e não duplica; gatilhos de risco criam ocorrências automáticas', async () => {
-    const n = await processarAlertas(central())
-    expect(n).toBeGreaterThan(3)
-    expect(await processarAlertas(central())).toBe(0)
-    const judicial = b().colecoes.alertas.find((a) => a.tipo === 'prazo_judicial' && String(a.chave).endsWith('vencido'))!
-    expect((judicial.destinatarios as string[]).some((d) => d.includes('central@'))).toBe(true)
-
-    const r = await verificarGatilhosDeRisco(central())
-    expect(r).toBeGreaterThan(3)
-    const gatilhos = new Set(
-      b().colecoes.risco_ocorrencias.filter((o) => o.origem === 'automatica').map((o) => String(o.chave_automatica).split('|')[0]),
-    )
-    expect(gatilhos).toContain('prazo_judicial_vencido')
-    expect(gatilhos).toContain('contrato_vencido_sem_aditivo')
-    expect(gatilhos).toContain('prestacao_vencida')
-  })
-})
 
 describe('frota e conformidade legal', () => {
   it('recusa motorista com menos de 21 anos ou sem categoria D (CTB art. 138)', async () => {
@@ -121,10 +102,4 @@ describe('frota e conformidade legal', () => {
     expect(pendenciasDeDados('P03', d).some((p) => p.includes('art. 8º'))).toBe(true)
   })
 
-  it('gera e-mails de documentação vencida e de despesa sem comprovação', async () => {
-    await processarAlertas(central())
-    const tipos = new Set(b().colecoes.alertas.map((a) => a.tipo))
-    expect(tipos).toContain('documentacao')
-    expect(tipos).toContain('despesa_pte')
-  })
 })

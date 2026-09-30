@@ -1,5 +1,4 @@
-// Painel de indicadores (Fase 6). Mesmos cálculos do sistema — e os mesmos números
-// que vão para o Power BI pela exportação.
+// Painel de indicadores. Mesmos cálculos usados no restante do sistema.
 
 import type { ReactNode } from 'react'
 import { useMemo } from 'react'
@@ -38,7 +37,7 @@ export function PainelPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Painel</h1>
-        <p className="mt-1 text-sm text-slate-600">Indicadores calculados na hora, a partir dos dados que você pode ver. Os mesmos dados saem na <Link to="/exportar" className="text-marca-700 underline">exportação para Power BI</Link>.</p>
+        <p className="mt-1 text-sm text-slate-600">Indicadores calculados na hora, a partir dos dados que você pode ver.</p>
       </div>
 
       <Bloco titulo="Demandas judiciais e do MP" link={{ para: '/judicial', rotulo: 'Abrir demandas' }}>
@@ -133,9 +132,6 @@ export function PainelPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Bloco titulo="Documentos pendentes por etapa" descricao="Documentos obrigatórios faltando nos processos em andamento.">
           <BarrasHorizontais itens={p.pendDocs} vazio="Nenhum documento pendente." />
-        </Bloco>
-        <Bloco titulo="Ocorrências de risco em aberto" link={{ para: '/riscos', rotulo: 'Abrir riscos' }}>
-          <BarrasHorizontais itens={p.porRisco} vazio="Nenhuma ocorrência aberta. Use “Verificar gatilhos” na tela de riscos." />
         </Bloco>
       </div>
     </div>

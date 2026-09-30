@@ -19,7 +19,7 @@ export const ehCentral = (u: Usuario) => u.papel === 'admin' || u.papel === 'ana
 export const ehDiretorOuCentral = (u: Usuario) => ehCentral(u) || u.papel === 'diretor_sre'
 
 /** Tabelas com o campo sre_id no próprio registro. */
-const SRE_DIRETA: Colecao[] = ['escolas', 'precos_referencia', 'usuarios', 'processos', 'instrumentos', 'demandas', 'adesoes_pte', 'alertas']
+const SRE_DIRETA: Colecao[] = ['escolas', 'precos_referencia', 'usuarios', 'processos', 'instrumentos', 'demandas', 'adesoes_pte']
 
 /** Tabelas que herdam a SRE do registro pai: [campo da chave estrangeira, tabela pai]. */
 const PAI: Partial<Record<Colecao, [string, Colecao]>> = {
@@ -44,7 +44,6 @@ const PAI: Partial<Record<Colecao, [string, Colecao]>> = {
   divergencias: ['adesao_id', 'adesoes_pte'],
   calculos_repasse: ['adesao_id', 'adesoes_pte'],
   demandas_extraordinarias: ['adesao_id', 'adesoes_pte'],
-  risco_ocorrencias: ['processo_id', 'processos'],
   contratacoes_municipais: ['adesao_id', 'adesoes_pte'],
   rotas_pte: ['adesao_id', 'adesoes_pte'],
   despesas_pte: ['adesao_id', 'adesoes_pte'],
@@ -66,8 +65,6 @@ const SOMENTE_CENTRAL: Colecao[] = [
   'calculos_repasse',
   'autorizacoes_financeiras',
   'liberacoes_recurso',
-  'riscos',
-  'alertas',
 ]
 
 export function podeEditarColecao(u: Usuario, colecao: Colecao): boolean {
@@ -84,7 +81,7 @@ export function sreDoRegistro(colecao: Colecao, r: Registro | undefined, consult
   if (!r || profundidade > 6) return SEM_SRE
   if (SRE_DIRETA.includes(colecao)) {
     // processos/instrumentos/demandas sem SRE ficam restritos ao órgão central
-    if (colecao === 'usuarios' || colecao === 'alertas') return (r.sre_id as string | null) ?? null
+    if (colecao === 'usuarios') return (r.sre_id as string | null) ?? null
     return (r.sre_id as string | null) ?? SEM_SRE
   }
   if (colecao === 'alocacoes')
@@ -94,8 +91,8 @@ export function sreDoRegistro(colecao: Colecao, r: Registro | undefined, consult
   const pai = PAI[colecao]
   if (!pai) return null
   const [campo, tabela] = pai
-  // sem processo: ocorrência geral de risco, ou documento de veículo/condutor/contratado (cadastro geral)
-  if (!r[campo]) return colecao === 'risco_ocorrencias' || colecao === 'documentos' ? null : SEM_SRE
+  // documento de veículo/condutor/contratado não tem processo: é cadastro geral
+  if (!r[campo]) return colecao === 'documentos' ? null : SEM_SRE
   return sreDoRegistro(tabela, consulta(tabela, r[campo]), consulta, profundidade + 1)
 }
 

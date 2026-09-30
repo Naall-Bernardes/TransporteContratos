@@ -287,7 +287,7 @@ Termo/convênio → `instrumento` tipo `termo_pte`; parcelas/repasses → `parce
 Storage: bucket privado `documentos/{processo_codigo}/{documento_id}/v{n}.pdf`; acesso só via URL assinada de 5 min gerada após checar permissão.
 ZIP em lote: Edge Function que empacota os documentos do processo/instrumento e registra no log.
 
-### 3.8 Riscos — estrutura própria (FOR-PMO-012 não será usado)
+### 3.8 Riscos — REMOVIDO (D42)
 
 Modelo clássico de registro de riscos (probabilidade × impacto), com gatilhos automáticos.
 
@@ -328,7 +328,7 @@ Registro inicial sugerido (seed, editável):
 
 O `pg_cron` roda as regras diariamente e cria a ocorrência (sem duplicar).
 
-### 3.9 Alertas e auditoria
+### 3.9 Alertas (REMOVIDO — D42) e auditoria (mantida)
 
 **`alerta`**: `tipo (sla_etapa, prazo_judicial, vigencia_90/60/30, prestacao_vencer/vencida), processo_id, instrumento_id, destinatario_id, nivel (1 = responsável, 2 = superior), gerado_em, email_enviado_em, lido_em` — `unique` impede alerta duplicado.
 
@@ -483,5 +483,6 @@ Princípio: **regra de negócio crítica no banco** (checklist, cálculo de sald
 | D39 | PTE registra quem o município contratou (Lei 14.133), frota própria, veículos/condutores alocados, rotas e despesas (comprovação em 30 dias úteis) | 30/09/2026 |
 | D40 | Sistema dividido em dois módulos: Transporte Escolar e Cadastros (administração dentro de Cadastros) | 30/09/2026 |
 | D41 | Documentos de veículo/condutor/contratado não pertencem a um processo e ficam visíveis a todos os perfis (com log de acesso) | 30/09/2026 |
+| D42 | Removidos alertas por e-mail, registro de riscos e exportação CSV/Power BI (a pedido). Mantidos: alertas na tela, semáforo/escalonamento visual, CSV das listas e auditoria | 30/09/2026 |
 
 Pendentes: nenhum bloqueante no momento.

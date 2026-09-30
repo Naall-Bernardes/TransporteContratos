@@ -1,10 +1,10 @@
 // Layout com dois módulos:
-//  - Transporte Escolar: atendimento (Judicial/MP, PTE, contratos), controle e monitoramento;
+//  - Transporte Escolar: atendimento (Judicial/MP, PTE, contratos) e controle;
 //  - Cadastros: dados de base (rede, alunos, frota, preços, calendário) e administração.
 
 import {
-  BarChart3, Bell, Bus, CalendarDays, CarFront, ClipboardCheck, Database, Download, FileSignature, Files, Gavel, History,
-  Home, LayoutGrid, ListChecks, LogOut, Menu, Route, School, ShieldAlert, ShieldCheck, Tag, Timer, Truck, UserRound, Users, X,
+  BarChart3, Bus, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
+  Home, LayoutGrid, ListChecks, LogOut, Menu, Route, School, ShieldCheck, Tag, Timer, Truck, UserRound, Users, X,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -53,10 +53,6 @@ export function Layout() {
       <Grupo titulo="Controle" />
       <Item para="/frota" icone={<ShieldCheck size={16} />}>Frota e conformidade</Item>
       <Item para="/documentos" icone={<Files size={16} />}>Documentos</Item>
-      <Grupo titulo="Monitoramento" />
-      <Item para="/alertas" icone={<Bell size={16} />}>Alertas por e-mail</Item>
-      <Item para="/riscos" icone={<ShieldAlert size={16} />}>Riscos</Item>
-      <Item para="/exportar" icone={<Download size={16} />}>Exportação / Power BI</Item>
     </>
   )
 

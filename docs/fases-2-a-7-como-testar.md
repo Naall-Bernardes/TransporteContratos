@@ -1,4 +1,6 @@
-# Fases 2, 4, 5, 6 e 7 — como testar (modo demonstração)
+# Fases 2, 4, 5 e 6 — como testar (modo demonstração)
+
+> Alertas por e-mail, riscos e exportação/Power BI foram **removidos** a pedido do usuário (decisão D42).
 
 Tudo roda no navegador, sem banco de dados. **Ao abrir esta versão pela primeira vez, os dados de
 demonstração são recriados** (o que você tinha cadastrado antes neste navegador é substituído).
@@ -47,14 +49,8 @@ npm test      # 57 testes automáticos
 | 20 | PTE → "Calcular todas" → "Aprovar ciclo" | — | Só aprova se todas tiverem cálculo; depois trava parâmetros e cálculo |
 | 21 | Adesão → Termo e repasses → "Gerar termo" | — | Termo criado com o valor aprovado e o cronograma de parcelas |
 | 22 | Aba Alunos → "Importar lista TER" | CSV com colunas matricula;nome;inep;km_ida | Importa/atualiza e lista os erros por linha |
-| **Fase 6 — Painel, alertas, exportação** |||
+| **Fase 6 — Painel** |||
 | 23 | Painel | — | Demandas por etapa e SRE × semáforo, tempo médio × SLA, contratos, PTE, documentos pendentes, riscos |
-| 24 | Alertas por e-mail → "Processar alertas agora" | Clicar 2 vezes | 1ª gera ~11 e-mails com destinatários por nível; 2ª não duplica |
-| 25 | Exportação / Power BI | "Baixar tudo (ZIP)" | CSVs de todas as tabelas + visões vw_demandas, vw_etapas, vw_instrumentos |
-| **Fase 7 — Riscos e auditoria** |||
-| 26 | Riscos → "Verificar gatilhos agora" | — | Ocorrências automáticas (prazo judicial, contrato vencido, prestação atrasada…) |
-| 27 | Riscos → Matriz | — | Riscos posicionados por probabilidade × impacto |
-| 28 | Auditoria | Filtrar por usuário e período; exportar | Alterações com antes/depois |
 | **Contratos (pendências da Fase 3)** |||
 | 29 | Contrato → Pagamentos → "Gerar cronograma" | 12 parcelas mensais | Parcelas somam o valor ainda não previsto |
 | 30 | Contrato → Prestação de contas → "Gerar prestações previstas" | Periodicidade semestral | Uma prestação por semestre, sem duplicar |
@@ -74,6 +70,4 @@ O sistema agora tem dois módulos (seletor no topo do menu): **Transporte Escola
 | 37 | Mesma adesão → Rotas / Cálculo | — | 6 rotas; cálculo por rota = R$ 450.000 (memória por rota) |
 | 38 | Mesma adesão → Despesas do município | — | 1 despesa sem comprovação há mais de 30 dias úteis (vermelho) |
 | 39 | PTE → ciclo 2027 → Uberlândia → Conciliação | — | Divergências de estudantes **e** de rotas: km zero, lotação estourada, custo acima da média, rota urbana |
-| 40 | Alertas → Processar | — | E-mails de documentação vencida/a vencer e de despesa sem comprovação |
-| 41 | Riscos → Verificar gatilhos | — | Ocorrências de R-13 (documento vencido) e R-14 (despesa sem comprovação) |
 | 42 | Cadastros → Administração → Exigências documentais | — | Catálogo com base legal e validade, editável |

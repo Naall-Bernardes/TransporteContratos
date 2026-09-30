@@ -1,7 +1,7 @@
 // Registro único de configurações de todas as tabelas (usado pela auditoria,
 // pela exportação e pela tela genérica de cadastro).
 
-import { ETAPA_MODELO, CHECKLIST, DOCUMENTO, OCORRENCIA_RISCO, RISCO, TIPO_DOCUMENTO } from './administracao/configuracoes'
+import { ETAPA_MODELO, CHECKLIST, DOCUMENTO, TIPO_DOCUMENTO } from './administracao/configuracoes'
 import { CADASTROS, type CadastroConfig, type CampoConfig } from './cadastros/configuracoes'
 import { CONFIGS_CONTRATO, ENCERRAMENTO } from './contratos/configuracoes'
 import { AUTORIZACAO, CARACTERIZACAO, COTACAO, DEMANDA, EXECUCAO, LIBERACAO, RESPONSAVEL, SAUDE, VALOR } from './judicial/configuracoes'
@@ -74,9 +74,6 @@ export const CONFIGURACOES: Record<Colecao, CadastroConfig> = {
   divergencias: DIVERGENCIA,
   calculos_repasse: simples('calculos_repasse', 'Cálculos de repasse', [{ nome: 'valor_calculado', rotulo: 'Valor calculado', tipo: 'moeda' }]),
   demandas_extraordinarias: DEMANDA_EXTRA,
-  alertas: simples('alertas', 'Alertas'),
-  riscos: RISCO,
-  risco_ocorrencias: OCORRENCIA_RISCO,
   veiculos: VEICULO,
   condutores: CONDUTOR,
   alocacoes: ALOCACAO,

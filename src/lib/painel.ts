@@ -78,11 +78,6 @@ export function calcularPainel(lista: (c: Colecao) => Registro[], hoje: string) 
       }
     }
 
-    const ocorrenciasAbertas = lista('risco_ocorrencias').filter((o) => o.status === 'aberta')
-    const porRisco = lista('riscos')
-      .map((r) => ({ rotulo: `${r.codigo} ${r.titulo}`, valor: ocorrenciasAbertas.filter((o) => o.risco_id === r.id).length }))
-      .filter((i) => i.valor > 0)
-      .sort((a, b) => b.valor - a.valor)
 
     // Conformidade legal da frota em serviço (contratos judiciais e contratações do PTE)
     const entidadesEmServico = new Map<string, { pendentes: number; aVencer: number }>()
@@ -125,6 +120,5 @@ export function calcularPainel(lista: (c: Colecao) => Registro[], hoje: string) 
       },
       pteExecucao: resumoCiclo(ciclos.find((c) => c.aprovado_em && c.status !== 'encerrado')),
       pteAdesao: resumoCiclo(ciclos.find((c) => !c.aprovado_em)),
-      porRisco,
     }
 }

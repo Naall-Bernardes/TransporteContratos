@@ -183,7 +183,7 @@ export function criarBaseDemonstracao(versao: number): Base {
   ]
 
   const hoje = hojeIso()
-  const config = criarConfiguracoes(novo, usuarios[1].id)
+  const config = criarConfiguracoes(novo)
   const contratos = criarContratosDemonstracao({ novo, hoje, caixas, escolas, sres, municipios, transportadores, usuarios })
   const modulos = criarModulosDemonstracao({
     novo,
@@ -201,12 +201,6 @@ export function criarBaseDemonstracao(versao: number): Base {
     tiposVeiculo,
     transportadores,
   })
-
-  // Ocorrência de risco manual: liga ao risco pelo código
-  for (const o of modulos.risco_ocorrencias ?? []) {
-    o.risco_id = config.riscos.find((r) => r.codigo === o._risco_codigo)!.id
-    delete o._risco_codigo
-  }
 
   const partes: Partial<Record<Colecao, Registro[]>>[] = [
     { sres, municipios, escolas, caixas_escolares: caixas, alunos, transportadores, tipos_veiculo: tiposVeiculo, precos_referencia: precos, feriados, usuarios },

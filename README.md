@@ -28,7 +28,7 @@ e todos os alunos, escolas e pessoas são fictícios.
 | `src/lib/pte/` | Conciliação TER × SIMADE, inconsistências de rotas e cálculo do repasse (Res. 5.267/2026) |
 | `src/lib/conformidade.ts` | Conformidade documental de veículos, condutores e contratados |
 | `src/lib/documentos/` | Repositório de documentos (arquivos, versões, ZIP, log de acesso) |
-| `src/lib/monitoramento.ts` | Situação dos processos, alertas por e-mail e gatilhos de risco |
+| `src/lib/monitoramento.ts` | Situação consolidada dos processos, instrumentos, conformidade da frota e despesas do PTE |
 | `src/lib/dados/servicos*.ts` | Operações de negócio (criar demanda, concluir etapa, aprovar ciclo…) |
 | `src/features/cadastros/configuracoes.ts` | Campos de cada cadastro (para incluir um campo novo, comece aqui) |
 | `src/features/` | Telas, uma pasta por módulo |

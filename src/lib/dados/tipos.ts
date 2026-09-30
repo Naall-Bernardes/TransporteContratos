@@ -49,9 +49,6 @@ export type ColecaoPte =
   | 'calculos_repasse'
   | 'demandas_extraordinarias'
 
-/** Alertas (Fase 6) e riscos (Fase 7). */
-export type ColecaoGestao = 'alertas' | 'riscos' | 'risco_ocorrencias'
-
 /**
  * Frota e conformidade legal: veículos, condutores/monitores, quem roda em qual contrato
  * (alocações) e o catálogo de documentos obrigatórios (CTB, CONTRAN, DETRAN, SEE).
@@ -66,7 +63,7 @@ export type ColecaoFrota =
   | 'rotas_pte'
   | 'despesas_pte'
 
-export type Colecao = ColecaoCadastro | ColecaoContrato | ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao | ColecaoFrota
+export type Colecao = ColecaoCadastro | ColecaoContrato | ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoFrota
 
 export const COLECOES_CADASTRO: ColecaoCadastro[] = [
   'sres',
@@ -91,7 +88,7 @@ export const COLECOES_CONTRATO: ColecaoContrato[] = [
   'prestacoes_contas',
 ]
 
-export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoGestao | ColecaoFrota)[] = [
+export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoFrota)[] = [
   'tipos_documento',
   'documentos',
   'documento_versoes',
@@ -113,9 +110,6 @@ export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicia
   'divergencias',
   'calculos_repasse',
   'demandas_extraordinarias',
-  'alertas',
-  'riscos',
-  'risco_ocorrencias',
   'veiculos',
   'condutores',
   'alocacoes',
