@@ -4,11 +4,12 @@
 
 import {
   BarChart3, Bus, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
-  Home, LayoutGrid, ListChecks, LogOut, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
+  Home, LayoutGrid, ListChecks, ListTree, LogOut, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useSessao, useUsuario } from '@/features/auth/Sessao'
+import { iconeEtapa } from '@/features/judicial/iconesEtapa'
 import { carregarBase } from '@/lib/dados/armazenamento'
 import { consultaDe } from '@/lib/dados/repositorio'
 import { feriadosDe } from '@/lib/dados/servicos'
@@ -33,7 +34,7 @@ function ItemMenu({ para, icone, children, fim, aoClicar }: { para: string; icon
   )
 }
 
-function SubItem({ para, children, qtd, fim, aoClicar }: { para: string; children: ReactNode; qtd: number; fim?: boolean; aoClicar: () => void }) {
+function SubItem({ para, icone, children, qtd, fim, aoClicar }: { para: string; icone: ReactNode; children: ReactNode; qtd: number; fim?: boolean; aoClicar: () => void }) {
   return (
     <NavLink
       to={para}
@@ -41,7 +42,10 @@ function SubItem({ para, children, qtd, fim, aoClicar }: { para: string; childre
       onClick={aoClicar}
       className={({ isActive }) => `flex items-start justify-between gap-2 rounded px-2 py-1 text-xs leading-tight ${isActive ? 'bg-marca-600 text-white' : 'text-marca-100 hover:bg-marca-800'}`}
     >
-      <span>{children}</span>
+      <span className="flex items-start gap-1.5">
+        <span className="mt-px shrink-0">{icone}</span>
+        {children}
+      </span>
       <span className={`shrink-0 rounded-full px-1.5 tabular-nums ${qtd ? 'bg-marca-700 text-white' : 'text-marca-100/50'}`}>{qtd}</span>
     </NavLink>
   )
@@ -81,12 +85,15 @@ export function Layout() {
       <Item para="/judicial" icone={<Gavel size={16} />} fim>Judicial / MP</Item>
       {emJudicial && (
         <div className="mt-0.5 mb-1 ml-5 border-l border-marca-700 pl-2">
-          <SubItem para="/judicial" fim aoClicar={fechar} qtd={contagem.total}>Todas as demandas</SubItem>
-          {etapasJudicial.map((m) => (
-            <SubItem key={m.id} para={`/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0}>
-              {String(m.ordem)}. {String(m.nome)}
-            </SubItem>
-          ))}
+          <SubItem para="/judicial" fim aoClicar={fechar} qtd={contagem.total} icone={<ListTree size={14} />}>Todas as demandas</SubItem>
+          {etapasJudicial.map((m) => {
+            const Icone = iconeEtapa(m.codigo)
+            return (
+              <SubItem key={m.id} para={`/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0} icone={<Icone size={14} />}>
+                {String(m.nome)}
+              </SubItem>
+            )
+          })}
         </div>
       )}
       <Item para="/pte" icone={<Route size={16} />}>PTE</Item>
