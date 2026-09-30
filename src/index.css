@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --color-marca-50: #eef4fb;
+  --color-marca-100: #d6e4f5;
+  --color-marca-600: #1f5fa8;
+  --color-marca-700: #184c87;
+  --color-marca-800: #123a68;
+  --color-marca-900: #0c2847;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}
+
+/* Campos de formulário com aparência única em todo o sistema */
+.campo {
+  @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
+    focus:border-marca-600 focus:outline-none focus:ring-2 focus:ring-marca-100
+    disabled:bg-slate-100 disabled:text-slate-500;
+}
+.campo[aria-invalid='true'] {
+  @apply border-red-500 focus:ring-red-100;
+}
