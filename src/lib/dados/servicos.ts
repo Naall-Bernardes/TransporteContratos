@@ -8,6 +8,7 @@ import { avaliarEtapa, montarDadosProcesso } from '../fluxo/processo'
 import { prazoDaEtapa } from '../fluxo/sla'
 import { formatarData } from '../formatacao'
 import { ehCentral, ehDiretorOuCentral, podeAutorizarLiberacao } from '../permissoes'
+import { origemDoOrgao } from '../judicial/oficios'
 import { calcularRepasse, conciliar, DIVERGENCIAS_DE_ROTA, inconsistenciasRotas } from '../pte/pte'
 import { criarProcesso, ErroPermissao, ErroRegra, transacao, type Tx } from './repositorio'
 import type { Colecao, Registro, Usuario } from './tipos'
@@ -37,17 +38,103 @@ const modelosDo = (tx: Tx, modulo: 'JUDICIAL' | 'PTE') =>
 
 // ---------- Judicial ----------
 
-export function criarDemanda(usuario: Usuario, dados: Record<string, unknown>) {
+/** Cadastra um ofício recebido (só o órgão central). Ganha código único OFC-ano-seq e pasta de documentos. */
+export function criarOficio(usuario: Usuario, dados: Record<string, unknown>) {
+  if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('Os ofícios são cadastrados pelo órgão central.'))
   return transacao(usuario, (tx) => {
-    const escola = tx.consulta('escolas', dados.escola_id)
-    if (!escola) throw new ErroRegra('Escolha a escola estadual.')
-    const processo = criarProcesso(tx, 'JUDICIAL', {
+    const processo = criarProcesso(tx, 'OFICIO', {
       ano: Number(String(dados.data_recebimento ?? hojeIso()).slice(0, 4)),
-      sre_id: escola.sre_id,
+      sre_id: null,
       numero_sei: dados.numero_sei,
     })
-    const demanda = tx.salvar('demandas', { ...dados, processo_id: processo.id, situacao: 'ativa' })
-    iniciarEtapa(tx, processo.id, modelosDo(tx, 'JUDICIAL')[0], usuario.id)
+    return tx.salvar('oficios', { ...dados, processo_id: processo.id, sre_id: null, responsavel_id: dados.responsavel_id ?? usuario.id })
+  })
+}
+
+export interface DadosConsulta {
+  sre_id: string
+  pergunta: string
+  prazo: string
+}
+
+/** Central pede informação à SRE. A SRE passa a ver o ofício e os documentos dele. */
+export function consultarSre(usuario: Usuario, oficioId: string, c: DadosConsulta) {
+  if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('Só o órgão central encaminha pedidos de informação.'))
+  return transacao(usuario, (tx) => {
+    const oficio = tx.consulta('oficios', oficioId)
+    if (!oficio) throw new ErroRegra('Ofício não encontrado.')
+    if (oficio.resposta_data) throw new ErroRegra('Este ofício já foi respondido.')
+    if (!c.sre_id) throw new ErroRegra('Escolha a SRE.')
+    if (oficio.sre_id && oficio.sre_id !== c.sre_id) throw new ErroRegra('Este ofício já foi encaminhado a outra SRE.')
+    tx.salvar('oficios', { id: oficio.id, sre_id: c.sre_id })
+    tx.salvar('processos', { id: oficio.processo_id, sre_id: c.sre_id })
+    return tx.salvar('oficio_consultas', {
+      oficio_id: oficio.id,
+      pergunta: c.pergunta?.trim() || null,
+      prazo: c.prazo,
+      solicitada_em: hojeIso(),
+      solicitada_por: usuario.id,
+      status: 'pendente',
+    })
+  })
+}
+
+/** A SRE (ou o central) registra a informação solicitada. */
+export function responderConsulta(usuario: Usuario, consultaId: string, resposta: string) {
+  return transacao(usuario, (tx) => {
+    const c = tx.consulta('oficio_consultas', consultaId)
+    if (!c || c.status !== 'pendente') throw new ErroRegra('Este pedido não está aguardando resposta.')
+    return tx.salvar('oficio_consultas', { id: c.id, resposta: resposta?.trim() || null, respondida_em: hojeIso(), respondida_por: usuario.id, status: 'respondida' })
+  })
+}
+
+export interface DadosResposta {
+  resposta_numero: string
+  resposta_data: string
+  resposta_resumo?: string
+}
+
+/** Registra a resposta enviada ao órgão (encerra o controle do ofício). */
+export function registrarRespostaOficio(usuario: Usuario, oficioId: string, r: DadosResposta) {
+  if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('A resposta é registrada pelo órgão central.'))
+  return transacao(usuario, (tx) => {
+    const pendente = tx.lista('oficio_consultas').some((c) => c.oficio_id === oficioId && c.status === 'pendente')
+    if (pendente) throw new ErroRegra('Há pedido de informação à SRE ainda sem resposta.')
+    return tx.salvar('oficios', { id: oficioId, resposta_numero: r.resposta_numero?.trim() || null, resposta_data: r.resposta_data || null, resposta_resumo: r.resposta_resumo?.trim() || null })
+  })
+}
+
+/**
+ * Inicia o cumprimento de sentença a partir de um ofício de intimação: cria a demanda (código JUD-ano-SRE-seq)
+ * com os dados do ofício e abre a primeira etapa (Caracterização) com o responsável da SRE.
+ */
+export function iniciarCumprimento(usuario: Usuario, oficioId: string, dados: Record<string, unknown>) {
+  if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('O cumprimento é iniciado pelo órgão central.'))
+  return transacao(usuario, (tx) => {
+    const oficio = tx.consulta('oficios', oficioId)
+    if (!oficio) throw new ErroRegra('Ofício não encontrado.')
+    if (oficio.tipo !== 'intimacao_cumprimento') throw new ErroRegra('Só ofício de intimação para cumprimento inicia um cumprimento de sentença.')
+    if (oficio.demanda_id) throw new ErroRegra('Este ofício já está vinculado a um cumprimento.')
+    if (!oficio.numero_processo_judicial || !oficio.comarca) throw new ErroRegra('Preencha no ofício o nº do processo judicial e a comarca.')
+    const escola = tx.consulta('escolas', dados.escola_id)
+    if (!escola) throw new ErroRegra('Escolha a escola estadual.')
+    const numeroSei = tx.consulta('processos', oficio.processo_id)?.numero_sei ?? null
+    const processo = criarProcesso(tx, 'JUDICIAL', { ano: Number(String(oficio.data_recebimento).slice(0, 4)), sre_id: escola.sre_id, numero_sei: numeroSei })
+    const origem = origemDoOrgao(oficio.orgao_tipo)
+    const demanda = tx.salvar('demandas', {
+      ...dados,
+      processo_id: processo.id,
+      origem,
+      origem_outro: origem === 'outro' ? String(oficio.orgao_nome || oficio.orgao_tipo) : null,
+      numero_processo_origem: oficio.numero_processo_judicial,
+      comarca: oficio.comarca,
+      orgao: oficio.orgao_nome ?? null,
+      data_recebimento: oficio.data_recebimento,
+      data_ciencia: oficio.data_recebimento,
+      situacao: 'ativa',
+    })
+    tx.salvar('oficios', { id: oficio.id, demanda_id: demanda.id })
+    iniciarEtapa(tx, processo.id, modelosDo(tx, 'JUDICIAL')[0], dados.responsavel_sre_id ?? null)
     return demanda
   })
 }
@@ -133,7 +220,7 @@ export function decidirAutorizacao(usuario: Usuario, demandaId: string, d: Decis
   if (!podeAutorizarLiberacao(usuario)) return Promise.reject(new ErroPermissao('Só o(a) subsecretário(a) autoriza a liberação do recurso.'))
   return transacao(usuario, (tx) => {
     const demanda = tx.consulta('demandas', demandaId)!
-    const { modelo, instancia } = etapaEmAndamento(tx, demanda.processo_id, 'J04')
+    const { modelo, instancia } = etapaEmAndamento(tx, demanda.processo_id, 'C02')
     if (!modelo || !instancia) throw new ErroRegra('Esta demanda não está aguardando autorização.')
     const valorTotal = d.decisao === 'aprovada' ? Math.round(Number(d.valor_mensal) * Number(d.meses) * 100) / 100 : null
     tx.salvar('autorizacoes_subsecretario', {
@@ -152,7 +239,7 @@ export function decidirAutorizacao(usuario: Usuario, demandaId: string, d: Decis
     } else {
       // Devolução: a etapa 4 fica registrada como devolvida e a Caracterização é reaberta
       tx.salvar('processo_etapas', { id: instancia.id, status: 'devolvida', concluida_em: hojeIso() })
-      const modeloJ03 = tx.lista('etapas_modelo').find((m) => m.codigo === 'J03')!
+      const modeloJ03 = tx.lista('etapas_modelo').find((m) => m.codigo === 'C01')!
       iniciarEtapa(tx, String(demanda.processo_id), modeloJ03, demanda.responsavel_sre_id ?? null)
     }
   })
@@ -170,7 +257,7 @@ export function criarPaf(usuario: Usuario, demandaId: string, p: DadosPaf) {
   if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('O PAF é registrado pelo órgão central.'))
   return transacao(usuario, (tx) => {
     const demanda = tx.consulta('demandas', demandaId)!
-    const { modelo, instancia } = etapaEmAndamento(tx, demanda.processo_id, 'J05')
+    const { modelo, instancia } = etapaEmAndamento(tx, demanda.processo_id, 'C03')
     if (!modelo || !instancia) throw new ErroRegra('A demanda não está na etapa de registro do PAF.')
     const paf = tx.salvar('pafs', { demanda_id: demandaId, ...p })
     avancarDaEtapa(tx, usuario, instancia, modelo)

@@ -24,7 +24,7 @@ export const veTodasSres = (u: Usuario) => ehCentral(u) || u.papel === 'subsecre
 export const podeAutorizarLiberacao = (u: Usuario) => u.papel === 'subsecretario'
 
 /** Tabelas com o campo sre_id no próprio registro. */
-const SRE_DIRETA: Colecao[] = ['escolas', 'precos_referencia', 'usuarios', 'processos', 'instrumentos', 'demandas', 'adesoes_pte']
+const SRE_DIRETA: Colecao[] = ['escolas', 'precos_referencia', 'usuarios', 'processos', 'instrumentos', 'demandas', 'adesoes_pte', 'oficios']
 
 /** Tabelas que herdam a SRE do registro pai: [campo da chave estrangeira, tabela pai]. */
 const PAI: Partial<Record<Colecao, [string, Colecao]>> = {
@@ -38,6 +38,7 @@ const PAI: Partial<Record<Colecao, [string, Colecao]>> = {
   documentos: ['processo_id', 'processos'],
   documento_versoes: ['documento_id', 'documentos'],
   processo_etapas: ['processo_id', 'processos'],
+  oficio_consultas: ['oficio_id', 'oficios'],
   demanda_alunos: ['demanda_id', 'demandas'],
   caracterizacoes: ['demanda_id', 'demandas'],
   caracterizacoes_saude: ['caracterizacao_id', 'caracterizacoes'],
@@ -68,6 +69,7 @@ const SOMENTE_CENTRAL: Colecao[] = [
   'simade_registros',
   'calculos_repasse',
   'pafs',
+  'oficios',
 ]
 
 export function podeEditarColecao(u: Usuario, colecao: Colecao): boolean {

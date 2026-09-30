@@ -91,7 +91,7 @@ export function EtapaDetalhe({ processoId, modelo, dados, aoAlterar, alunos, chi
             </p>
             <h2 className="text-lg font-semibold text-slate-900">{String(modelo.nome)}</h2>
             <p className="mt-1 text-sm text-slate-600">
-              SLA: {modelo.sla_dias_uteis ? `${modelo.sla_dias_uteis} dias úteis` : 'não se aplica (etapa contínua)'} · responsável: {modelo.papel_responsavel === 'sre' ? 'SRE' : 'órgão central'}
+              SLA: {modelo.sla_dias_uteis ? `${modelo.sla_dias_uteis} dias úteis` : 'não se aplica (etapa contínua)'} · responsável: {modelo.papel_responsavel === 'sre' ? 'SRE' : modelo.papel_responsavel === 'subsecretario' ? 'Subsecretário(a)' : 'órgão central'}
             </p>
             {instancia && (
               <p className="mt-1 text-sm text-slate-600">

@@ -60,7 +60,7 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const instrumento = (numero: string, trecho: string) =>
     c.contratos.instrumentos.find((i) => i.numero === numero && String(i.objeto).includes(trecho))!
 
-  function novoProcesso(modulo: 'JUDICIAL' | 'PTE', ano: number, chave: string, campos: Record<string, unknown>) {
+  function novoProcesso(modulo: 'JUDICIAL' | 'PTE' | 'OFICIO', ano: number, chave: string, campos: Record<string, unknown>) {
     const codigo = gerarCodigoUnico(modulo, ano, chave, codigos)
     codigos.push(codigo)
     return push('processos', novo({ codigo, modulo, ano, ...campos }))
@@ -282,7 +282,7 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
 
     const lista = modelos('JUDICIAL').map((m) => String(m.codigo))
     const concluidas = lista.slice(0, lista.indexOf(s.etapa))
-    const extrasDoc = [...(s.docsExtras ?? []), ...(s.pcd ? ['J03:se_pcd', 'J03:se_dispositivo_ou_acompanhante'] : []), 'J03:se_obstaculos', 'J03:se_rota_nao_atende']
+    const extrasDoc = [...(s.docsExtras ?? []), ...(s.pcd ? ['C01:se_pcd', 'C01:se_dispositivo_ou_acompanhante'] : []), 'C01:se_obstaculos', 'C01:se_rota_nao_atende']
     documentos(processo.id, concluidas, somarDias(inicio, 3), s.statusCaracterizacao === 'rascunho' ? [] : extrasDoc, s.omitir)
     return dem
   }
@@ -295,17 +295,108 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const sergio = usuario('analista.udi@demo.exemplo')
   const mariana = usuario('analista.moc@demo.exemplo')
 
-  demanda({ processo_id: c1.processo_id as string, sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Um', 'Aluno Fictício Sete'], etapa: 'J07', inicioEtapa: String(c1.vigencia_inicio), prazo_judicial: somarDias(String(c1.vigencia_inicio), 3), origem: 'judicial', responsavel: sergio, valor: { mensal: 12000, meses: 8 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c1.vigencia_inicio), statusCaracterizacao: 'aprovada' })
-  demanda({ processo_id: c2.processo_id as string, sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Dois'], etapa: 'J07', inicioEtapa: String(c2.vigencia_inicio), prazo_judicial: somarDias(String(c2.vigencia_inicio), 2), origem: 'judicial', responsavel: sergio, valor: { mensal: 10000, meses: 6 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c2.vigencia_inicio), statusCaracterizacao: 'aprovada', pcd: true })
-  demanda({ processo_id: c3.processo_id as string, sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluno Fictício Três'], etapa: 'J07', inicioEtapa: String(c3.vigencia_inicio), prazo_judicial: somarDias(String(c3.vigencia_inicio), 5), origem: 'judicial', responsavel: mariana, valor: { mensal: 6000, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c3.vigencia_inicio), statusCaracterizacao: 'aprovada' })
-  demanda({ processo_id: c4.processo_id as string, sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Quatro'], etapa: 'J07', inicioEtapa: d(-30), prazo_judicial: d(-28), origem: 'ministerio_publico', responsavel: mariana, valor: { mensal: 3500, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: d(-30), statusCaracterizacao: 'aprovada' })
+  demanda({ processo_id: c1.processo_id as string, sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Um', 'Aluno Fictício Sete'], etapa: 'C05', inicioEtapa: String(c1.vigencia_inicio), prazo_judicial: somarDias(String(c1.vigencia_inicio), 3), origem: 'judicial', responsavel: sergio, valor: { mensal: 12000, meses: 8 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c1.vigencia_inicio), statusCaracterizacao: 'aprovada' })
+  demanda({ processo_id: c2.processo_id as string, sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Dois'], etapa: 'C05', inicioEtapa: String(c2.vigencia_inicio), prazo_judicial: somarDias(String(c2.vigencia_inicio), 2), origem: 'judicial', responsavel: sergio, valor: { mensal: 10000, meses: 6 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c2.vigencia_inicio), statusCaracterizacao: 'aprovada', pcd: true })
+  demanda({ processo_id: c3.processo_id as string, sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluno Fictício Três'], etapa: 'C05', inicioEtapa: String(c3.vigencia_inicio), prazo_judicial: somarDias(String(c3.vigencia_inicio), 5), origem: 'judicial', responsavel: mariana, valor: { mensal: 6000, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c3.vigencia_inicio), statusCaracterizacao: 'aprovada' })
+  demanda({ processo_id: c4.processo_id as string, sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Quatro'], etapa: 'C05', inicioEtapa: d(-30), prazo_judicial: d(-28), origem: 'ministerio_publico', responsavel: mariana, valor: { mensal: 3500, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: d(-30), statusCaracterizacao: 'aprovada' })
   // Novas, sem contrato ainda
-  demanda({ sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Nove'], etapa: 'J03', inicioEtapa: d(-3), prazo_judicial: d(9), origem: 'ministerio_publico', responsavel: sergio, statusCaracterizacao: 'rascunho' })
+  demanda({ sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Nove'], etapa: 'C01', inicioEtapa: d(-3), prazo_judicial: d(9), origem: 'ministerio_publico', responsavel: sergio, statusCaracterizacao: 'rascunho' })
   // Aguardando o subsecretário: caracterização aprovada pela SRE, veículo adaptado
-  demanda({ sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluna Fictícia Dez'], etapa: 'J04', inicioEtapa: d(-4), prazo_judicial: d(5), origem: 'judicial', responsavel: mariana, valorEstimado: Number(precoMocAdaptado.valor), statusCaracterizacao: 'aprovada', pcd: true })
-  demanda({ sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Doze'], etapa: 'J01', inicioEtapa: d(-1), prazo_judicial: d(20), origem: 'judicial', responsavel: null, statusCaracterizacao: 'rascunho' })
+  demanda({ sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluna Fictícia Dez'], etapa: 'C02', inicioEtapa: d(-4), prazo_judicial: d(5), origem: 'judicial', responsavel: mariana, valorEstimado: Number(precoMocAdaptado.valor), statusCaracterizacao: 'aprovada', pcd: true })
   // Aguardando o subsecretário, com devolução anterior no histórico e prazo judicial vencido
-  demanda({ sre: 'MTA', escola: 'Coração de Minas', alunos: ['Aluno Fictício Onze'], etapa: 'J04', inicioEtapa: d(-9), prazo_judicial: d(-2), origem: 'judicial', responsavel: usuario('central@demo.exemplo'), valorEstimado: 5200, statusCaracterizacao: 'aprovada', devolucaoAnterior: 'Km diário da caracterização incompatível com o mapa da rota; revisar antes de liberar (fictício).' })
+  demanda({ sre: 'MTA', escola: 'Coração de Minas', alunos: ['Aluno Fictício Onze'], etapa: 'C02', inicioEtapa: d(-9), prazo_judicial: d(-2), origem: 'judicial', responsavel: usuario('central@demo.exemplo'), valorEstimado: 5200, statusCaracterizacao: 'aprovada', devolucaoAnterior: 'Km diário da caracterização incompatível com o mapa da rota; revisar antes de liberar (fictício).' })
+
+  // ---------- Ofícios ----------
+  interface OficioSeed {
+    orgao_tipo: string
+    orgao_nome: string
+    comarca: string
+    processo?: string
+    recebido: string
+    prazo: string
+    assunto: string
+    tipo: string
+    escola?: Registro
+    demanda?: Registro
+    sre?: string
+    consulta?: { pergunta: string; solicitada: string; resposta?: string; respondida?: string }
+    resposta?: { data: string; resumo: string }
+  }
+  function docAvulso(processoId: string, codigo: string, data: string) {
+    const documento = push('documentos', novo({ processo_id: processoId, tipo_documento_id: tipoDoc(codigo), numero_sei: `SEI ${9100000 + (out.documentos?.length ?? 0)}`, data_documento: data, versao_atual: 1, observacao: 'Documento fictício de demonstração.' }))
+    push('documento_versoes', novo({ documento_id: documento.id, versao: 1, nome_arquivo: `${codigo}.pdf`, mime: 'application/pdf', tamanho_bytes: 52000, hash_sha256: null, arquivo_demo: true }))
+  }
+  const central = usuario('central@demo.exemplo')
+  function oficio(o: OficioSeed) {
+    const seq = (out.oficios?.length ?? 0) + 1
+    const processo = novoProcesso('OFICIO', Number(o.recebido.slice(0, 4)), '', { numero_sei: `1260.01.01${String(seq).padStart(5, '0')}/2026-00`, sre_id: o.sre ?? null, municipio_id: null })
+    const of = push('oficios', novo({
+      processo_id: processo.id,
+      numero: `${String(100 + seq * 7)}/2026`,
+      orgao_tipo: o.orgao_tipo,
+      orgao_nome: o.orgao_nome,
+      comarca: o.comarca,
+      numero_processo_judicial: o.processo ?? null,
+      data_recebimento: o.recebido,
+      prazo_resposta: o.prazo,
+      assunto: o.assunto,
+      tipo: o.tipo,
+      escola_id: o.escola?.id ?? null,
+      sre_id: o.sre ?? null,
+      demanda_id: o.demanda?.id ?? null,
+      responsavel_id: central,
+      resposta_numero: o.resposta ? `OF.SEE/DTE nº ${String(300 + seq)}/2026` : null,
+      resposta_data: o.resposta?.data ?? null,
+      resposta_resumo: o.resposta?.resumo ?? null,
+    }))
+    docAvulso(processo.id, 'oficio_recebido', o.recebido)
+    if (o.consulta) {
+      push('oficio_consultas', novo({
+        oficio_id: of.id,
+        pergunta: o.consulta.pergunta,
+        solicitada_em: o.consulta.solicitada,
+        solicitada_por: central,
+        prazo: prazoDaEtapa(o.consulta.solicitada, 5, feriados),
+        status: o.consulta.resposta ? 'respondida' : 'pendente',
+        resposta: o.consulta.resposta ?? null,
+        respondida_em: o.consulta.respondida ?? null,
+        respondida_por: o.consulta.resposta ? (o.sre === sre('MOC') ? mariana : sergio) : null,
+      }))
+      if (o.consulta.respondida) docAvulso(processo.id, 'informacao_sre', o.consulta.respondida)
+    }
+    if (o.resposta) docAvulso(processo.id, 'oficio_resposta', o.resposta.data)
+    return of
+  }
+
+  // Intimações que originaram os cumprimentos em andamento
+  const orgaoDaDemanda = (dm: Registro) => (dm.origem === 'ministerio_publico' ? 'ministerio_publico' : 'judiciario')
+  for (const dm of out.demandas ?? []) {
+    const emExecucao = Boolean(dm.data_inicio_transporte)
+    oficio({
+      orgao_tipo: orgaoDaDemanda(dm),
+      orgao_nome: String(dm.orgao),
+      comarca: String(dm.comarca),
+      processo: String(dm.numero_processo_origem),
+      recebido: String(dm.data_recebimento),
+      prazo: String(dm.prazo_judicial) >= String(dm.data_recebimento) ? String(dm.prazo_judicial) : somarDias(String(dm.data_recebimento), 15),
+      assunto: 'Intimação para fornecer transporte escolar adequado ao(s) estudante(s) (texto fictício).',
+      tipo: 'intimacao_cumprimento',
+      escola: c.escolas.find((e) => e.id === dm.escola_id),
+      demanda: dm,
+      resposta: emExecucao ? { data: String(dm.data_inicio_transporte), resumo: 'Informado ao juízo o início do transporte (fictício).' } : undefined,
+    })
+  }
+  const dMta = (out.demandas ?? []).find((x) => x.sre_id === sre('MTA'))!
+  // Reiteração da MTA (prazo judicial vencido), aguardando análise
+  oficio({ orgao_tipo: 'judiciario', orgao_nome: String(dMta.orgao), comarca: String(dMta.comarca), processo: String(dMta.numero_processo_origem), recebido: d(-2), prazo: d(3), assunto: 'Reitera a intimação e cobra comprovação do cumprimento, sob pena de multa (fictício).', tipo: 'reiteracao', demanda: dMta })
+  // Intimação nova, cumprimento ainda não iniciado
+  oficio({ orgao_tipo: 'judiciario', orgao_nome: 'Vara da Infância e da Juventude (fictícia)', comarca: 'Uberlândia', processo: '5009912-34.2026.8.13.0702', recebido: d(-1), prazo: d(20), assunto: 'Intimação: fornecer transporte à Aluna Fictícia Doze, da E.E. Rio das Pedras (fictício).', tipo: 'intimacao_cumprimento', escola: escola('Rio das Pedras') })
+  // Pedidos de informação em cada situação
+  oficio({ orgao_tipo: 'defensoria', orgao_nome: 'Defensoria Pública — Núcleo da Infância (fictícia)', comarca: 'Uberlândia', recebido: d(-1), prazo: d(9), assunto: 'Solicita informações sobre a oferta de transporte escolar a estudante da E.E. Aurora (fictício).', tipo: 'pedido_informacao', escola: escola('Aurora') })
+  oficio({ orgao_tipo: 'ministerio_publico', orgao_nome: 'Promotoria de Justiça da Educação (fictícia)', comarca: 'Uberlândia', processo: 'MPMG-0099.26.000555-1', recebido: d(-6), prazo: d(4), assunto: 'Requisita informações sobre as rotas que atendem a zona rural de Uberlândia (fictício).', tipo: 'pedido_informacao', escola: escola('Aurora'), sre: sre('UDI'), consulta: { pergunta: 'Informar as rotas vigentes que atendem a zona rural, com quantidade de alunos e veículos.', solicitada: d(-5) } })
+  oficio({ orgao_tipo: 'judiciario', orgao_nome: 'Vara Cível (fictícia)', comarca: 'Montes Claros', processo: '5007788-11.2026.8.13.0433', recebido: d(-10), prazo: d(2), assunto: 'Pede informações sobre o atendimento de estudante com deficiência (fictício).', tipo: 'pedido_informacao', escola: escola('Serra Verde'), sre: sre('MOC'), consulta: { pergunta: 'O estudante é atendido por transporte adaptado? Desde quando?', solicitada: d(-9), resposta: 'Sim, atendido por veículo adaptado desde o início do ano letivo, com monitor (fictício).', respondida: d(-3) } })
+  oficio({ orgao_tipo: 'conselho_tutelar', orgao_nome: 'Conselho Tutelar (fictício)', comarca: 'Uberlândia', recebido: d(-25), prazo: d(-15), assunto: 'Comunica falta de transporte a estudantes da E.E. Rio das Pedras (fictício).', tipo: 'pedido_informacao', escola: escola('Rio das Pedras'), resposta: { data: d(-17), resumo: 'Informado que o transporte é ofertado pelo PTE municipal (fictício).' } })
+  oficio({ orgao_tipo: 'judiciario', orgao_nome: 'Juizado Especial da Fazenda Pública (fictício)', comarca: 'Montes Claros', processo: '5001234-55.2026.8.13.0433', recebido: d(-12), prazo: d(-2), assunto: 'Pede informações sobre o custo do transporte contratado pela Caixa Escolar (fictício).', tipo: 'pedido_informacao', escola: escola('Serra Verde') })
 
   // ---------- PTE ----------
   const t1 = instrumento('TC 015/2026', 'Repasse')

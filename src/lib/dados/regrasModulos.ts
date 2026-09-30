@@ -23,6 +23,8 @@ export const OBRIGATORIOS_MODULOS: Record<ColecaoModulo, string[]> = {
   etapas_modelo: ['modulo', 'ordem', 'codigo', 'nome', 'papel_responsavel'],
   checklist_modelo: ['etapa_modelo_id', 'tipo_documento_id', 'condicao'],
   processo_etapas: ['processo_id', 'etapa_modelo_id', 'status'],
+  oficios: ['processo_id', 'numero', 'orgao_tipo', 'data_recebimento', 'prazo_resposta', 'assunto', 'tipo'],
+  oficio_consultas: ['oficio_id', 'pergunta', 'solicitada_em', 'prazo', 'status'],
   demandas: ['processo_id', 'origem', 'numero_processo_origem', 'comarca', 'data_recebimento', 'data_ciencia', 'prazo_judicial', 'escola_id', 'situacao'],
   demanda_alunos: ['demanda_id', 'aluno_id', 'incluido_em'],
   caracterizacoes: ['demanda_id', 'demanda_aluno_id', 'status'],
@@ -59,6 +61,13 @@ export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Coleca
   { origem: 'processo_etapas', campo: 'processo_id', alvo: 'processos' },
   { origem: 'processo_etapas', campo: 'etapa_modelo_id', alvo: 'etapas_modelo' },
   { origem: 'processo_etapas', campo: 'responsavel_id', alvo: 'usuarios' },
+  { origem: 'oficios', campo: 'processo_id', alvo: 'processos' },
+  { origem: 'oficios', campo: 'escola_id', alvo: 'escolas' },
+  { origem: 'oficios', campo: 'demanda_id', alvo: 'demandas' },
+  { origem: 'oficios', campo: 'responsavel_id', alvo: 'usuarios' },
+  { origem: 'oficio_consultas', campo: 'oficio_id', alvo: 'oficios' },
+  { origem: 'oficio_consultas', campo: 'solicitada_por', alvo: 'usuarios' },
+  { origem: 'oficio_consultas', campo: 'respondida_por', alvo: 'usuarios' },
   { origem: 'demandas', campo: 'processo_id', alvo: 'processos' },
   { origem: 'demandas', campo: 'escola_id', alvo: 'escolas' },
   { origem: 'demandas', campo: 'caixa_escolar_id', alvo: 'caixas_escolares' },
@@ -112,6 +121,7 @@ export const UNICOS_MODULOS: Partial<Record<Colecao, { campos: string[]; mensage
   etapas_modelo: [{ campos: ['codigo'], mensagem: 'Código de etapa já utilizado.' }],
   checklist_modelo: [{ campos: ['tipo_documento_id', 'etapa_modelo_id'], mensagem: 'Documento já está no checklist desta etapa.' }],
   processo_etapas: [{ campos: ['etapa_modelo_id', 'processo_id'], mensagem: 'Etapa já existe neste processo.' }],
+  oficios: [{ campos: ['processo_id'], mensagem: 'Processo já vinculado a outro ofício.' }],
   demandas: [{ campos: ['processo_id'], mensagem: 'Processo já vinculado a outra demanda.' }],
   demanda_alunos: [{ campos: ['aluno_id', 'demanda_id'], mensagem: 'Aluno já incluído nesta demanda.' }],
   caracterizacoes: [{ campos: ['demanda_aluno_id'], mensagem: 'Já existe caracterização para este aluno nesta demanda.' }],
@@ -275,6 +285,24 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
     case 'despesas_pte':
       if (num(r.valor) <= 0) erros.valor = 'O valor deve ser maior que zero.'
       if (r.data_comprovacao && r.data_transacao && String(r.data_comprovacao) < String(r.data_transacao)) erros.data_comprovacao = 'Anterior à transação.'
+      break
+
+    case 'oficios':
+      if (r.data_recebimento && String(r.data_recebimento) > hoje) erros.data_recebimento = 'Data de recebimento no futuro.'
+      if (r.prazo_resposta && r.data_recebimento && String(r.prazo_resposta) < String(r.data_recebimento))
+        erros.prazo_resposta = 'O prazo de resposta é anterior ao recebimento.'
+      if (r.orgao_tipo === 'outro' && vazio(r.orgao_nome)) erros.orgao_nome = 'Informe o órgão remetente.'
+      if (!vazio(r.resposta_data) || !vazio(r.resposta_numero)) {
+        if (vazio(r.resposta_numero)) erros.resposta_numero = 'Informe o nº do ofício de resposta.'
+        if (vazio(r.resposta_data)) erros.resposta_data = 'Informe a data da resposta.'
+        else if (String(r.resposta_data) > hoje) erros.resposta_data = 'Data da resposta no futuro.'
+        else if (r.data_recebimento && String(r.resposta_data) < String(r.data_recebimento)) erros.resposta_data = 'A resposta é anterior ao recebimento.'
+      }
+      break
+
+    case 'oficio_consultas':
+      if (r.prazo && r.solicitada_em && String(r.prazo) < String(r.solicitada_em)) erros.prazo = 'O prazo é anterior à data do pedido.'
+      if (r.status === 'respondida' && vazio(r.resposta)) erros.resposta = 'Escreva a informação solicitada.'
       break
 
     case 'demandas':

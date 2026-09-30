@@ -30,6 +30,8 @@ export type ColecaoFluxo = 'etapas_modelo' | 'checklist_modelo' | 'processo_etap
 
 /** Módulo Judicial/MP (Fase 4). */
 export type ColecaoJudicial =
+  | 'oficios'
+  | 'oficio_consultas'
   | 'demandas'
   | 'demanda_alunos'
   | 'caracterizacoes'
@@ -94,6 +96,8 @@ export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicia
   'etapas_modelo',
   'checklist_modelo',
   'processo_etapas',
+  'oficios',
+  'oficio_consultas',
   'demandas',
   'demanda_alunos',
   'caracterizacoes',

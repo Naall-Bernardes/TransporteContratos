@@ -4,7 +4,7 @@
 
 import {
   BarChart3, Bus, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
-  Home, LayoutGrid, ListChecks, ListTree, LogOut, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
+  Home, LayoutGrid, ListChecks, ListTree, LogOut, Mail, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -15,6 +15,7 @@ import { consultaDe } from '@/lib/dados/repositorio'
 import { feriadosDe } from '@/lib/dados/servicos'
 import type { Colecao } from '@/lib/dados/tipos'
 import { hojeIso } from '@/lib/diasUteis'
+import { situacaoDosOficios } from '@/lib/judicial/oficios'
 import { contarDemandasPorEtapa } from '@/lib/monitoramento'
 import { podeVer } from '@/lib/permissoes'
 import { ehCentral, podeVerAuditoria, ROTULO_PAPEL } from '@/lib/permissoes'
@@ -66,14 +67,15 @@ export function Layout() {
   const fechar = () => setMenuAberto(false)
   const emJudicial = pathname.startsWith('/judicial')
 
-  // Submenu do Judicial/MP: as etapas do fluxo com a quantidade de demandas em cada uma
+  // Submenu do Judicial/MP: ofícios pendentes e o cumprimento de sentença com suas etapas (quantidade em cada uma)
   const etapasJudicial = carregarBase().colecoes.etapas_modelo.filter((m) => m.modulo === 'JUDICIAL').sort((a, b) => Number(a.ordem) - Number(b.ordem))
   const contagem = useMemo(() => {
-    if (!emJudicial) return { total: 0, porEtapa: {} as Record<string, number> }
+    if (!emJudicial) return { total: 0, porEtapa: {} as Record<string, number>, oficios: 0 }
     const b = carregarBase()
     const consulta = consultaDe(b)
     const lista = (c: Colecao) => b.colecoes[c].filter((r) => podeVer(usuario, c, r, consulta))
-    return contarDemandasPorEtapa(lista, hojeIso(), feriadosDe(lista))
+    const oficios = situacaoDosOficios(lista, hojeIso(), feriadosDe(lista)).filter((l) => l.situacao !== 'respondido').length
+    return { ...contarDemandasPorEtapa(lista, hojeIso(), feriadosDe(lista)), oficios }
   }, [pathname, usuario, emJudicial]) // pathname: recalcula a cada navegação, refletindo etapas concluídas
   const Item = (p: { para: string; icone: ReactNode; children: ReactNode; fim?: boolean }) => <ItemMenu {...p} aoClicar={fechar} />
 
@@ -82,18 +84,21 @@ export function Layout() {
       <Item para="/" fim icone={<Home size={16} />}>Início</Item>
       <Item para="/painel" icone={<BarChart3 size={16} />}>Painel</Item>
       <Grupo titulo="Atendimento" />
-      <Item para="/judicial" icone={<Gavel size={16} />} fim>Judicial / MP</Item>
+      <Item para="/judicial/oficios" icone={<Gavel size={16} />}>Judicial / MP</Item>
       {emJudicial && (
         <div className="mt-0.5 mb-1 ml-5 border-l border-marca-700 pl-2">
-          <SubItem para="/judicial" fim aoClicar={fechar} qtd={contagem.total} icone={<ListTree size={14} />}>Todas as demandas</SubItem>
-          {etapasJudicial.map((m) => {
-            const Icone = iconeEtapa(m.codigo)
-            return (
-              <SubItem key={m.id} para={`/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0} icone={<Icone size={14} />}>
-                {String(m.nome)}
-              </SubItem>
-            )
-          })}
+          <SubItem para="/judicial/oficios" aoClicar={fechar} qtd={contagem.oficios} icone={<Mail size={14} />}>Ofícios</SubItem>
+          <SubItem para="/judicial" fim aoClicar={fechar} qtd={contagem.total} icone={<ListTree size={14} />}>Cumprimento de sentença</SubItem>
+          <div className="ml-3 border-l border-marca-700 pl-2">
+            {etapasJudicial.map((m) => {
+              const Icone = iconeEtapa(m.codigo)
+              return (
+                <SubItem key={m.id} para={`/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0} icone={<Icone size={14} />}>
+                  {String(m.nome)}
+                </SubItem>
+              )
+            })}
+          </div>
         </div>
       )}
       <Item para="/pte" icone={<Route size={16} />}>PTE</Item>

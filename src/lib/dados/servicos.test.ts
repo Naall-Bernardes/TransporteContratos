@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { hojeIso } from '../diasUteis'
 import { carregarBase, restaurarDemonstracao } from './armazenamento'
 import { ErroPermissao, ErroRegra, ErroValidacao, salvar, transacao } from './repositorio'
-import { aprovarCiclo, calcularAdesao, concluirEtapa, criarPaf, decidirAutorizacao, criarDemanda, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas } from './servicos'
+import { situacaoOficio } from '../judicial/oficios'
+import { aprovarCiclo, calcularAdesao, consultarSre, criarOficio, criarPaf, decidirAutorizacao, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas, iniciarCumprimento, registrarRespostaOficio, responderConsulta } from './servicos'
+import { concluirEtapa } from './servicos'
 import type { Registro, Usuario } from './tipos'
 
 beforeEach(() => {
@@ -16,57 +18,79 @@ const etapaAberta = (processoId: unknown) => b().colecoes.processo_etapas.find((
 const codigoEtapa = (e: Registro) => b().colecoes.etapas_modelo.find((m) => m.id === e.etapa_modelo_id)!.codigo
 
 describe('fluxo judicial', () => {
-  it('criar demanda gera processo JUD-ano-SRE e abre a etapa 1 com prazo em dias úteis', async () => {
-    const escola = b().colecoes.escolas.find((e) => String(e.nome).includes('Aurora'))!
-    const dem = await criarDemanda(central(), {
-      origem: 'judicial', numero_processo_origem: '123', comarca: 'Uberlândia', data_recebimento: hojeIso(), data_ciencia: hojeIso(), prazo_judicial: '2099-01-01', escola_id: escola.id, numero_sei: 'SEI-X',
+  it('ofício: central cadastra (OFC-ano-seq), consulta a SRE, SRE responde, central registra a resposta', async () => {
+    const udi = b().colecoes.sres.find((x) => x.sigla === 'UDI')!
+    const of = await criarOficio(central(), {
+      numero: '999/2026', orgao_tipo: 'defensoria', orgao_nome: 'Defensoria', comarca: 'Uberlândia', data_recebimento: hojeIso(), prazo_resposta: '2099-01-01', assunto: 'Teste', tipo: 'pedido_informacao', numero_sei: 'SEI-OF',
     })
-    const processo = b().colecoes.processos.find((p) => p.id === dem.processo_id)!
-    expect(processo.codigo).toMatch(/^JUD-\d{4}-UDI-\d{4}$/)
-    const etapa = etapaAberta(dem.processo_id)
-    expect(codigoEtapa(etapa)).toBe('J01')
-    expect(etapa.prazo_sla).toBeTruthy()
+    await expect(criarOficio(usuario('analista.udi@demo.exemplo'), { numero: 'x' })).rejects.toBeInstanceOf(ErroPermissao)
+    expect(b().colecoes.processos.find((p) => p.id === of.processo_id)!.codigo).toMatch(/^OFC-\d{4}-\d{4}$/)
+    const sergio = usuario('analista.udi@demo.exemplo')
+    const doOficio = () => b().colecoes.oficios.find((o) => o.id === of.id)!
+    const consultas = () => b().colecoes.oficio_consultas
+    expect(situacaoOficio(doOficio(), consultas())).toBe('aguardando_analise')
+
+    const c = await consultarSre(central(), of.id, { sre_id: udi.id, pergunta: 'Qual rota atende?', prazo: '2099-01-01' })
+    expect(situacaoOficio(doOficio(), consultas())).toBe('aguardando_sre')
+    await expect(registrarRespostaOficio(central(), of.id, { resposta_numero: 'R1', resposta_data: hojeIso() })).rejects.toThrow(/sem resposta/)
+    await expect(responderConsulta(usuario('analista.moc@demo.exemplo'), c.id, 'x')).rejects.toBeInstanceOf(ErroPermissao) // outra SRE
+    await responderConsulta(sergio, c.id, 'Rota 12, van escolar.')
+    expect(situacaoOficio(doOficio(), consultas())).toBe('informacao_recebida')
+    await registrarRespostaOficio(central(), of.id, { resposta_numero: 'OF 1/2026', resposta_data: hojeIso() })
+    expect(situacaoOficio(doOficio(), consultas())).toBe('respondido')
   })
 
-  it('não conclui etapa com checklist incompleto sem justificativa; analista SRE não pode justificar; diretor pode', async () => {
-    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'J01')!
+  it('intimação inicia o cumprimento na Caracterização, com os dados do ofício; só uma vez', async () => {
+    const of = b().colecoes.oficios.find((o) => o.tipo === 'intimacao_cumprimento' && !o.demanda_id)!
+    const escola = b().colecoes.escolas.find((e) => e.id === of.escola_id)!
+    const dados = { escola_id: escola.id, responsavel_sre_id: usuario('analista.udi@demo.exemplo').id, prazo_judicial: of.prazo_resposta }
+    const dem = await iniciarCumprimento(central(), of.id, dados)
+    expect(b().colecoes.processos.find((p) => p.id === dem.processo_id)!.codigo).toMatch(/^JUD-\d{4}-UDI-\d{4}$/)
+    expect(dem.numero_processo_origem).toBe(of.numero_processo_judicial)
+    expect(b().colecoes.oficios.find((o) => o.id === of.id)!.demanda_id).toBe(dem.id)
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('C01')
+    await expect(iniciarCumprimento(central(), of.id, dados)).rejects.toThrow(/já está vinculado/)
+    const pedido = b().colecoes.oficios.find((o) => o.tipo === 'pedido_informacao')!
+    await expect(iniciarCumprimento(central(), pedido.id, dados)).rejects.toThrow(/intimação/)
+  })
+
+  it('checklist incompleto só avança com justificativa, e só de diretor ou órgão central', async () => {
+    const dem = b().colecoes.demandas.find((d) => d.sre_id === b().colecoes.sres.find((x) => x.sigla === 'UDI')!.id && codigoEtapa(etapaAberta(d.processo_id)) === 'C05')!
     const etapa = etapaAberta(dem.processo_id)
     await expect(concluirEtapa(central(), etapa.id)).rejects.toThrow(/Checklist incompleto/)
     await expect(concluirEtapa(usuario('analista.udi@demo.exemplo'), etapa.id, 'urgente')).rejects.toBeInstanceOf(ErroPermissao)
-    await concluirEtapa(usuario('dafi.udi@demo.exemplo'), etapa.id, 'Decisão recebida por e-mail do TJ; PDF será anexado.')
-    const concluida = b().colecoes.processo_etapas.find((e) => e.id === etapa.id)!
-    expect(concluida.status).toBe('concluida')
-    expect(concluida.justificativa_avanco).toMatch(/PDF será anexado/)
-    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('J02')
+    await concluirEtapa(usuario('dafi.udi@demo.exemplo'), etapa.id, 'Relatório será anexado.')
+    expect(b().colecoes.processo_etapas.find((e) => e.id === etapa.id)!.justificativa_avanco).toMatch(/anexado/)
+    expect(b().colecoes.demandas.find((d) => d.id === dem.id)!.situacao).toBe('cumprida')
   })
 
   it('etapa 4 não se conclui pelo botão comum: só pela decisão do subsecretário', async () => {
-    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'J04')!
+    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'C02')!
     await expect(concluirEtapa(central(), etapaAberta(dem.processo_id).id, 'qualquer')).rejects.toBeInstanceOf(ErroRegra)
   })
 
   it('só o subsecretário decide; aprovação define o valor e abre o registro do PAF', async () => {
-    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'J04')!
+    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'C02')!
     await expect(decidirAutorizacao(central(), dem.id, { decisao: 'aprovada', valor_mensal: 1000, meses: 10 })).rejects.toBeInstanceOf(ErroPermissao)
     await decidirAutorizacao(usuario('subsecretaria@demo.exemplo'), dem.id, { decisao: 'aprovada', valor_mensal: 9800, meses: 10, parecer: 'ok' })
     expect(b().colecoes.demandas.find((d) => d.id === dem.id)!.valor_total).toBe(98000)
-    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('J05')
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('C03')
 
     // PAF: vigência de 5 anos, não pode passar do valor autorizado, e conclui a etapa
     const caixa = b().colecoes.caixas_escolares.find((c) => c.id === dem.caixa_escolar_id)!
     await expect(criarPaf(central(), dem.id, { numero: 'PAF X', data_criacao: '2026-09-01', valor: 99000, cnpj_destinatario: String(caixa.cnpj) })).rejects.toBeInstanceOf(ErroValidacao)
     const paf = await criarPaf(central(), dem.id, { numero: 'PAF X', data_criacao: '2026-09-01', valor: 98000, cnpj_destinatario: String(caixa.cnpj) })
     expect(paf.data_vigencia).toBe('2031-09-01')
-    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('J06')
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('C04')
   })
 
   it('devolução do subsecretário exige motivo e reabre a caracterização', async () => {
-    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'J04')!
+    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'C02')!
     const sub = usuario('subsecretaria@demo.exemplo')
     await expect(decidirAutorizacao(sub, dem.id, { decisao: 'devolvida' })).rejects.toBeInstanceOf(ErroValidacao)
     await decidirAutorizacao(sub, dem.id, { decisao: 'devolvida', parecer: 'Rever o km da rota.' })
-    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('J03')
-    const j04 = b().colecoes.processo_etapas.find((e) => e.processo_id === dem.processo_id && codigoEtapa(e) === 'J04')!
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('C01')
+    const j04 = b().colecoes.processo_etapas.find((e) => e.processo_id === dem.processo_id && codigoEtapa(e) === 'C02')!
     expect(j04.status).toBe('devolvida')
   })
 })

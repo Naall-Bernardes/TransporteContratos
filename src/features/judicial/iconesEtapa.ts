@@ -1,15 +1,13 @@
 // Ícone de cada etapa do fluxo Judicial/MP (usado no submenu).
 
-import { ClipboardList, FileSignature, Inbox, ListTree, type LucideIcon, Send, ShieldCheck, Stamp, Truck } from 'lucide-react'
+import { ClipboardList, FileSignature, ListTree, type LucideIcon, ShieldCheck, Stamp, Truck } from 'lucide-react'
 
 export const ICONE_ETAPA: Record<string, LucideIcon> = {
-  J01: Inbox, // Recebimento
-  J02: Send, // Encaminhamento
-  J03: ClipboardList, // Caracterização
-  J04: ShieldCheck, // Autorização do subsecretário
-  J05: Stamp, // Registro do PAF
-  J06: FileSignature, // Contratos
-  J07: Truck, // Execução e fiscalização
+  C01: ClipboardList, // Caracterização
+  C02: ShieldCheck, // Autorização do subsecretário
+  C03: Stamp, // Registro do PAF
+  C04: FileSignature, // Contratos
+  C05: Truck, // Execução e fiscalização
 }
 
 export const iconeEtapa = (codigo: unknown): LucideIcon => ICONE_ETAPA[String(codigo)] ?? ListTree

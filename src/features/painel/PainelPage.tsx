@@ -11,6 +11,8 @@ import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
 import { formatarMoeda } from '@/lib/formatacao'
 import { calcularPainel } from '@/lib/painel'
+import { feriadosDe } from '@/lib/dados/servicos'
+import { situacaoDosOficios } from '@/lib/judicial/oficios'
 
 function Bloco({ titulo, descricao, children, link }: { titulo: string; descricao?: string; children: ReactNode; link?: { para: string; rotulo: string } }) {
   return (
@@ -32,6 +34,10 @@ export function PainelPage() {
   const hoje = hojeIso()
 
   const p = useMemo(() => calcularPainel((c: Colecao) => dados[c] ?? [], hoje), [dados, hoje])
+  const oficios = useMemo(() => {
+    const lista = (c: Colecao) => dados[c] ?? []
+    return situacaoDosOficios(lista, hoje, feriadosDe(lista))
+  }, [dados, hoje])
 
   return (
     <div className="space-y-4">
@@ -40,7 +46,17 @@ export function PainelPage() {
         <p className="mt-1 text-sm text-slate-600">Indicadores calculados na hora, a partir dos dados que você pode ver.</p>
       </div>
 
-      <Bloco titulo="Demandas judiciais e do MP" link={{ para: '/judicial', rotulo: 'Abrir demandas' }}>
+      <Bloco titulo="Ofícios" link={{ para: '/judicial/oficios', rotulo: 'Abrir ofícios' }}>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <Cartao titulo="Pendentes de resposta" valor={oficios.filter((o) => o.situacao !== 'respondido').length} />
+          <Cartao titulo="Aguardando SRE" valor={oficios.filter((o) => o.situacao === 'aguardando_sre').length} />
+          <Cartao titulo="A vencer" valor={oficios.filter((o) => o.situacao !== 'respondido' && o.semaforo.cor === 'amarelo').length} detalhe={<span className="inline-flex items-center gap-1"><PontoSemaforo cor="amarelo" /> até 3 dias úteis</span>} />
+          <Cartao titulo="Prazo vencido" valor={oficios.filter((o) => o.vencido).length} cor={oficios.some((o) => o.vencido) ? 'text-red-600' : undefined} />
+          <Cartao titulo="Respondidos" valor={oficios.filter((o) => o.situacao === 'respondido').length} />
+        </div>
+      </Bloco>
+
+      <Bloco titulo="Cumprimento de sentença" link={{ para: '/judicial', rotulo: 'Abrir cumprimentos' }}>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Cartao titulo="Ativas" valor={p.ativas} />
           <Cartao titulo="Vencidas" valor={p.vermelho} cor={p.vermelho ? 'text-red-600' : undefined} detalhe={<span className="inline-flex items-center gap-1"><PontoSemaforo cor="vermelho" /> semáforo vermelho</span>} />
@@ -50,7 +66,7 @@ export function PainelPage() {
         </div>
         <div className="mt-5 grid gap-6 lg:grid-cols-2">
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-slate-800">Demandas ativas por etapa atual</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-800">Cumprimentos ativos por etapa atual</h3>
             <BarrasHorizontais itens={p.porEtapa} />
           </div>
           <div>

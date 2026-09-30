@@ -56,7 +56,7 @@ export function AutorizacaoSubsecretario({ demanda, d, dados, aoAlterar }: Props
   const alunos = d.alunosDemanda.map((da) => ({ da, aluno: achar('alunos', da.aluno_id), car: d.caracterizacoes.find((c) => c.demanda_aluno_id === da.id) }))
   const somaAprovada = alunos.reduce((t, a) => t + Number(a.car?.valor_referencia_aprovado || a.car?.valor_estimado_mensal || 0), 0)
   const precos = lista('precos_referencia').filter((p) => p.sre_id === demanda.sre_id && String(p.vigencia_inicio) <= hoje && (!p.vigencia_fim || String(p.vigencia_fim) >= hoje))
-  const emAndamento = d.etapas.some((e) => achar('etapas_modelo', e.etapa_modelo_id)?.codigo === 'J04' && e.status === 'em_andamento')
+  const emAndamento = d.etapas.some((e) => achar('etapas_modelo', e.etapa_modelo_id)?.codigo === 'C02' && e.status === 'em_andamento')
   const podeDecidir = podeAutorizarLiberacao(usuario) && emAndamento
 
   const [valorMensal, setValorMensal] = useState(String(demanda.valor_mensal ?? (somaAprovada || '')))
@@ -225,7 +225,7 @@ export function RegistroPaf({ demanda, d, dados, aoAlterar }: Props) {
   const lista = (c: Colecao) => dados[c] ?? []
   const achar = (c: Colecao, id: unknown) => lista(c).find((r) => r.id === id)
   const caixa = achar('caixas_escolares', demanda.caixa_escolar_id)
-  const emAndamento = d.etapas.some((e) => achar('etapas_modelo', e.etapa_modelo_id)?.codigo === 'J05' && e.status === 'em_andamento')
+  const emAndamento = d.etapas.some((e) => achar('etapas_modelo', e.etapa_modelo_id)?.codigo === 'C03' && e.status === 'em_andamento')
   const pode = ehCentral(usuario) && emAndamento
 
   const [numero, setNumero] = useState('')

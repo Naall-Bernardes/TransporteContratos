@@ -160,7 +160,7 @@ export const salvar = (colecao: Colecao, dados: Record<string, unknown>, usuario
 export const excluir = (colecao: Colecao, id: string, usuario: Usuario) => transacao(usuario, (tx) => tx.excluir(colecao, id))
 
 /** Gera um processo (código único) para um registro-eixo: demanda, adesão PTE ou instrumento avulso. */
-export function criarProcesso(tx: Tx, modulo: 'JUDICIAL' | 'PTE', dados: { ano: number; sre_id: unknown; municipio_id?: unknown; numero_sei: unknown }): Registro {
+export function criarProcesso(tx: Tx, modulo: 'JUDICIAL' | 'PTE' | 'OFICIO', dados: { ano: number; sre_id: unknown; municipio_id?: unknown; numero_sei: unknown }): Registro {
   const chave =
     modulo === 'JUDICIAL'
       ? String(tx.consulta('sres', dados.sre_id)?.sigla ?? 'XXX')

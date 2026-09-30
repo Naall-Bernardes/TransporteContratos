@@ -39,6 +39,68 @@ export const DEMANDA: CadastroConfig = {
   ],
 }
 
+export const ORGAOS_OFICIO = opcoes({
+  judiciario: 'Judiciário',
+  ministerio_publico: 'Ministério Público',
+  defensoria: 'Defensoria Pública',
+  conselho_tutelar: 'Conselho Tutelar',
+  outro: 'Outro',
+})
+
+export const TIPOS_OFICIO = opcoes({
+  pedido_informacao: 'Pedido de informação',
+  intimacao_cumprimento: 'Intimação para cumprimento de sentença/decisão',
+  reiteracao: 'Reiteração / cobrança',
+  outro: 'Outro',
+})
+
+export const OFICIO: CadastroConfig = {
+  colecao: 'oficios',
+  titulo: 'Ofícios',
+  singular: 'ofício',
+  descricao: '',
+  ordenarPor: (r) => String(r.prazo_resposta),
+  campos: [
+    { nome: 'numero', rotulo: 'Nº do ofício', tipo: 'texto', naTabela: true },
+    { nome: 'tipo', rotulo: 'Tipo', tipo: 'selecao', opcoes: TIPOS_OFICIO, padrao: 'pedido_informacao', naTabela: true },
+    { nome: 'orgao_tipo', rotulo: 'Órgão remetente', tipo: 'selecao', opcoes: ORGAOS_OFICIO, padrao: 'judiciario', naTabela: true },
+    { nome: 'orgao_nome', rotulo: 'Vara / promotoria / unidade', tipo: 'texto', obrigatorioSe: (v) => v.orgao_tipo === 'outro' },
+    { nome: 'comarca', rotulo: 'Comarca', tipo: 'texto', obrigatorioSe: (v) => v.tipo === 'intimacao_cumprimento' },
+    { nome: 'numero_processo_judicial', rotulo: 'Nº do processo judicial / procedimento', tipo: 'texto', obrigatorioSe: (v) => v.tipo === 'intimacao_cumprimento' },
+    { nome: 'numero_sei', rotulo: 'Nº do processo SEI', tipo: 'texto' },
+    { nome: 'data_recebimento', rotulo: 'Data de recebimento', tipo: 'data', naTabela: true },
+    { nome: 'prazo_resposta', rotulo: 'Prazo de resposta', tipo: 'data', naTabela: true },
+    { nome: 'assunto', rotulo: 'Assunto', tipo: 'texto_longo', naTabela: true },
+    { nome: 'escola_id', rotulo: 'Escola envolvida (opcional)', tipo: 'referencia', referencia: 'escolas', ajuda: 'Sugere a SRE quando for preciso pedir informação.' },
+    { nome: 'resposta_numero', rotulo: 'Nº do ofício de resposta', tipo: 'texto', naTabela: true, emFormulario: false },
+    { nome: 'resposta_data', rotulo: 'Data da resposta', tipo: 'data', naTabela: true, emFormulario: false },
+  ],
+}
+
+export const OFICIO_CONSULTA: CadastroConfig = {
+  colecao: 'oficio_consultas',
+  titulo: 'Pedidos de informação à SRE',
+  singular: 'pedido de informação',
+  descricao: '',
+  ordenarPor: (r) => String(r.solicitada_em),
+  campos: [
+    { nome: 'pergunta', rotulo: 'O que a SRE deve informar', tipo: 'texto_longo', naTabela: true },
+    { nome: 'solicitada_em', rotulo: 'Pedido em', tipo: 'data', naTabela: true },
+    { nome: 'prazo', rotulo: 'Prazo da SRE', tipo: 'data', naTabela: true },
+    { nome: 'status', rotulo: 'Situação', tipo: 'selecao', opcoes: opcoes({ pendente: 'Aguardando SRE', respondida: 'Respondida' }), naTabela: true },
+    { nome: 'resposta', rotulo: 'Informação da SRE', tipo: 'texto_longo', naTabela: true },
+    { nome: 'respondida_em', rotulo: 'Respondida em', tipo: 'data', naTabela: true },
+  ],
+}
+
+/** Dados pedidos ao iniciar o cumprimento (o resto vem do ofício). */
+export const INICIO_CUMPRIMENTO: CadastroConfig = {
+  ...DEMANDA,
+  campos: DEMANDA.campos
+    .filter((c) => ['escola_id', 'caixa_escolar_id', 'responsavel_sre_id', 'prazo_devolucao_formulario', 'prazo_judicial', 'multa_diaria', 'decisao_resumo'].includes(c.nome))
+    .map((c) => (['escola_id', 'responsavel_sre_id', 'prazo_judicial'].includes(c.nome) ? { ...c, obrigatorioSe: () => true } : c)),
+}
+
 export const AUTORIZACAO_SUBSECRETARIO: CadastroConfig = {
   colecao: 'autorizacoes_subsecretario',
   titulo: 'Autorizações do subsecretário',

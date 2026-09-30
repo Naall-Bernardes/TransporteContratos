@@ -1,14 +1,12 @@
-import { Download, Plus, Search } from 'lucide-react'
+import { Download, Mail, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Cartao } from '@/components/comum/Cartao'
 import { PontoSemaforo, ROTULO_COR } from '@/components/comum/Semaforo'
 import { Botao } from '@/components/ui/Botao'
-import { Modal } from '@/components/ui/Modal'
 import { useUsuario } from '@/features/auth/Sessao'
-import { FormularioRegistro } from '@/features/cadastros/FormularioRegistro'
 import { baixarArquivo, gerarCsv } from '@/lib/csv'
-import { criarDemanda, feriadosDe } from '@/lib/dados/servicos'
+import { feriadosDe } from '@/lib/dados/servicos'
 import type { Colecao } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
@@ -16,8 +14,8 @@ import { ROTULO_NIVEL } from '@/lib/fluxo/sla'
 import { avaliarEtapa, montarDadosProcesso } from '@/lib/fluxo/processo'
 import { formatarData } from '@/lib/formatacao'
 import { situacaoDosProcessos } from '@/lib/monitoramento'
-import { ehCentral, podeEditarColecao } from '@/lib/permissoes'
-import { DEMANDA, ORIGENS } from './configuracoes'
+import { ehCentral, ROTULO_PAPEL } from '@/lib/permissoes'
+import { ORIGENS } from './configuracoes'
 
 type Filtro = '' | 'ativas' | 'vermelho' | 'amarelo' | 'judicial_vencido' | 'nivel3' | 'cumpridas'
 
@@ -29,14 +27,13 @@ export function JudicialPage() {
   const { codigo } = useParams()
   const usuario = useUsuario()
   const navegar = useNavigate()
-  const { dados, recarregar } = useTodos()
+  const { dados } = useTodos()
   const hoje = hojeIso()
   const [filtro, setFiltro] = useState<Filtro>('ativas')
   const [etapaEscolhida, setEtapa] = useState('')
   const etapa = codigo ?? etapaEscolhida
   const [sre, setSre] = useState('')
   const [busca, setBusca] = useState('')
-  const [nova, setNova] = useState(false)
 
   const linhas = useMemo(() => {
     const lista = (c: Colecao) => dados[c] ?? []
@@ -106,16 +103,20 @@ export function JudicialPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">{modeloFila ? `${modeloFila.ordem}. ${modeloFila.nome}` : 'Demandas judiciais e do MP'}</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{modeloFila ? `${modeloFila.ordem}. ${modeloFila.nome}` : 'Cumprimento de sentença'}</h1>
           <p className="mt-1 text-sm text-slate-600">
             {modeloFila
-              ? `Demandas paradas nesta etapa · SLA ${modeloFila.sla_dias_uteis ? `${modeloFila.sla_dias_uteis} dias úteis` : 'não se aplica'} · atua: ${modeloFila.papel_responsavel === 'sre' ? 'SRE' : 'órgão central'}.`
-              : 'Semáforo = o menor entre o prazo judicial e o prazo (SLA) da etapa atual, em dias úteis.'}
+              ? `Demandas paradas nesta etapa · SLA ${modeloFila.sla_dias_uteis ? `${modeloFila.sla_dias_uteis} dias úteis` : 'não se aplica'} · atua: ${modeloFila.papel_responsavel === 'sre' ? 'SRE' : modeloFila.papel_responsavel === 'subsecretario' ? ROTULO_PAPEL.subsecretario : 'órgão central'}.`
+              : 'Cada cumprimento nasce de um ofício de intimação. Semáforo = o menor entre o prazo judicial e o prazo (SLA) da etapa atual, em dias úteis.'}
           </p>
         </div>
         <div className="flex gap-2">
           <Botao variante="secundario" onClick={exportar} disabled={!filtradas.length}><Download size={16} /> Exportar CSV</Botao>
-          {podeEditarColecao(usuario, 'demandas') && <Botao onClick={() => setNova(true)}><Plus size={16} /> Nova demanda</Botao>}
+          {!codigo && ehCentral(usuario) && (
+            <Link to="/judicial/oficios" className="inline-flex items-center gap-2 rounded-md bg-marca-600 px-3 py-2 text-sm font-medium text-white hover:bg-marca-700">
+              <Mail size={16} /> Iniciar a partir de um ofício
+            </Link>
+          )}
         </div>
       </div>
 
@@ -210,24 +211,6 @@ export function JudicialPage() {
       </div>
       <p className="mt-2 text-xs text-slate-500">{filtradas.length} de {linhas.length} demanda(s).</p>
 
-      <Modal titulo="Nova demanda judicial / MP" aberto={nova} aoFechar={() => setNova(false)}>
-        {nova && (
-          <FormularioRegistro
-            config={DEMANDA}
-            registro={null}
-            referencias={dados}
-            valoresPadrao={{ data_recebimento: hoje }}
-            acao={(v) => criarDemanda(usuario, v)}
-            rotuloSalvar="Registrar demanda"
-            aoCancelar={() => setNova(false)}
-            aoSalvar={async (r) => {
-              setNova(false)
-              await recarregar()
-              navegar(`/judicial/${r.id}`)
-            }}
-          />
-        )}
-      </Modal>
     </div>
   )
 }

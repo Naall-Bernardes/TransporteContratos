@@ -108,3 +108,21 @@ A demanda segue o fluxo: aprovada pelo subsecretário → PAF criado → cai em 
 | 60 | Preencher corretamente → "Cadastrar contrato" | — | Cartão com empresa, CNPJ, assinatura, vigência, valor, executado, saldo e garantia; seguem veículo/motorista e conformidade |
 | 61 | Mesmo cartão | "Atualizar valor executado" → Salvar | Saldo recalculado; o mesmo valor aparece em Contratos e termos |
 
+## Rodada 6 — Ofícios e cumprimento de sentença
+
+O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de resposta) e **Cumprimento de sentença** (o que leva à contratação), com 5 etapas: Caracterização → Autorização do subsecretário → Registro do PAF → Contratos → Execução e fiscalização. As antigas etapas Recebimento e Encaminhamento viraram o ofício e o início do cumprimento. Nas rodadas anteriores, onde se lê J03…J07, leia C01…C05.
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 62 | Menu → Judicial / MP (como **Carlos Central**) | Clicar | Submenu: Ofícios (pendentes), Cumprimento de sentença e, abaixo dele, as 5 etapas |
+| 63 | Ofícios | Ver cartões e lista | Um ofício em cada situação: aguardando análise, aguardando SRE, informação recebida, respondido; um com prazo vencido |
+| 64 | "Novo ofício" | Cadastrar um pedido de informação da Defensoria | Recebe código OFC-2026-…; situação "Aguardando análise" |
+| 65 | No ofício novo → "Pedir informação à SRE" | Escolher UDI, escrever o pedido; prazo já vem com 5 dias úteis | Situação "Aguardando informação da SRE"; o botão "Registrar resposta" fica bloqueado |
+| 66 | Entrar como **Sérgio (UDI)** → Ofícios | Abrir o ofício | Ele vê só os ofícios encaminhados à UDI; escreve a informação, anexa documento e envia |
+| 67 | Entrar como **Mariana (MOC)** | Ofícios | Não vê o ofício encaminhado à UDI |
+| 68 | Voltar como Carlos → mesmo ofício | Registrar nº e data da resposta | Situação "Respondido"; semáforo cinza |
+| 69 | Ofícios → a intimação da E.E. Rio das Pedras | "Iniciar cumprimento de sentença" | Formulário já traz escola, Caixa Escolar, prazo e resumo; ao salvar abre o cumprimento JUD-…-UDI na Caracterização |
+| 70 | Ofícios → reiteração da MTA | Ver bloco "Cumprimento de sentença" | Já vinculada ao cumprimento da MTA; o cumprimento mostra a aba "Ofícios" com a intimação e a reiteração |
+| 71 | Um pedido de informação sem vínculo | "Vincular a um cumprimento existente" | Passa a aparecer na aba Ofícios do cumprimento escolhido |
+| 72 | Painel | — | Bloco "Ofícios" com pendentes, aguardando SRE, a vencer, vencidos e respondidos |
+

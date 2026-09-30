@@ -10,6 +10,8 @@ import { InicioPage } from '@/features/inicio/InicioPage'
 import { CaracterizacaoPage } from '@/features/judicial/CaracterizacaoPage'
 import { DemandaDetalhePage } from '@/features/judicial/DemandaDetalhePage'
 import { JudicialPage } from '@/features/judicial/JudicialPage'
+import { OficioDetalhePage } from '@/features/judicial/OficioDetalhePage'
+import { OficiosPage } from '@/features/judicial/OficiosPage'
 import { PainelPage } from '@/features/painel/PainelPage'
 import { AdesaoPage } from '@/features/pte/AdesaoPage'
 import { PtePage } from '@/features/pte/PtePage'
@@ -41,6 +43,8 @@ export function App() {
             <Route path="contratos/:id" element={<ContratoDetalhePage />} />
             <Route path="auditoria" element={<AuditoriaPage />} />
             <Route path="painel" element={<PainelPage />} />
+            <Route path="judicial/oficios" element={<OficiosPage />} />
+            <Route path="judicial/oficios/:id" element={<OficioDetalhePage />} />
             <Route path="judicial" element={<JudicialPage />} />
             <Route path="judicial/etapa/:codigo" element={<JudicialPage />} />
             <Route path="judicial/:id" element={<DemandaDetalhePage />} />

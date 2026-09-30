@@ -86,10 +86,8 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
   const prestacoesDecididas = d.prestacoes.length > 0 && d.prestacoes.every((x) => ESTADOS_FINAIS_PRESTACAO.includes(String(x.status)))
 
   switch (codigoEtapa) {
-    case 'J02':
+    case 'C01': {
       exige(d.demanda?.responsavel_sre_id, 'Defina o responsável pelo acompanhamento na SRE.')
-      break
-    case 'J03': {
       exige(d.alunosDemanda.length > 0, 'Inclua ao menos um aluno na demanda.')
       const semForm = d.alunosDemanda.filter((a) => {
         const c = d.caracterizacoes.find((x) => x.demanda_aluno_id === a.id)
@@ -98,21 +96,21 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
       exige(semForm.length === 0, `${semForm.length} aluno(s) sem formulário de caracterização enviado.`)
       break
     }
-    case 'J04':
+    case 'C02':
       // A etapa só é concluída pela decisão do subsecretário (aprovar ou devolver)
       p.push('Aguardando a decisão do subsecretário (aprovar a liberação ou devolver para ajuste).')
       break
-    case 'J05':
+    case 'C03':
       exige(d.pafs.length > 0, 'Crie o PAF (número oficial, data de criação, valor e CNPJ).')
       break
-    case 'J06': {
+    case 'C04': {
       exige(d.instrumentos.some((i) => i.tipo === 'contrato_caixa'), 'Registre o contrato firmado pela Caixa Escolar.')
       exige(d.alocacoes.some((a) => a.veiculo_id) && d.alocacoes.some((a) => a.condutor_id), 'Informe o veículo e o motorista que farão o transporte (aba Frota e conformidade do contrato).')
       const pend = totalPendencias(d.conformidade)
       exige(pend === 0, `${pend} documento(s) obrigatório(s) do contratado, veículo ou condutor ausente(s) ou vencido(s) (CTB arts. 136–138 e 329; Res. SEE 3.670/2017).`)
       break
     }
-    case 'J07':
+    case 'C05':
       exige(d.demanda?.data_inicio_transporte, 'Informe a data de início efetivo do transporte.')
       exige(d.fiscalizacoes.length > 0, 'Registre ao menos um mês de fiscalização.')
       break
