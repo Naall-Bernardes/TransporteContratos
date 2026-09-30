@@ -1,6 +1,6 @@
 import { Download, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Cartao } from '@/components/comum/Cartao'
 import { PontoSemaforo, ROTULO_COR } from '@/components/comum/Semaforo'
 import { Botao } from '@/components/ui/Botao'
@@ -13,6 +13,7 @@ import type { Colecao } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
 import { ROTULO_NIVEL } from '@/lib/fluxo/sla'
+import { avaliarEtapa, montarDadosProcesso } from '@/lib/fluxo/processo'
 import { formatarData } from '@/lib/formatacao'
 import { situacaoDosProcessos } from '@/lib/monitoramento'
 import { ehCentral, podeEditarColecao } from '@/lib/permissoes'
@@ -20,13 +21,19 @@ import { DEMANDA, ORIGENS } from './configuracoes'
 
 type Filtro = '' | 'ativas' | 'vermelho' | 'amarelo' | 'judicial_vencido' | 'nivel3' | 'cumpridas'
 
+/**
+ * Lista de demandas. Em /judicial/etapa/:codigo vira a FILA daquela etapa (submenu do Judicial/MP),
+ * mostrando o que falta em cada demanda para concluir a etapa.
+ */
 export function JudicialPage() {
+  const { codigo } = useParams()
   const usuario = useUsuario()
   const navegar = useNavigate()
   const { dados, recarregar } = useTodos()
   const hoje = hojeIso()
   const [filtro, setFiltro] = useState<Filtro>('ativas')
-  const [etapa, setEtapa] = useState('')
+  const [etapaEscolhida, setEtapa] = useState('')
+  const etapa = codigo ?? etapaEscolhida
   const [sre, setSre] = useState('')
   const [busca, setBusca] = useState('')
   const [nova, setNova] = useState(false)
@@ -47,9 +54,15 @@ export function JudicialPage() {
           sigla: String(achar('sres', s.sre_id)?.sigla ?? ''),
           responsavel: String(achar('usuarios', s.instancia?.responsavel_id)?.nome ?? '—'),
           judicialVencido: !s.demanda!.data_inicio_transporte && String(s.demanda!.prazo_judicial) < hoje && s.demanda!.situacao === 'ativa',
+          falta: codigo && s.modelo
+            ? (() => {
+                const av = avaliarEtapa(montarDadosProcesso(lista, s.processo.id, hoje), s.modelo, lista('checklist_modelo'), lista('tipos_documento'))
+                return [...av.pendencias, ...(av.faltantes.length ? [`Documento(s): ${av.faltantes.map((f) => f.nome).join(', ')}`] : [])]
+              })()
+            : [],
         }
       })
-  }, [dados, hoje])
+  }, [dados, hoje, codigo])
 
   const conta = (f: (l: (typeof linhas)[number]) => boolean) => linhas.filter(f).length
   const ativa = (l: (typeof linhas)[number]) => l.demanda!.situacao === 'ativa'
@@ -85,6 +98,7 @@ export function JudicialPage() {
     baixarArquivo(`demandas_judiciais_${hoje}.csv`, csv)
   }
 
+  const modeloFila = codigo ? (dados.etapas_modelo ?? []).find((m) => m.codigo === codigo) : undefined
   const f = (id: Filtro) => ({ ativo: filtro === id, onClick: () => setFiltro(filtro === id ? '' : id) })
   const etapas = (dados.etapas_modelo ?? []).filter((m) => m.modulo === 'JUDICIAL').sort((a, b) => Number(a.ordem) - Number(b.ordem))
 
@@ -92,8 +106,12 @@ export function JudicialPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Demandas judiciais e do MP</h1>
-          <p className="mt-1 text-sm text-slate-600">Semáforo = o menor entre o prazo judicial e o prazo (SLA) da etapa atual, em dias úteis.</p>
+          <h1 className="text-xl font-semibold text-slate-900">{modeloFila ? `${modeloFila.ordem}. ${modeloFila.nome}` : 'Demandas judiciais e do MP'}</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            {modeloFila
+              ? `Demandas paradas nesta etapa · SLA ${modeloFila.sla_dias_uteis ? `${modeloFila.sla_dias_uteis} dias úteis` : 'não se aplica'} · atua: ${modeloFila.papel_responsavel === 'sre' ? 'SRE' : 'órgão central'}.`
+              : 'Semáforo = o menor entre o prazo judicial e o prazo (SLA) da etapa atual, em dias úteis.'}
+          </p>
         </div>
         <div className="flex gap-2">
           <Botao variante="secundario" onClick={exportar} disabled={!filtradas.length}><Download size={16} /> Exportar CSV</Botao>
@@ -115,10 +133,10 @@ export function JudicialPage() {
           <Search size={16} className="pointer-events-none absolute top-2.5 left-3 text-slate-400" />
           <input className="campo pl-9" placeholder="Código, SEI, processo, comarca, escola, aluno…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
         </div>
-        <select className="campo w-auto" value={etapa} onChange={(e) => setEtapa(e.target.value)} aria-label="Etapa">
+        {!codigo && <select className="campo w-auto" value={etapa} onChange={(e) => setEtapa(e.target.value)} aria-label="Etapa">
           <option value="">Todas as etapas</option>
           {etapas.map((m) => <option key={m.id} value={String(m.codigo)}>{String(m.ordem)}. {String(m.nome)}</option>)}
-        </select>
+        </select>}
         {ehCentral(usuario) && (
           <select className="campo w-auto" value={sre} onChange={(e) => setSre(e.target.value)} aria-label="SRE">
             <option value="">Todas as SREs</option>
@@ -137,11 +155,12 @@ export function JudicialPage() {
               <th className="px-3 py-2 font-medium">Etapa atual</th>
               <th className="px-3 py-2 font-medium">Prazo judicial</th>
               <th className="px-3 py-2 font-medium">Semáforo</th>
+              {codigo && <th className="px-3 py-2 font-medium">O que falta para concluir</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtradas.map((l) => (
-              <tr key={l.demanda!.id} className="cursor-pointer hover:bg-marca-50" onClick={() => navegar(`/judicial/${l.demanda!.id}`)}>
+              <tr key={l.demanda!.id} className="cursor-pointer hover:bg-marca-50" onClick={() => navegar(`/judicial/${l.demanda!.id}${l.modelo ? `?secao=${l.modelo.codigo}` : ''}`)}>
                 <td className="px-3 py-2">
                   <p className="font-medium whitespace-nowrap text-marca-700">{String(l.processo.codigo)}</p>
                   <p className="text-xs text-slate-500">SEI {String(l.processo.numero_sei ?? '—')} · {l.sigla}</p>
@@ -171,6 +190,18 @@ export function JudicialPage() {
                     </span>
                   </span>
                 </td>
+                {codigo && (
+                  <td className="px-3 py-2 text-xs">
+                    {l.falta.length === 0 ? (
+                      <span className="font-medium text-green-700">Pronta para concluir</span>
+                    ) : (
+                      <ul className="list-disc space-y-0.5 pl-4 text-amber-900">
+                        {l.falta.slice(0, 3).map((x) => <li key={x}>{x}</li>)}
+                        {l.falta.length > 3 && <li>+{l.falta.length - 3}</li>}
+                      </ul>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

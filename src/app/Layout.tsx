@@ -6,10 +6,16 @@ import {
   BarChart3, Bus, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
   Home, LayoutGrid, ListChecks, LogOut, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useSessao, useUsuario } from '@/features/auth/Sessao'
 import { carregarBase } from '@/lib/dados/armazenamento'
+import { consultaDe } from '@/lib/dados/repositorio'
+import { feriadosDe } from '@/lib/dados/servicos'
+import type { Colecao } from '@/lib/dados/tipos'
+import { hojeIso } from '@/lib/diasUteis'
+import { contarDemandasPorEtapa } from '@/lib/monitoramento'
+import { podeVer } from '@/lib/permissoes'
 import { ehCentral, podeVerAuditoria, ROTULO_PAPEL } from '@/lib/permissoes'
 
 const estiloLink = ({ isActive }: { isActive: boolean }) =>
@@ -27,6 +33,20 @@ function ItemMenu({ para, icone, children, fim, aoClicar }: { para: string; icon
   )
 }
 
+function SubItem({ para, children, qtd, fim, aoClicar }: { para: string; children: ReactNode; qtd: number; fim?: boolean; aoClicar: () => void }) {
+  return (
+    <NavLink
+      to={para}
+      end={fim}
+      onClick={aoClicar}
+      className={({ isActive }) => `flex items-start justify-between gap-2 rounded px-2 py-1 text-xs leading-tight ${isActive ? 'bg-marca-600 text-white' : 'text-marca-100 hover:bg-marca-800'}`}
+    >
+      <span>{children}</span>
+      <span className={`shrink-0 rounded-full px-1.5 tabular-nums ${qtd ? 'bg-marca-700 text-white' : 'text-marca-100/50'}`}>{qtd}</span>
+    </NavLink>
+  )
+}
+
 export type Modulo = 'transporte' | 'cadastros'
 
 /** Em qual módulo está a página atual. */
@@ -40,6 +60,17 @@ export function Layout() {
   const [menuAberto, setMenuAberto] = useState(false)
   const sre = carregarBase().colecoes.sres.find((s) => s.id === usuario.sre_id)
   const fechar = () => setMenuAberto(false)
+  const emJudicial = pathname.startsWith('/judicial')
+
+  // Submenu do Judicial/MP: as etapas do fluxo com a quantidade de demandas em cada uma
+  const etapasJudicial = carregarBase().colecoes.etapas_modelo.filter((m) => m.modulo === 'JUDICIAL').sort((a, b) => Number(a.ordem) - Number(b.ordem))
+  const contagem = useMemo(() => {
+    if (!emJudicial) return { total: 0, porEtapa: {} as Record<string, number> }
+    const b = carregarBase()
+    const consulta = consultaDe(b)
+    const lista = (c: Colecao) => b.colecoes[c].filter((r) => podeVer(usuario, c, r, consulta))
+    return contarDemandasPorEtapa(lista, hojeIso(), feriadosDe(lista))
+  }, [pathname, usuario, emJudicial]) // pathname: recalcula a cada navegação, refletindo etapas concluídas
   const Item = (p: { para: string; icone: ReactNode; children: ReactNode; fim?: boolean }) => <ItemMenu {...p} aoClicar={fechar} />
 
   const menuTransporte = (
@@ -47,7 +78,17 @@ export function Layout() {
       <Item para="/" fim icone={<Home size={16} />}>Início</Item>
       <Item para="/painel" icone={<BarChart3 size={16} />}>Painel</Item>
       <Grupo titulo="Atendimento" />
-      <Item para="/judicial" icone={<Gavel size={16} />}>Judicial / MP</Item>
+      <Item para="/judicial" icone={<Gavel size={16} />} fim>Judicial / MP</Item>
+      {emJudicial && (
+        <div className="mt-0.5 mb-1 ml-5 border-l border-marca-700 pl-2">
+          <SubItem para="/judicial" fim aoClicar={fechar} qtd={contagem.total}>Todas as demandas</SubItem>
+          {etapasJudicial.map((m) => (
+            <SubItem key={m.id} para={`/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0}>
+              {String(m.ordem)}. {String(m.nome)}
+            </SubItem>
+          ))}
+        </div>
+      )}
       <Item para="/pte" icone={<Route size={16} />}>PTE</Item>
       <Item para="/contratos" icone={<FileSignature size={16} />}>Contratos e termos</Item>
     </>

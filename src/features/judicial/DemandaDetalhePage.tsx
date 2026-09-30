@@ -1,7 +1,7 @@
-import { ArrowLeft, ExternalLink, FileText, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { Abas } from '@/components/comum/Abas'
+import { ArrowLeft, CheckCircle2, Circle, CircleDot, ExternalLink, Files, FileText, History, LayoutList, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Cartao } from '@/components/comum/Cartao'
 import { Semaforo } from '@/components/comum/Semaforo'
 import { SeloVigencia } from '@/components/comum/Selo'
 import { Botao } from '@/components/ui/Botao'
@@ -12,7 +12,10 @@ import { FormularioRegistro } from '@/features/cadastros/FormularioRegistro'
 import { INSTRUMENTO } from '@/features/contratos/configuracoes'
 import { SecaoRegistros } from '@/features/contratos/SecaoRegistros'
 import { PainelDocumentos } from '@/features/documentos/PainelDocumentos'
-import { PainelEtapas } from '@/features/fluxo/PainelEtapas'
+import { EtapaDetalhe, HistoricoEtapas } from '@/features/fluxo/Etapas'
+import { PrestacaoContas } from '@/features/contratos/PrestacaoContas'
+import { ALOCACAO } from '@/features/frota/configuracoes'
+import { PainelConformidade } from '@/features/frota/PainelConformidade'
 import { calcularSituacao } from '@/lib/contratos/calculos'
 import { ErroPermissao, ErroRegra, salvar } from '@/lib/dados/repositorio'
 import { feriadosDe, incluirAluno, registrarRelatorioCumprimento } from '@/lib/dados/servicos'
@@ -25,14 +28,25 @@ import { formatarData, formatarMoeda } from '@/lib/formatacao'
 import { podeEditar as podeEditarRegistro } from '@/lib/permissoes'
 import { AUTORIZACAO, COTACAO, DEMANDA, EXECUCAO, LIBERACAO, ORIGENS, STATUS_CARACTERIZACAO, UNIDADES_PRECO, VALOR } from './configuracoes'
 
-type IdAba = 'fluxo' | 'dados' | 'alunos' | 'valor' | 'financeiro' | 'contrato' | 'documentos' | 'cumprimento'
+/** Item do submenu da demanda. */
+function ItemSecao({ id, atual, ir, icone, children }: { id: string; atual: string; ir: (id: string) => void; icone: ReactNode; children: ReactNode }) {
+  return (
+    <button
+      onClick={() => ir(id)}
+      className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left ${atual === id ? 'bg-marca-50 font-medium text-marca-800 ring-1 ring-marca-100' : 'text-slate-700 hover:bg-slate-50'}`}
+    >
+      <span className="mt-0.5 shrink-0">{icone}</span>
+      {children}
+    </button>
+  )
+}
 
 export function DemandaDetalhePage() {
   const { id } = useParams()
   const usuario = useUsuario()
   const { dados, carregando, recarregar } = useTodos()
-  const [aba, setAba] = useState<IdAba>('fluxo')
-  const [editando, setEditando] = useState<'dados' | 'valor' | 'execucao' | 'contrato' | null>(null)
+  const [params, setParams] = useSearchParams()
+  const [editando, setEditando] = useState<'dados' | 'encaminhamento' | 'valor' | 'execucao' | 'contrato' | null>(null)
   const [alunoNovo, setAlunoNovo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const hoje = hojeIso()
@@ -54,6 +68,10 @@ export function DemandaDetalhePage() {
   const podeFinanceiro = podeEditarRegistro(usuario, 'autorizacoes_financeiras', { ...demanda, demanda_id: demanda.id } as Registro, achar)
   const modelos = lista('etapas_modelo').filter((m) => m.modulo === 'JUDICIAL')
   const { modelo } = etapaAtual(d, modelos)
+  const modelosOrdenados = [...modelos].sort((a, b) => Number(a.ordem) - Number(b.ordem))
+  const secao = params.get('secao') ?? (modelo ? String(modelo.codigo) : 'geral')
+  const modeloSecao = modelosOrdenados.find((m) => m.codigo === secao)
+  const irPara = (id: string) => setParams({ secao: id })
   const semaforo = calcularSemaforo(
     { prazoJudicial: demanda.prazo_judicial as string, inicioTransporte: demanda.data_inicio_transporte as string, prazoEtapa: etapaAtual(d, modelos).instancia?.prazo_sla as string, encerrado: demanda.situacao !== 'ativa' },
     hoje,
@@ -64,7 +82,7 @@ export function DemandaDetalhePage() {
   const contrato = d.instrumentos.find((i) => i.tipo === 'contrato_caixa')
   const menorCotacao = d.cotacoes.length ? d.cotacoes.reduce((m, c) => (Number(c.valor_mensal) < Number(m.valor_mensal) ? c : m)) : null
   const precosVigentes = lista('precos_referencia').filter((p) => p.sre_id === demanda.sre_id && String(p.vigencia_inicio) <= hoje && (!p.vigencia_fim || String(p.vigencia_fim) >= hoje))
-  const etapasOpcoes = modelos.sort((a, b) => Number(a.ordem) - Number(b.ordem)).map((m) => ({ codigo: String(m.codigo), nome: String(m.nome) }))
+  const etapasOpcoes = [...modelos].sort((a, b) => Number(a.ordem) - Number(b.ordem)).map((m) => ({ codigo: String(m.codigo), nome: String(m.nome) }))
   const alunosOpcoes = alunosDemanda.map((a) => ({ id: a.aluno.id, nome: String(a.aluno.nome) }))
 
   async function acao(fn: () => Promise<unknown>) {
@@ -78,46 +96,11 @@ export function DemandaDetalhePage() {
     }
   }
 
-  const ABAS = [
-    { id: 'fluxo' as const, rotulo: 'Fluxo e etapas' },
-    { id: 'dados' as const, rotulo: 'Decisão / dados' },
-    { id: 'alunos' as const, rotulo: 'Alunos e caracterização', qtd: alunosDemanda.length },
-    { id: 'valor' as const, rotulo: 'Valor', qtd: d.cotacoes.length },
-    { id: 'financeiro' as const, rotulo: 'OP / PAF / liberação', qtd: d.autorizacoes.length + d.liberacoes.length },
-    { id: 'contrato' as const, rotulo: 'Contratação e execução' },
-    { id: 'documentos' as const, rotulo: 'Documentos', qtd: d.documentos.length },
-    { id: 'cumprimento' as const, rotulo: 'Cumprimento' },
-  ]
-
-  return (
-    <div>
-      <Link to="/judicial" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-marca-700">
-        <ArrowLeft size={16} /> Demandas judiciais
-      </Link>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">{String(processo.codigo)}</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {ORIGENS.find((o) => o.valor === demanda.origem)?.rotulo} nº {String(demanda.numero_processo_origem)} · {String(demanda.comarca)} · Processo SEI {String(processo.numero_sei ?? '—')}
-          </p>
-          <p className="mt-1 text-sm">
-            <span className="text-slate-500">Escola:</span> {String(escola?.nome ?? '')} · <span className="text-slate-500">Prazo judicial:</span>{' '}
-            <strong>{formatarData(demanda.prazo_judicial)}</strong>
-            {Boolean(demanda.multa_diaria) && <span className="text-slate-500"> · multa diária {formatarMoeda(demanda.multa_diaria)}</span>}
-            {demanda.situacao !== 'ativa' && <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">{String(demanda.situacao).toUpperCase()}</span>}
-          </p>
-          {modelo && <p className="mt-1 text-sm"><span className="text-slate-500">Etapa atual:</span> {String(modelo.ordem)}. {String(modelo.nome)}</p>}
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3"><Semaforo semaforo={semaforo} /></div>
-      </div>
-
-      <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
-      {erro && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
-
-      <div className="mt-4">
-        {aba === 'fluxo' && <PainelEtapas processoId={String(processo.id)} modulo="JUDICIAL" dados={dados} aoAlterar={recarregar} alunos={alunosOpcoes} />}
-
-        {aba === 'dados' && (
+  /** Conteúdo próprio de cada etapa (dados, formulários e registros daquela fase). */
+  const conteudoEtapa = (codigo: string): ReactNode => {
+    switch (codigo) {
+      case 'J01':
+        return (
           <div className="rounded-lg border border-slate-200 bg-white p-4">
             <div className="mb-3 flex justify-end">{pode && <Botao variante="secundario" onClick={() => setEditando('dados')}><Pencil size={16} /> Editar</Botao>}</div>
             <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
@@ -129,9 +112,23 @@ export function DemandaDetalhePage() {
               ))}
             </dl>
           </div>
-        )}
-
-        {aba === 'alunos' && (
+        )
+      case 'J02':
+        return (
+          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="font-semibold text-slate-900">Encaminhamento à SRE</h3>
+                <p className="mt-1">Responsável pelo acompanhamento na SRE: <strong>{String(achar('usuarios', demanda.responsavel_sre_id)?.nome ?? 'não definido')}</strong></p>
+                <p>Escola: {String(escola?.nome ?? '')} · Caixa Escolar: {String(achar('caixas_escolares', demanda.caixa_escolar_id)?.razao_social ?? '—')}</p>
+                <p>Devolver o formulário de caracterização até: <strong>{formatarData(demanda.prazo_devolucao_formulario) || '—'}</strong></p>
+              </div>
+              {pode && <Botao variante="secundario" onClick={() => setEditando('encaminhamento')}><Pencil size={16} /> Editar</Botao>}
+            </div>
+          </div>
+        )
+      case 'J03':
+        return (
           <div className="space-y-3">
             <p className="text-sm text-slate-600">Uma demanda pode ter vários alunos e um aluno pode estar em mais de uma demanda. Cada aluno tem seu formulário de caracterização.</p>
             <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -194,9 +191,9 @@ export function DemandaDetalhePage() {
               </div>
             )}
           </div>
-        )}
-
-        {aba === 'valor' && (
+        )
+      case 'J04':
+        return (
           <div className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -246,17 +243,24 @@ export function DemandaDetalhePage() {
               padraoNovo={{ data: hoje }}
             />
           </div>
-        )}
-
-        {aba === 'financeiro' && (
-          <div className="space-y-6">
+        )
+      case 'J05':
+        return (
+          <div className="space-y-2">
             <SecaoRegistros config={AUTORIZACAO} valoresFixos={{ demanda_id: demanda.id }} registros={d.autorizacoes} referencias={dados} podeEditar={podeFinanceiro} aoAlterar={recarregar} padraoNovo={{ data: hoje, valor: demanda.valor_total }} />
-            <SecaoRegistros config={LIBERACAO} valoresFixos={{ demanda_id: demanda.id }} registros={d.liberacoes} referencias={dados} podeEditar={podeFinanceiro} aoAlterar={recarregar} padraoNovo={{ data: hoje, valor: demanda.valor_total }} />
-            {!podeFinanceiro && <p className="text-xs text-slate-500">OP, PAF e liberação são lançados pelo órgão central.</p>}
+            {!podeFinanceiro && <p className="text-xs text-slate-500">OP e PAF são lançados pelo órgão central.</p>}
           </div>
-        )}
-
-        {aba === 'contrato' && (
+        )
+      case 'J06':
+        return (
+          <div className="space-y-2">
+            <SecaoRegistros config={LIBERACAO} valoresFixos={{ demanda_id: demanda.id }} registros={d.liberacoes} referencias={dados} podeEditar={podeFinanceiro} aoAlterar={recarregar} padraoNovo={{ data: hoje, valor: demanda.valor_total }} />
+            {!podeFinanceiro && <p className="text-xs text-slate-500">A liberação do recurso é lançada pelo órgão central.</p>}
+          </div>
+        )
+      case 'J07':
+        return (
+          <div className="space-y-4">
           <div className="space-y-4">
             {contrato ? (
               (() => {
@@ -279,6 +283,27 @@ export function DemandaDetalhePage() {
                 {pode && <Botao className="mt-3" onClick={() => setEditando('contrato')}><Plus size={16} /> Registrar contrato</Botao>}
               </div>
             )}
+          </div>
+            {contrato && (
+              <>
+                <SecaoRegistros
+                  config={ALOCACAO}
+                  valoresFixos={{ instrumento_id: contrato.id }}
+                  registros={lista('alocacoes').filter((a) => a.instrumento_id === contrato.id)}
+                  referencias={dados}
+                  podeEditar={pode}
+                  aoAlterar={recarregar}
+                  padraoNovo={{ inicio: hoje }}
+                  cabecalho="Veículo, motorista e monitor que farão o transporte (CTB arts. 136 a 138)."
+                />
+                <PainelConformidade entidades={d.conformidade} dados={dados} podeEnviar={pode} aoAlterar={recarregar} />
+              </>
+            )}
+          </div>
+        )
+      case 'J08':
+        return (
+          <div className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -292,14 +317,26 @@ export function DemandaDetalhePage() {
                 {pode && <Botao variante="secundario" onClick={() => setEditando('execucao')}>Informar início</Botao>}
               </div>
             </div>
+            {contrato && (
+              <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+                <h3 className="font-semibold text-slate-900">Fiscalização da execução</h3>
+                <p className="mt-1">
+                  {d.fiscalizacoes.length} mês(es) fiscalizado(s) · {d.fiscalizacoes.reduce((t, f) => t + Number(f.dias_rodados || 0), 0)} dias rodados ·{' '}
+                  {lista('ocorrencias').filter((o) => o.instrumento_id === contrato.id && o.status !== 'resolvida').length} ocorrência(s) em aberto
+                </p>
+                <Link to={`/contratos/${contrato.id}`} className="mt-2 inline-flex items-center gap-1 text-marca-700 hover:underline">Registrar fiscalização e ocorrências no contrato <ExternalLink size={14} /></Link>
+              </div>
+            )}
           </div>
-        )}
-
-        {aba === 'documentos' && (
-          <PainelDocumentos processoId={String(processo.id)} codigoProcesso={String(processo.codigo)} dados={dados} podeEnviar={pode} aoAlterar={recarregar} etapas={etapasOpcoes} alunos={alunosOpcoes} />
-        )}
-
-        {aba === 'cumprimento' && (
+        )
+      case 'J09':
+        return contrato ? (
+          <PrestacaoContas instrumentoId={contrato.id} prestacoes={d.prestacoes} referencias={dados} podeEditar={pode} hoje={hoje} aoAlterar={recarregar} />
+        ) : (
+          <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">A prestação de contas depende do contrato (etapa 7).</p>
+        )
+      case 'J10':
+        return (
           <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
             <h3 className="font-semibold text-slate-900">Relatório de comprovação do cumprimento</h3>
             <p className="mt-1 text-slate-600">Reúne decisão, alunos, cronologia das etapas, contrato, início do transporte, fiscalização, prestação de contas e a lista de evidências (documentos com nº SEI), para envio à AGE/Judiciário.</p>
@@ -312,17 +349,100 @@ export function DemandaDetalhePage() {
             </div>
             <p className="mt-2 text-xs text-slate-500">Dica: na tela do relatório use "Imprimir → Salvar como PDF" e anexe o PDF em Documentos (tipo "Relatório de cumprimento").</p>
           </div>
-        )}
+        )
+      default:
+        return null
+    }
+  }
+
+
+  return (
+    <div>
+      <Link to="/judicial" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-marca-700">
+        <ArrowLeft size={16} /> Demandas judiciais
+      </Link>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{String(processo.codigo)}</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            {ORIGENS.find((o) => o.valor === demanda.origem)?.rotulo} nº {String(demanda.numero_processo_origem)} · {String(demanda.comarca)} · Processo SEI {String(processo.numero_sei ?? '—')}
+          </p>
+          <p className="mt-1 text-sm">
+            <span className="text-slate-500">Escola:</span> {String(escola?.nome ?? '')} · <span className="text-slate-500">Prazo judicial:</span>{' '}
+            <strong>{formatarData(demanda.prazo_judicial)}</strong>
+            {Boolean(demanda.multa_diaria) && <span className="text-slate-500"> · multa diária {formatarMoeda(demanda.multa_diaria)}</span>}
+            {demanda.situacao !== 'ativa' && <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">{String(demanda.situacao).toUpperCase()}</span>}
+          </p>
+          {modelo && <p className="mt-1 text-sm"><span className="text-slate-500">Etapa atual:</span> {String(modelo.ordem)}. {String(modelo.nome)}</p>}
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3"><Semaforo semaforo={semaforo} /></div>
+      </div>
+
+      {erro && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-[15rem_1fr]">
+        {/* Submenu da demanda: visão geral, as 10 etapas, documentos e histórico */}
+        <nav className="self-start rounded-lg border border-slate-200 bg-white p-2 text-sm lg:sticky lg:top-4" aria-label="Etapas da demanda">
+          <ItemSecao id="geral" atual={secao} ir={irPara} icone={<LayoutList size={15} className="text-slate-500" />}>Visão geral</ItemSecao>
+          <p className="mt-2 mb-1 px-2 text-xs font-semibold text-slate-500 uppercase">Etapas</p>
+          {modelosOrdenados.map((m) => {
+            const e = d.etapas.find((x) => x.etapa_modelo_id === m.id)
+            const st = String(e?.status ?? 'nao_iniciada')
+            const Icone = st === 'concluida' ? CheckCircle2 : st === 'em_andamento' ? CircleDot : Circle
+            const cor = st === 'concluida' ? 'text-green-600' : st === 'em_andamento' ? 'text-marca-600' : 'text-slate-300'
+            return (
+              <ItemSecao key={m.id} id={String(m.codigo)} atual={secao} ir={irPara} icone={<Icone size={15} className={cor} />}>
+                <span className="leading-tight">{String(m.ordem)}. {String(m.nome)}</span>
+              </ItemSecao>
+            )
+          })}
+          <p className="mt-2 mb-1 px-2 text-xs font-semibold text-slate-500 uppercase">Processo</p>
+          <ItemSecao id="documentos" atual={secao} ir={irPara} icone={<Files size={15} className="text-slate-500" />}>Documentos ({d.documentos.length})</ItemSecao>
+          <ItemSecao id="historico" atual={secao} ir={irPara} icone={<History size={15} className="text-slate-500" />}>Histórico das etapas</ItemSecao>
+        </nav>
+
+        <div className="min-w-0">
+          {secao === 'geral' && (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <Cartao titulo="Etapa atual" valor={modelo ? `${modelo.ordem}. ${modelo.nome}` : 'Concluída'} onClick={modelo ? () => irPara(String(modelo.codigo)) : undefined} />
+                <Cartao titulo="Prazo judicial" valor={formatarData(demanda.prazo_judicial)} detalhe={demanda.data_inicio_transporte ? `transporte iniciado em ${formatarData(demanda.data_inicio_transporte)}` : 'transporte não iniciado'} />
+                <Cartao titulo="Alunos" valor={alunosDemanda.length} onClick={() => irPara('J03')} />
+                <Cartao titulo="Valor total" valor={demanda.valor_total ? formatarMoeda(demanda.valor_total) : '—'} onClick={() => irPara('J04')} />
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+                <h3 className="font-semibold text-slate-900">Resumo da decisão</h3>
+                <p className="mt-1 text-slate-700">{String(demanda.decisao_resumo ?? '—')}</p>
+                <p className="mt-2 text-slate-600">
+                  Responsável na SRE: {String(achar('usuarios', demanda.responsavel_sre_id)?.nome ?? 'não definido')} · Caixa Escolar: {String(achar('caixas_escolares', demanda.caixa_escolar_id)?.razao_social ?? '—')}
+                  {contrato ? ` · Contrato nº ${contrato.numero}` : ' · sem contrato'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {modeloSecao && (
+            <EtapaDetalhe key={String(modeloSecao.id)} processoId={String(processo.id)} modelo={modeloSecao} dados={dados} aoAlterar={recarregar} alunos={alunosOpcoes}>
+              {conteudoEtapa(String(modeloSecao.codigo))}
+            </EtapaDetalhe>
+          )}
+
+          {secao === 'documentos' && (
+            <PainelDocumentos processoId={String(processo.id)} codigoProcesso={String(processo.codigo)} dados={dados} podeEnviar={pode} aoAlterar={recarregar} etapas={etapasOpcoes} alunos={alunosOpcoes} />
+          )}
+
+          {secao === 'historico' && <HistoricoEtapas processoId={String(processo.id)} modulo="JUDICIAL" dados={dados} />}
+        </div>
       </div>
 
       <Modal
-        titulo={{ dados: 'Editar demanda', valor: 'Definição do valor', execucao: 'Início do transporte', contrato: 'Registrar contrato da Caixa Escolar' }[editando ?? 'dados']}
+        titulo={{ dados: 'Editar demanda', encaminhamento: 'Encaminhamento à SRE', valor: 'Definição do valor', execucao: 'Início do transporte', contrato: 'Registrar contrato da Caixa Escolar' }[editando ?? 'dados']}
         aberto={editando !== null}
         aoFechar={() => setEditando(null)}
       >
         {editando && (
           <FormularioRegistro
-            config={{ dados: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => c.nome !== 'numero_sei') }, valor: { ...VALOR, campos: VALOR.campos.map((c) => (c.nome === 'cotacao_escolhida_id' ? { ...c, filtroReferencia: (r: Registro) => r.demanda_id === demanda.id } : c.nome === 'preco_referencia_id' ? { ...c, filtroReferencia: (r: Registro) => r.sre_id === demanda.sre_id } : c)) }, execucao: EXECUCAO, contrato: INSTRUMENTO }[editando]}
+            config={{ dados: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => c.nome !== 'numero_sei') }, encaminhamento: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => ['responsavel_sre_id', 'prazo_devolucao_formulario', 'caixa_escolar_id'].includes(c.nome)) }, valor: { ...VALOR, campos: VALOR.campos.map((c) => (c.nome === 'cotacao_escolhida_id' ? { ...c, filtroReferencia: (r: Registro) => r.demanda_id === demanda.id } : c.nome === 'preco_referencia_id' ? { ...c, filtroReferencia: (r: Registro) => r.sre_id === demanda.sre_id } : c)) }, execucao: EXECUCAO, contrato: INSTRUMENTO }[editando]}
             registro={editando === 'contrato' ? null : demanda}
             referencias={dados}
             valoresFixos={editando === 'contrato' ? { tipo: 'contrato_caixa', processo_id: processo.id } : undefined}

@@ -70,3 +70,13 @@ O sistema agora tem dois módulos (seletor no topo do menu): **Transporte Escola
 | 38 | Mesma adesão → Despesas do município | — | 1 despesa sem comprovação há mais de 30 dias úteis (vermelho) |
 | 39 | PTE → ciclo 2027 → Uberlândia → Conciliação | — | Divergências de estudantes **e** de rotas: km zero, lotação estourada, custo acima da média, rota urbana |
 | 42 | Cadastros → Administração → Exigências documentais | — | Catálogo com base legal e validade, editável |
+
+## Rodada 3 — Judicial/MP por etapas
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 43 | Menu → Judicial / MP | Clicar | Abre o submenu: "Todas as demandas" + as 10 etapas, cada uma com a quantidade de demandas |
+| 44 | Submenu "3. Caracterização da demanda" | Clicar | Fila das demandas nessa etapa, com a coluna "O que falta para concluir" |
+| 45 | Clicar numa demanda da fila | — | A demanda abre direto na etapa 3, com alunos/formulários, checklist e botão Concluir |
+| 46 | Dentro da demanda, menu à esquerda | Clicar em outras etapas | Etapas concluídas mostram o que foi feito; futuras mostram o que será exigido |
+| 47 | Dentro da demanda | "Documentos" e "Histórico das etapas" | Todos os documentos do processo e o tempo de cada etapa × SLA |

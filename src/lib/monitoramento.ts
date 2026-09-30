@@ -118,3 +118,11 @@ export function despesasAtrasadas(lista: Lista, hoje: string, feriados: Readonly
     })
     .filter((d) => d.atrasada)
 }
+
+/** Quantas demandas judiciais ativas estão em cada etapa (para o submenu do Judicial/MP). */
+export function contarDemandasPorEtapa(lista: Lista, hoje: string, feriados: ReadonlySet<string>): { total: number; porEtapa: Record<string, number> } {
+  const demandas = situacaoDosProcessos(lista, hoje, feriados).filter((s) => s.demanda)
+  const porEtapa: Record<string, number> = {}
+  for (const s of demandas) if (s.modelo && s.demanda!.situacao === 'ativa') porEtapa[String(s.modelo.codigo)] = (porEtapa[String(s.modelo.codigo)] ?? 0) + 1
+  return { total: demandas.length, porEtapa }
+}
