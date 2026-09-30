@@ -22,7 +22,7 @@ import { ORIGENS } from './configuracoes'
 type Filtro = '' | 'ativas' | 'vermelho' | 'amarelo' | 'judicial_vencido' | 'nivel3' | 'cumpridas'
 
 /**
- * Lista de demandas. Em /judicial/etapa/:codigo vira a FILA daquela etapa (submenu do Judicial/MP),
+ * Lista de demandas. Em /judicial/etapa/:codigo vira a FILA daquela etapa (submenu de Contratações),
  * mostrando o que falta em cada demanda para concluir a etapa.
  */
 export function JudicialPage() {

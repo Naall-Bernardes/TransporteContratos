@@ -1,10 +1,10 @@
 // Layout com dois módulos:
-//  - Transporte Escolar: atendimento (Judicial/MP, PTE, contratos) — documentos e frota ficam dentro de cada processo;
+//  - Transporte Escolar: atendimento (ofícios, contratações, PTE, contratos) — documentos e frota ficam dentro de cada processo;
 //  - Cadastros: dados de base (rede, alunos, frota, preços, calendário) e administração.
 
 import {
   BarChart3, Bus, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
-  Home, LayoutGrid, ListChecks, ListTree, LogOut, Mail, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
+  Home, LayoutGrid, ListChecks, LogOut, Mail, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -66,7 +66,7 @@ export function Layout() {
   const fechar = () => setMenuAberto(false)
   const emJudicial = pathname.startsWith('/judicial')
 
-  // Submenu do Judicial/MP: contratações e suas etapas (quantidade de demandas em cada uma)
+  // Submenu de Contratações: as etapas, com a quantidade de demandas em cada uma
   const etapasJudicial = carregarBase().colecoes.etapas_modelo.filter((m) => m.modulo === 'JUDICIAL').sort((a, b) => Number(a.ordem) - Number(b.ordem))
   const contagem = useMemo(() => {
     if (!emJudicial) return { total: 0, porEtapa: {} as Record<string, number> }
@@ -83,20 +83,17 @@ export function Layout() {
       <Item para="/painel" icone={<BarChart3 size={16} />}>Painel</Item>
       <Grupo titulo="Atendimento" />
       <Item para="/oficios" icone={<Mail size={16} />}>Ofícios</Item>
-      <Item para="/judicial" icone={<Gavel size={16} />}>Judicial / MP</Item>
+      <Item para="/judicial" icone={<Gavel size={16} />}>Contratações</Item>
       {emJudicial && (
         <div className="mt-0.5 mb-1 ml-5 border-l border-marca-700 pl-2">
-          <SubItem para="/judicial" fim aoClicar={fechar} qtd={contagem.total} icone={<ListTree size={14} />}>Contratações</SubItem>
-          <div className="ml-3 border-l border-marca-700 pl-2">
-            {etapasJudicial.map((m) => {
-              const Icone = iconeEtapa(m.codigo)
-              return (
-                <SubItem key={m.id} para={`/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0} icone={<Icone size={14} />}>
-                  {String(m.nome)}
-                </SubItem>
-              )
-            })}
-          </div>
+          {etapasJudicial.map((m) => {
+            const Icone = iconeEtapa(m.codigo)
+            return (
+              <SubItem key={m.id} para={`/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0} icone={<Icone size={14} />}>
+                {String(m.nome)}
+              </SubItem>
+            )
+          })}
         </div>
       )}
       <Item para="/pte" icone={<Route size={16} />}>PTE</Item>

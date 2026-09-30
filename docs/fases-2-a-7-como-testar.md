@@ -139,3 +139,5 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 | 77 | Voltar como Carlos | "Devolver à regional" pedindo complemento | Volta para a regional; o histórico mostra os dois pedidos e respostas |
 | 78 | Depois da nova resposta | "Concluir ofício" com nº e data | "Concluído"; histórico fecha com a resposta ao órgão |
 
+
+> Atualização: o menu "Judicial / MP" foi extinto; o item passa a se chamar **Contratações**, com as 5 etapas logo abaixo.

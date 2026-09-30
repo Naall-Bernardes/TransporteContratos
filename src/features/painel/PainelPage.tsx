@@ -56,7 +56,7 @@ export function PainelPage() {
         </div>
       </Bloco>
 
-      <Bloco titulo="Contratações (Judicial/MP)" link={{ para: '/judicial', rotulo: 'Abrir contratações' }}>
+      <Bloco titulo="Contratações" link={{ para: '/judicial', rotulo: 'Abrir contratações' }}>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Cartao titulo="Ativas" valor={p.ativas} />
           <Cartao titulo="Vencidas" valor={p.vermelho} cor={p.vermelho ? 'text-red-600' : undefined} detalhe={<span className="inline-flex items-center gap-1"><PontoSemaforo cor="vermelho" /> semáforo vermelho</span>} />

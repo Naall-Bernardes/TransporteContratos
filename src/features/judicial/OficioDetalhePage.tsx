@@ -139,7 +139,7 @@ export function OficioDetalhePage() {
         </Bloco>
 
         <div className="space-y-4">
-          <Bloco titulo="Contratação (Judicial/MP)">
+          <Bloco titulo="Contratação">
             {demanda ? (
               <div>
                 <Link to={`/judicial/${demanda.id}`} className="inline-flex items-center gap-1 font-medium text-marca-700 hover:underline">
