@@ -94,3 +94,17 @@ As antigas etapas 4 (valor/cotações), 5 (OP/PAF) e 6 (liberação) viraram dua
 | 53 | Entrar como **Central** → demanda MOC → etapa 5 | Preencher número oficial, data de criação, valor e CNPJ | Vigência calculada sozinha (5 anos); o nome da Caixa Escolar aparece abaixo do CNPJ |
 | 54 | Mesma tela | Valor acima do autorizado, ou data de criação futura | Recusado com a mensagem do motivo |
 | 55 | Mesma tela | "Criar PAF" | Cartão do PAF aparece e a demanda vai para a etapa 6 (Contratos) |
+
+## Rodada 5 — Contratos (etapa 6)
+
+A demanda segue o fluxo: aprovada pelo subsecretário → PAF criado → cai em **Contratos**.
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 56 | Faça os passos 52, 53 e 55 com a demanda MOC | — | Ela aparece em Judicial → "Contratos" |
+| 57 | Entrar como **Mariana (MOC)** → demanda → etapa Contratos | Ler o formulário "Cadastrar contrato" | Contratante (Caixa Escolar) e valor do PAF já preenchidos; empresa escolhida do cadastro mostra o CNPJ |
+| 58 | Mesmo formulário | Escolher "Seguro-garantia" sem valor da garantia | Recusado: "Informe o valor da garantia" |
+| 59 | Mesmo formulário | Valor executado maior que o valor contratado | Recusado; o saldo calculado aparece negativo antes de salvar |
+| 60 | Preencher corretamente → "Cadastrar contrato" | — | Cartão com empresa, CNPJ, assinatura, vigência, valor, executado, saldo e garantia; seguem veículo/motorista e conformidade |
+| 61 | Mesmo cartão | "Atualizar valor executado" → Salvar | Saldo recalculado; o mesmo valor aparece em Contratos e termos |
+

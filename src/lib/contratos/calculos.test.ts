@@ -24,6 +24,12 @@ describe('situação do instrumento', () => {
     expect(s.faixa).toBe('vigente')
   })
 
+  it('valor executado informado no contrato prevalece sobre os pagamentos registrados', () => {
+    const s = calcularSituacao({ ...contrato, valor_executado: 40_000 }, [], [r({ valor_pago: 25_000 })], '2026-06-01')
+    expect(s.valor_executado).toBe(40_000)
+    expect(s.saldo).toBe(60_000)
+  })
+
   it('aditivos recalculam vigência (último de prazo) e valor (acréscimos − supressões)', () => {
     const aditivos = [
       r({ numero: 2, data_assinatura: '2026-11-01', altera_prazo: true, nova_vigencia_fim: '2027-06-30', altera_valor: true, valor_variacao: -5_000 }),

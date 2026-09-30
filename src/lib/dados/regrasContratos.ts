@@ -84,10 +84,14 @@ export function validarContrato(colecao: ColecaoContrato, r: Registro, ctx: Cont
       if (!vazio(r.valor_global) && num(r.valor_global) <= 0) erros.valor_global = 'O valor deve ser maior que zero.'
       if (r.vigencia_fim && r.vigencia_inicio && String(r.vigencia_fim) < String(r.vigencia_inicio))
         erros.vigencia_fim = 'O fim da vigência é anterior ao início.'
-      if (ctx.anterior) {
-        const s = calcularSituacao(r, ctx.irmaos('aditivos', r.id), ctx.irmaos('parcelas', r.id), '2000-01-01')
-        if (s.saldo < 0) erros.valor_global = `Com este valor o saldo fica negativo (já executado: ${formatarMoeda(s.valor_executado)}).`
+      if (!vazio(r.valor_executado) && num(r.valor_executado) < 0) erros.valor_executado = 'O valor executado não pode ser negativo.'
+      const s = calcularSituacao(r, ctx.anterior ? ctx.irmaos('aditivos', r.id) : [], ctx.anterior ? ctx.irmaos('parcelas', r.id) : [], '2000-01-01')
+      if (s.saldo < 0) {
+        if (!vazio(r.valor_executado)) erros.valor_executado = `O valor executado passa do valor do contrato (${formatarMoeda(s.valor_atual)}).`
+        else if (ctx.anterior) erros.valor_global = `Com este valor o saldo fica negativo (já executado: ${formatarMoeda(s.valor_executado)}).`
       }
+      if (r.tipo_garantia && r.tipo_garantia !== 'sem_garantia' && (vazio(r.valor_garantia) || num(r.valor_garantia) <= 0))
+        erros.valor_garantia = 'Informe o valor da garantia.'
       // Encerramento
       if (ENCERRADOS.includes(String(r.status))) {
         if (vazio(r.encerrado_em)) erros.encerrado_em = 'Informe a data de encerramento.'

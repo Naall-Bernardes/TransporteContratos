@@ -64,6 +64,16 @@ describe('instrumentos', () => {
     expect(parcelas.every((p) => ids.has(p.instrumento_id as string))).toBe(true)
   })
 
+  it('executado manual não pode passar do valor; garantia exige valor', async () => {
+    const c = instrumento('001/2026', '2 estudantes')
+    const e1 = await erros(salvar('instrumentos', { id: c.id, valor_executado: Number(c.valor_global) + 1 }, central()))
+    expect(e1.valor_executado).toMatch(/passa do valor/)
+    const e2 = await erros(salvar('instrumentos', { id: c.id, tipo_garantia: 'seguro_garantia' }, central()))
+    expect(e2.valor_garantia).toBe('Informe o valor da garantia.')
+    const ok = await salvar('instrumentos', { id: c.id, valor_executado: 1000, tipo_garantia: 'seguro_garantia', valor_garantia: 500 }, central())
+    expect(ok.valor_executado).toBe(1000)
+  })
+
   it('não exclui instrumento com lançamentos vinculados', async () => {
     await expect(excluir('instrumentos', instrumento('001/2026', '2 estudantes').id, central())).rejects.toThrow(
       /usado em outros cadastros/,

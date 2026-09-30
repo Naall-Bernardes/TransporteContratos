@@ -22,6 +22,16 @@ export const SITUACOES_FINAIS = opcoes({
   rescindido: 'Rescindido',
 })
 
+/** Modalidades de garantia contratual (Lei 14.133/2021, art. 96). */
+export const TIPOS_GARANTIA = opcoes({
+  sem_garantia: 'Sem garantia',
+  caucao_dinheiro: 'Caução em dinheiro',
+  caucao_titulos: 'Caução em títulos da dívida pública',
+  seguro_garantia: 'Seguro-garantia',
+  fianca_bancaria: 'Fiança bancária',
+  titulo_capitalizacao: 'Título de capitalização',
+})
+
 const STATUS_PRESTACAO: Opcao[] = opcoes(ROTULO_STATUS_PRESTACAO)
 const ehContrato = (v: Record<string, unknown>) => v.tipo === 'contrato_caixa'
 const ehTermo = (v: Record<string, unknown>) => v.tipo === 'termo_pte'
@@ -45,6 +55,10 @@ export const INSTRUMENTO: CadastroConfig = {
     { nome: 'vigencia_inicio', rotulo: 'Início da vigência', tipo: 'data' },
     { nome: 'vigencia_fim', rotulo: 'Fim da vigência (original)', tipo: 'data', ajuda: 'Prorrogações entram por termo aditivo.' },
     { nome: 'valor_global', rotulo: 'Valor global original (R$)', tipo: 'moeda', ajuda: 'Acréscimos e supressões entram por termo aditivo.' },
+    { nome: 'valor_executado', rotulo: 'Valor executado (R$)', tipo: 'moeda', visivel: ehContrato, ajuda: 'Informado manualmente. O saldo é calculado: valor atual − executado.' },
+    { nome: 'tipo_garantia', rotulo: 'Tipo de garantia', tipo: 'selecao', opcoes: TIPOS_GARANTIA, padrao: 'sem_garantia', visivel: ehContrato },
+    { nome: 'valor_garantia', rotulo: 'Valor da garantia (R$)', tipo: 'moeda', visivel: (v) => ehContrato(v) && !!v.tipo_garantia && v.tipo_garantia !== 'sem_garantia', obrigatorioSe: (v) => ehContrato(v) && !!v.tipo_garantia && v.tipo_garantia !== 'sem_garantia' },
+    { nome: 'garantia_vigencia_fim', rotulo: 'Garantia válida até', tipo: 'data', visivel: (v) => ehContrato(v) && !!v.tipo_garantia && v.tipo_garantia !== 'sem_garantia' },
     { nome: 'status', rotulo: 'Situação', tipo: 'selecao', opcoes: STATUS_INSTRUMENTO.slice(0, 2), padrao: 'vigente', ajuda: 'Para encerrar, use a aba Encerramento.' },
     { nome: 'gestor_id', rotulo: 'Gestor do instrumento', tipo: 'referencia', referencia: 'usuarios' },
     { nome: 'fiscal_id', rotulo: 'Fiscal do instrumento', tipo: 'referencia', referencia: 'usuarios' },

@@ -3,19 +3,16 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Cartao } from '@/components/comum/Cartao'
 import { Semaforo } from '@/components/comum/Semaforo'
-import { SeloVigencia } from '@/components/comum/Selo'
 import { Botao } from '@/components/ui/Botao'
 import { Modal } from '@/components/ui/Modal'
 import { useUsuario } from '@/features/auth/Sessao'
 import { valorExibido } from '@/features/cadastros/exibicao'
 import { FormularioRegistro } from '@/features/cadastros/FormularioRegistro'
-import { INSTRUMENTO } from '@/features/contratos/configuracoes'
 import { SecaoRegistros } from '@/features/contratos/SecaoRegistros'
 import { PainelDocumentos } from '@/features/documentos/PainelDocumentos'
 import { EtapaDetalhe, HistoricoEtapas } from '@/features/fluxo/Etapas'
 import { ALOCACAO } from '@/features/frota/configuracoes'
 import { PainelConformidade } from '@/features/frota/PainelConformidade'
-import { calcularSituacao } from '@/lib/contratos/calculos'
 import { ErroPermissao, ErroRegra, salvar } from '@/lib/dados/repositorio'
 import { feriadosDe, incluirAluno } from '@/lib/dados/servicos'
 import type { Colecao } from '@/lib/dados/tipos'
@@ -26,6 +23,7 @@ import { calcularSemaforo } from '@/lib/fluxo/sla'
 import { formatarData, formatarMoeda } from '@/lib/formatacao'
 import { podeEditar as podeEditarRegistro } from '@/lib/permissoes'
 import { AutorizacaoSubsecretario, RegistroPaf } from './Autorizacao'
+import { ContratoEtapa } from './ContratoEtapa'
 import { DEMANDA, EXECUCAO, ORIGENS, STATUS_CARACTERIZACAO } from './configuracoes'
 
 /** Item do submenu da demanda. */
@@ -46,7 +44,7 @@ export function DemandaDetalhePage() {
   const usuario = useUsuario()
   const { dados, carregando, recarregar } = useTodos()
   const [params, setParams] = useSearchParams()
-  const [editando, setEditando] = useState<'dados' | 'encaminhamento' | 'execucao' | 'contrato' | null>(null)
+  const [editando, setEditando] = useState<'dados' | 'encaminhamento' | 'execucao' | null>(null)
   const [alunoNovo, setAlunoNovo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const hoje = hojeIso()
@@ -196,29 +194,7 @@ export function DemandaDetalhePage() {
       case 'J06':
         return (
           <div className="space-y-4">
-          <div>
-            {contrato ? (
-              (() => {
-                const s = calcularSituacao(contrato, lista('aditivos').filter((a) => a.instrumento_id === contrato.id), lista('parcelas').filter((p) => p.instrumento_id === contrato.id), hoje)
-                return (
-                  <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="font-semibold text-slate-900">Contrato nº {String(contrato.numero)} <SeloVigencia faixa={s.faixa} /></h3>
-                      <Link to={`/contratos/${contrato.id}`} className="inline-flex items-center gap-1 text-marca-700 hover:underline">Abrir gestão do contrato <ExternalLink size={14} /></Link>
-                    </div>
-                    <p className="mt-2">Contratado: {String(achar('transportadores', contrato.transportador_id)?.razao_social ?? '')}</p>
-                    <p>Vigência: {formatarData(contrato.vigencia_inicio)} a {formatarData(s.vigencia_fim_atual)} · Valor {formatarMoeda(s.valor_atual)} · Executado {s.pct_executado.toFixed(0)}% · Saldo {formatarMoeda(s.saldo)}</p>
-                    <p className="mt-1 text-slate-500">Fiscalização, ocorrências, pagamentos e prestação de contas ficam na gestão do contrato.</p>
-                  </div>
-                )
-              })()
-            ) : (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm">
-                <p className="text-slate-600">Nenhum contrato registrado. Após a contratação pela Caixa Escolar, registre-o aqui — ele fica ligado a esta demanda pelo mesmo código único.</p>
-                {pode && <Botao className="mt-3" onClick={() => setEditando('contrato')}><Plus size={16} /> Registrar contrato</Botao>}
-              </div>
-            )}
-          </div>
+            <ContratoEtapa demanda={demanda} processo={processo} d={d} dados={dados} podeEditar={pode} aoAlterar={recarregar} />
             {contrato && (
               <>
                 <SecaoRegistros
@@ -350,21 +326,15 @@ export function DemandaDetalhePage() {
       </div>
 
       <Modal
-        titulo={{ dados: 'Editar demanda', encaminhamento: 'Encaminhamento à SRE', execucao: 'Início do transporte', contrato: 'Registrar contrato da Caixa Escolar' }[editando ?? 'dados']}
+        titulo={{ dados: 'Editar demanda', encaminhamento: 'Encaminhamento à SRE', execucao: 'Início do transporte' }[editando ?? 'dados']}
         aberto={editando !== null}
         aoFechar={() => setEditando(null)}
       >
         {editando && (
           <FormularioRegistro
-            config={{ dados: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => c.nome !== 'numero_sei') }, encaminhamento: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => ['responsavel_sre_id', 'prazo_devolucao_formulario', 'caixa_escolar_id'].includes(c.nome)) }, execucao: EXECUCAO, contrato: INSTRUMENTO }[editando]}
-            registro={editando === 'contrato' ? null : demanda}
+            config={{ dados: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => c.nome !== 'numero_sei') }, encaminhamento: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => ['responsavel_sre_id', 'prazo_devolucao_formulario', 'caixa_escolar_id'].includes(c.nome)) }, execucao: EXECUCAO}[editando]}
+            registro={demanda}
             referencias={dados}
-            valoresFixos={editando === 'contrato' ? { tipo: 'contrato_caixa', processo_id: processo.id } : undefined}
-            valoresPadrao={
-              editando === 'contrato'
-                ? { tipo: 'contrato_caixa', caixa_escolar_id: demanda.caixa_escolar_id, numero_sei: processo.numero_sei, valor_global: demanda.valor_total, objeto: `Transporte escolar em cumprimento da demanda ${processo.codigo}.`, gestor_id: demanda.responsavel_sre_id, fiscal_id: demanda.responsavel_sre_id, status: 'vigente', periodicidade_prestacao: 'semestral', prazo_prestacao_dias: 30 }
-                : undefined
-            }
             aoCancelar={() => setEditando(null)}
             aoSalvar={async () => {
               setEditando(null)

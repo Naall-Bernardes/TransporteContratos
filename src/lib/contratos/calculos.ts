@@ -77,7 +77,9 @@ export function calcularSituacao(
   }
   const original = num(instrumento.valor_global)
   const atual = original + acrescimos - supressoes
-  const executado = parcelas.reduce((s, p) => s + num(p.valor_pago), 0)
+  // Executado informado manualmente no instrumento (contratos da Caixa Escolar); senão, soma dos pagamentos registrados
+  const manual = instrumento.valor_executado
+  const executado = manual !== null && manual !== undefined && manual !== '' ? num(manual) : parcelas.reduce((s, p) => s + num(p.valor_pago), 0)
   const dias = diasCorridos(hoje, fim)
   const encerrado = instrumento.status === 'encerrado' || instrumento.status === 'rescindido'
 
