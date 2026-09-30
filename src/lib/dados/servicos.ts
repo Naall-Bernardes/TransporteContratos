@@ -118,7 +118,7 @@ export function iniciarCumprimento(usuario: Usuario, oficioId: string, dados: Re
     if (!oficio.numero_processo_judicial || !oficio.comarca) throw new ErroRegra('Preencha no ofício o nº do processo judicial e a comarca.')
     const escola = tx.consulta('escolas', dados.escola_id)
     if (!escola) throw new ErroRegra('Escolha a escola estadual.')
-    const numeroSei = tx.consulta('processos', oficio.processo_id)?.numero_sei ?? null
+    const numeroSei = oficio.numero_sei || tx.consulta('processos', oficio.processo_id)?.numero_sei || null
     const processo = criarProcesso(tx, 'JUDICIAL', { ano: Number(String(oficio.data_recebimento).slice(0, 4)), sre_id: escola.sre_id, numero_sei: numeroSei })
     const origem = origemDoOrgao(oficio.orgao_tipo)
     const demanda = tx.salvar('demandas', {

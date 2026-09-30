@@ -45,6 +45,7 @@ export function OficiosPage() {
       ...l,
       sigla: String(lista('sres').find((s) => s.id === l.oficio.sre_id)?.sigla ?? ''),
       escola: String(lista('escolas').find((e) => e.id === l.oficio.escola_id)?.nome ?? ''),
+      responsavel: String(lista('usuarios').find((u) => u.id === l.oficio.responsavel_id)?.nome ?? ''),
       cumprimento: lista('processos').find((p) => p.id === lista('demandas').find((d) => d.id === l.oficio.demanda_id)?.processo_id),
     }))
   }, [dados, hoje])
@@ -66,7 +67,7 @@ export function OficiosPage() {
     .filter((l) => !sre || l.oficio.sre_id === sre)
     .filter((l) => {
       const t = busca.trim().toLocaleLowerCase('pt-BR')
-      return !t || [l.processo?.codigo, l.processo?.numero_sei, l.oficio.numero, l.oficio.numero_processo_judicial, l.oficio.comarca, l.oficio.orgao_nome, l.oficio.assunto, l.escola].some((x) => String(x ?? '').toLocaleLowerCase('pt-BR').includes(t))
+      return !t || [l.processo?.codigo, l.processo?.numero_sei, l.oficio.numero_sei, l.oficio.numero, l.oficio.numero_processo_judicial, l.oficio.comarca, l.oficio.orgao_nome, l.oficio.assunto, l.escola, l.responsavel].some((x) => String(x ?? '').toLocaleLowerCase('pt-BR').includes(t))
     })
     .sort((a, b) => Number(a.situacao === 'respondido') - Number(b.situacao === 'respondido') || String(a.oficio.prazo_resposta).localeCompare(String(b.oficio.prazo_resposta)))
 
@@ -98,7 +99,7 @@ export function OficiosPage() {
       <div className="mt-6 mb-3 flex flex-wrap gap-2">
         <div className="relative w-full max-w-sm">
           <Search size={16} className="pointer-events-none absolute top-2.5 left-3 text-slate-400" />
-          <input className="campo pl-9" placeholder="Código, nº, processo, comarca, assunto, escola…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
+          <input className="campo pl-9" placeholder="Código, nº, SEI, processo, comarca, assunto, responsável…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
         </div>
         <select className="campo w-auto" value={tipo} onChange={(e) => setTipo(e.target.value)} aria-label="Tipo">
           <option value="">Todos os tipos</option>
@@ -121,11 +122,14 @@ export function OficiosPage() {
           <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-600 uppercase">
             <tr>
               <th className="px-3 py-2 font-medium">Código / nº</th>
+              <th className="px-3 py-2 font-medium">Nº processo SEI</th>
               <th className="px-3 py-2 font-medium">Órgão</th>
               <th className="px-3 py-2 font-medium">Assunto</th>
               <th className="px-3 py-2 font-medium">Recebido</th>
               <th className="px-3 py-2 font-medium">Situação</th>
+              <th className="px-3 py-2 font-medium">Responsável</th>
               <th className="px-3 py-2 font-medium">Prazo de resposta</th>
+              <th className="px-3 py-2 font-medium">Data de conclusão</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -135,6 +139,7 @@ export function OficiosPage() {
                   <p className="font-medium whitespace-nowrap text-marca-700">{String(l.processo?.codigo ?? '')}</p>
                   <p className="text-xs text-slate-500">nº {String(l.oficio.numero)}{l.sigla ? ` · ${l.sigla}` : ''}</p>
                 </td>
+                <td className="px-3 py-2 text-xs whitespace-nowrap">{String(l.oficio.numero_sei || l.processo?.numero_sei || '—')}</td>
                 <td className="px-3 py-2">
                   <p>{ORGAOS_OFICIO.find((o) => o.valor === l.oficio.orgao_tipo)?.rotulo}</p>
                   <p className="text-xs text-slate-500">{String(l.oficio.orgao_nome ?? '')}{l.oficio.comarca ? ` · ${l.oficio.comarca}` : ''}</p>
@@ -150,13 +155,24 @@ export function OficiosPage() {
                   {l.consultaPendente && <p className="mt-1 text-xs text-slate-500">SRE até {formatarData(l.consultaPendente.prazo)}</p>}
                 </td>
                 <td className="px-3 py-2">
+                  {l.responsavel || '—'}
+                  {l.situacao === 'aguardando_sre' && <p className="text-xs text-amber-700">informação com a SRE {l.sigla}</p>}
+                </td>
+                <td className="px-3 py-2">
                   <span className="flex items-start gap-2">
                     <PontoSemaforo cor={l.semaforo.cor} />
                     <span className="text-xs leading-tight">
                       <span className="block font-medium">{formatarData(l.oficio.prazo_resposta)}</span>
-                      {l.situacao !== 'respondido' ? l.semaforo.texto : `respondido em ${formatarData(l.oficio.resposta_data)}`}
+                      {l.situacao !== 'respondido' && l.semaforo.texto}
                     </span>
                   </span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {l.oficio.resposta_data ? (
+                    <span className={String(l.oficio.resposta_data) > String(l.oficio.prazo_resposta) ? 'text-red-600' : 'text-green-700'}>{formatarData(l.oficio.resposta_data)}</span>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -172,7 +188,7 @@ export function OficiosPage() {
             config={OFICIO}
             registro={null}
             referencias={dados}
-            valoresPadrao={{ data_recebimento: hoje }}
+            valoresPadrao={{ data_recebimento: hoje, responsavel_id: usuario.id }}
             acao={(v) => criarOficio(usuario, v)}
             rotuloSalvar="Cadastrar ofício"
             aoCancelar={() => setNovo(false)}

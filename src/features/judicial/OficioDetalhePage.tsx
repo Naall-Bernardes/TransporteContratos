@@ -101,7 +101,7 @@ export function OficioDetalhePage() {
           <h1 className="text-xl font-semibold text-slate-900">{String(processo?.codigo ?? '')} · Ofício nº {String(oficio.numero)}</h1>
           <p className="mt-1 text-sm text-slate-600">
             {valorExibido(OFICIO.campos.find((c) => c.nome === 'orgao_tipo')!, oficio, dados)} · {String(oficio.orgao_nome ?? '')}
-            {oficio.comarca ? ` · ${oficio.comarca}` : ''} · SEI {String(processo?.numero_sei ?? '—')}
+            {oficio.comarca ? ` · ${oficio.comarca}` : ''} · SEI {String(oficio.numero_sei || processo?.numero_sei || '—')}
           </p>
           <p className="mt-1 text-sm">
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{ROTULO_SITUACAO_OFICIO[situacao]}</span>
@@ -116,7 +116,7 @@ export function OficioDetalhePage() {
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <Bloco titulo="Dados do ofício" acao={central && !respondido && <Botao variante="secundario" onClick={() => setModal('editar')}><Pencil size={16} /> Editar</Botao>}>
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
-            {OFICIO.campos.filter((c) => c.emFormulario !== false && c.nome !== 'numero_sei').map((c) => (
+            {OFICIO.campos.filter((c) => c.emFormulario !== false).map((c) => (
               <div key={c.nome} className={c.tipo === 'texto_longo' ? 'sm:col-span-2' : ''}>
                 <dt className="text-xs text-slate-500">{c.rotulo}</dt>
                 <dd className="mt-0.5">{valorExibido(c, oficio, dados) || '—'}</dd>

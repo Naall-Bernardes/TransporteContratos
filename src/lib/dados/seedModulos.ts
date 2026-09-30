@@ -332,6 +332,7 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     const processo = novoProcesso('OFICIO', Number(o.recebido.slice(0, 4)), '', { numero_sei: `1260.01.01${String(seq).padStart(5, '0')}/2026-00`, sre_id: o.sre ?? null, municipio_id: null })
     const of = push('oficios', novo({
       processo_id: processo.id,
+      numero_sei: processo.numero_sei,
       numero: `${String(100 + seq * 7)}/2026`,
       orgao_tipo: o.orgao_tipo,
       orgao_nome: o.orgao_nome,

@@ -72,6 +72,7 @@ export const OFICIO: CadastroConfig = {
     { nome: 'prazo_resposta', rotulo: 'Prazo de resposta', tipo: 'data', naTabela: true },
     { nome: 'assunto', rotulo: 'Assunto', tipo: 'texto_longo', naTabela: true },
     { nome: 'escola_id', rotulo: 'Escola envolvida (opcional)', tipo: 'referencia', referencia: 'escolas', ajuda: 'Sugere a SRE quando for preciso pedir informação.' },
+    { nome: 'responsavel_id', rotulo: 'Responsável por responder', tipo: 'referencia', referencia: 'usuarios', naTabela: true, filtroReferencia: (u) => u.papel === 'analista_central' || u.papel === 'admin' },
     { nome: 'resposta_numero', rotulo: 'Nº do ofício de resposta', tipo: 'texto', naTabela: true, emFormulario: false },
     { nome: 'resposta_data', rotulo: 'Data da resposta', tipo: 'data', naTabela: true, emFormulario: false },
   ],
