@@ -93,4 +93,4 @@ As antigas etapas 4 (valor/cotações), 5 (OP/PAF) e 6 (liberação) viraram dua
 | 52 | Demanda MOC → etapa 4, como Sofia | Conferir valor mensal sugerido (soma aprovada pela SRE) e meses → "Aprovar liberação" | Valor total gravado na demanda; avança para a etapa 5 |
 | 53 | Entrar como **Central** → demanda MOC → etapa 5 | Preencher número oficial, data de criação, valor e CNPJ | Vigência calculada sozinha (5 anos); o nome da Caixa Escolar aparece abaixo do CNPJ |
 | 54 | Mesma tela | Valor acima do autorizado, ou data de criação futura | Recusado com a mensagem do motivo |
-| 55 | Mesma tela | "Criar PAF" | Cartão do PAF aparece e a demanda vai para a etapa 6 (Contratação pela Caixa Escolar) |
+| 55 | Mesma tela | "Criar PAF" | Cartão do PAF aparece e a demanda vai para a etapa 6 (Contratos) |

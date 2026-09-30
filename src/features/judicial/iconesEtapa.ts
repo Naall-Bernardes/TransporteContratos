@@ -8,7 +8,7 @@ export const ICONE_ETAPA: Record<string, LucideIcon> = {
   J03: ClipboardList, // Caracterização
   J04: ShieldCheck, // Autorização do subsecretário
   J05: Stamp, // Registro do PAF
-  J06: FileSignature, // Contratação pela Caixa Escolar
+  J06: FileSignature, // Contratos
   J07: Truck, // Execução e fiscalização
 }
 

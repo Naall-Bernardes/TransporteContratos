@@ -14,7 +14,7 @@ export const ETAPAS: [modulo: string, ordem: number, codigo: string, nome: strin
   ['JUDICIAL', 3, 'J03', 'Caracterização da demanda', 'sre', SLA],
   ['JUDICIAL', 4, 'J04', 'Autorização do subsecretário', 'subsecretario', SLA],
   ['JUDICIAL', 5, 'J05', 'Registro do PAF', 'central', SLA],
-  ['JUDICIAL', 6, 'J06', 'Contratação pela Caixa Escolar', 'sre', SLA],
+  ['JUDICIAL', 6, 'J06', 'Contratos', 'sre', SLA],
   ['JUDICIAL', 7, 'J07', 'Execução e fiscalização', 'sre', null],
   ['PTE', 2, 'P02', 'Adesão e cadastro da demanda', 'sre', 15],
   ['PTE', 3, 'P03', 'Definição e repasse', 'central', 15],
