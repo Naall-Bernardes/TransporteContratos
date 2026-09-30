@@ -7,6 +7,7 @@ import { Botao } from '@/components/ui/Botao'
 import { Modal } from '@/components/ui/Modal'
 import { useUsuario } from '@/features/auth/Sessao'
 import { FormularioRegistro } from '@/features/cadastros/FormularioRegistro'
+import { ErroPermissao, ErroRegra, ErroValidacao, salvar } from '@/lib/dados/repositorio'
 import { criarOficio, feriadosDe } from '@/lib/dados/servicos'
 import type { Colecao } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
@@ -37,6 +38,10 @@ export function OficiosPage() {
   const [orgao, setOrgao] = useState('')
   const [sre, setSre] = useState('')
   const [busca, setBusca] = useState('')
+  const [responsavel, setResponsavel] = useState('')
+  const [sei, setSei] = useState('')
+  const [unidade, setUnidade] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
   const [novo, setNovo] = useState(false)
 
   const linhas = useMemo(() => {
@@ -65,6 +70,12 @@ export function OficiosPage() {
     .filter((l) => !tipo || l.oficio.tipo === tipo)
     .filter((l) => !orgao || l.oficio.orgao_tipo === orgao)
     .filter((l) => !sre || l.oficio.sre_id === sre)
+    .filter((l) => !responsavel || (responsavel === '__nenhum__' ? !l.oficio.responsavel_id : l.oficio.responsavel_id === responsavel))
+    .filter((l) => !unidade || l.oficio.orgao_nome === unidade)
+    .filter((l) => {
+      const t = sei.replace(/\D/g, '')
+      return !t || String(l.oficio.numero_sei || l.processo?.numero_sei || '').replace(/\D/g, '').includes(t)
+    })
     .filter((l) => {
       const t = busca.trim().toLocaleLowerCase('pt-BR')
       return !t || [l.processo?.codigo, l.processo?.numero_sei, l.oficio.numero_sei, l.oficio.numero, l.oficio.numero_processo_judicial, l.oficio.comarca, l.oficio.orgao_nome, l.oficio.assunto, l.escola, l.responsavel].some((x) => String(x ?? '').toLocaleLowerCase('pt-BR').includes(t))
@@ -72,6 +83,22 @@ export function OficiosPage() {
     .sort((a, b) => Number(a.situacao === 'respondido') - Number(b.situacao === 'respondido') || String(a.oficio.prazo_resposta).localeCompare(String(b.oficio.prazo_resposta)))
 
   const f = (id: Filtro) => ({ ativo: filtro === id, onClick: () => setFiltro(filtro === id ? '' : id) })
+  const responsaveis = (dados.usuarios ?? []).filter((u) => u.ativo !== false && (u.papel === 'analista_central' || u.papel === 'admin')).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))
+  const unidades = [...new Set(linhas.map((l) => String(l.oficio.orgao_nome ?? '')).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const temFiltro = filtro !== 'pendentes' || tipo || orgao || sre || busca || responsavel || sei || unidade
+  function limpar() {
+    setFiltro('pendentes'); setTipo(''); setOrgao(''); setSre(''); setBusca(''); setResponsavel(''); setSei(''); setUnidade('')
+  }
+  async function atribuir(oficioId: string, responsavelId: string) {
+    setErro(null)
+    try {
+      await salvar('oficios', { id: oficioId, responsavel_id: responsavelId || null }, usuario)
+      await recarregar()
+    } catch (e) {
+      if (e instanceof ErroValidacao || e instanceof ErroRegra || e instanceof ErroPermissao) setErro(e.message)
+      else throw e
+    }
+  }
 
   return (
     <div>
@@ -96,26 +123,72 @@ export function OficiosPage() {
         <Cartao titulo="Respondidos" valor={conta((l) => l.situacao === 'respondido')} cor="text-green-700" {...f('respondido')} />
       </div>
 
-      <div className="mt-6 mb-3 flex flex-wrap gap-2">
-        <div className="relative w-full max-w-sm">
-          <Search size={16} className="pointer-events-none absolute top-2.5 left-3 text-slate-400" />
-          <input className="campo pl-9" placeholder="Código, nº, SEI, processo, comarca, assunto, responsável…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
+      <div className="mt-6 mb-3 rounded-lg border border-slate-200 bg-white p-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+          <label className="block sm:col-span-2">
+            <span className="text-xs text-slate-600">Buscar</span>
+            <span className="relative mt-1 block">
+              <Search size={16} className="pointer-events-none absolute top-2.5 left-3 text-slate-400" />
+              <input className="campo pl-9" placeholder="Código, nº, processo, comarca, assunto…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            </span>
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">Nº SEI</span>
+            <input className="campo mt-1" placeholder="Parte do número" value={sei} onChange={(e) => setSei(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">Situação</span>
+            <select className="campo mt-1" value={filtro} onChange={(e) => setFiltro(e.target.value as Filtro)}>
+              <option value="">Todas</option>
+              <option value="pendentes">Pendentes de resposta</option>
+              {(Object.keys(ROTULO_SITUACAO_OFICIO) as SituacaoOficio[]).map((k) => <option key={k} value={k}>{ROTULO_SITUACAO_OFICIO[k]}</option>)}
+              <option value="vencidos">Prazo vencido</option>
+              <option value="amarelo">A vencer (até 3 dias úteis)</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">Responsável</span>
+            <select className="campo mt-1" value={responsavel} onChange={(e) => setResponsavel(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="__nenhum__">Sem responsável</option>
+              {responsaveis.map((u) => <option key={u.id} value={u.id}>{String(u.nome)}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">Órgão</span>
+            <select className="campo mt-1" value={orgao} onChange={(e) => setOrgao(e.target.value)}>
+              <option value="">Todos</option>
+              {ORGAOS_OFICIO.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">Vara / unidade</span>
+            <select className="campo mt-1" value={unidade} onChange={(e) => setUnidade(e.target.value)}>
+              <option value="">Todas</option>
+              {unidades.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">Tipo</span>
+            <select className="campo mt-1" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              <option value="">Todos</option>
+              {TIPOS_OFICIO.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
+            </select>
+          </label>
+          {central && (
+            <label className="block">
+              <span className="text-xs text-slate-600">SRE</span>
+              <select className="campo mt-1" value={sre} onChange={(e) => setSre(e.target.value)}>
+                <option value="">Todas</option>
+                {(dados.sres ?? []).map((sr) => <option key={sr.id} value={sr.id}>{String(sr.sigla)}</option>)}
+              </select>
+            </label>
+          )}
         </div>
-        <select className="campo w-auto" value={tipo} onChange={(e) => setTipo(e.target.value)} aria-label="Tipo">
-          <option value="">Todos os tipos</option>
-          {TIPOS_OFICIO.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
-        </select>
-        <select className="campo w-auto" value={orgao} onChange={(e) => setOrgao(e.target.value)} aria-label="Órgão">
-          <option value="">Todos os órgãos</option>
-          {ORGAOS_OFICIO.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
-        </select>
-        {central && (
-          <select className="campo w-auto" value={sre} onChange={(e) => setSre(e.target.value)} aria-label="SRE">
-            <option value="">Todas as SREs</option>
-            {(dados.sres ?? []).map((s) => <option key={s.id} value={s.id}>{String(s.sigla)}</option>)}
-          </select>
-        )}
+        {temFiltro && <button className="mt-2 text-xs text-marca-700 hover:underline" onClick={limpar}>Limpar filtros</button>}
       </div>
+
+      {erro && <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-left text-sm">
@@ -154,8 +227,20 @@ export function OficiosPage() {
                   <span className={`rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap ${COR_SITUACAO[l.situacao]}`}>{ROTULO_SITUACAO_OFICIO[l.situacao]}</span>
                   {l.consultaPendente && <p className="mt-1 text-xs text-slate-500">SRE até {formatarData(l.consultaPendente.prazo)}</p>}
                 </td>
-                <td className="px-3 py-2">
-                  {l.responsavel || '—'}
+                <td className="px-3 py-2" onClick={(e) => central && e.stopPropagation()}>
+                  {central ? (
+                    <select
+                      className={`campo w-44 py-1 text-xs ${l.oficio.responsavel_id ? '' : 'border-amber-300 bg-amber-50'}`}
+                      value={String(l.oficio.responsavel_id ?? '')}
+                      onChange={(e) => atribuir(l.oficio.id, e.target.value)}
+                      aria-label="Atribuir responsável"
+                    >
+                      <option value="">Atribuir…</option>
+                      {responsaveis.map((u) => <option key={u.id} value={u.id}>{String(u.nome)}</option>)}
+                    </select>
+                  ) : (
+                    l.responsavel || '—'
+                  )}
                   {l.situacao === 'aguardando_sre' && <p className="text-xs text-amber-700">informação com a SRE {l.sigla}</p>}
                 </td>
                 <td className="px-3 py-2">

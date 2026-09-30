@@ -107,6 +107,22 @@ export function OficioDetalhePage() {
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{ROTULO_SITUACAO_OFICIO[situacao]}</span>
             <span className="ml-2 text-slate-500">Prazo de resposta:</span> <strong>{formatarData(oficio.prazo_resposta)}</strong>
           </p>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-slate-500">Responsável por responder:</span>
+            {central && !respondido ? (
+              <select
+                className="campo w-auto py-1"
+                value={String(oficio.responsavel_id ?? '')}
+                onChange={(e) => tentar(() => salvar('oficios', { id: oficio.id, responsavel_id: e.target.value || null }, usuario))}
+                aria-label="Atribuir responsável"
+              >
+                <option value="">Atribuir…</option>
+                {lista('usuarios').filter((u) => u.ativo !== false && (u.papel === 'analista_central' || u.papel === 'admin')).map((u) => <option key={u.id} value={u.id}>{String(u.nome)}</option>)}
+              </select>
+            ) : (
+              <strong>{String(achar('usuarios', oficio.responsavel_id)?.nome ?? '—')}</strong>
+            )}
+          </p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-white px-4 py-3"><Semaforo semaforo={semaforo} /></div>
       </div>
