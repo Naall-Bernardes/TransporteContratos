@@ -11,7 +11,6 @@ export const CONDICOES: Record<string, string> = {
   se_dispositivo_ou_acompanhante: 'Se usa dispositivo de mobilidade ou precisa de acompanhante',
   se_obstaculos: 'Se o trajeto tem obstáculos',
   se_rota_nao_atende: 'Se a rota PTE/municipal não atende',
-  se_tres_cotacoes: 'Se o valor for definido por 3 cotações',
 }
 
 export interface ItemChecklist {
@@ -37,7 +36,6 @@ export function condicoesAtivas(d: DadosCondicoes): Set<string> {
     c.add('se_dispositivo_ou_acompanhante')
   if (d.caracterizacoes.some((x) => Array.isArray(x.obstaculos) && x.obstaculos.some((o) => o !== 'nenhum'))) c.add('se_obstaculos')
   if (d.caracterizacoes.some((x) => x.rota_existente && x.rota_existente !== 'pode_atender')) c.add('se_rota_nao_atende')
-  if (d.demanda?.metodo_valor === 'tres_cotacoes') c.add('se_tres_cotacoes')
   return c
 }
 

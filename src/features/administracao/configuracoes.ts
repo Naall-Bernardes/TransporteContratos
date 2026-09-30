@@ -31,7 +31,7 @@ export const ETAPA_MODELO: CadastroConfig = {
     { nome: 'ordem', rotulo: 'Ordem', tipo: 'numero', naTabela: true },
     { nome: 'codigo', rotulo: 'Código', tipo: 'texto', naTabela: true },
     { nome: 'nome', rotulo: 'Nome', tipo: 'texto', naTabela: true },
-    { nome: 'papel_responsavel', rotulo: 'Quem atua', tipo: 'selecao', opcoes: opcoes({ central: 'Órgão central', sre: 'SRE' }), naTabela: true },
+    { nome: 'papel_responsavel', rotulo: 'Quem atua', tipo: 'selecao', opcoes: opcoes({ central: 'Órgão central', subsecretario: 'Subsecretário(a)', sre: 'SRE' }), naTabela: true },
     { nome: 'sla_dias_uteis', rotulo: 'SLA (dias úteis)', tipo: 'numero', naTabela: true },
   ],
 }

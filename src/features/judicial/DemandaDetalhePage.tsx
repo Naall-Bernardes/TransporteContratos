@@ -19,14 +19,15 @@ import { PainelConformidade } from '@/features/frota/PainelConformidade'
 import { calcularSituacao } from '@/lib/contratos/calculos'
 import { ErroPermissao, ErroRegra, salvar } from '@/lib/dados/repositorio'
 import { feriadosDe, incluirAluno, registrarRelatorioCumprimento } from '@/lib/dados/servicos'
-import type { Colecao, Registro } from '@/lib/dados/tipos'
+import type { Colecao } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
 import { etapaAtual, montarDadosProcesso } from '@/lib/fluxo/processo'
 import { calcularSemaforo } from '@/lib/fluxo/sla'
 import { formatarData, formatarMoeda } from '@/lib/formatacao'
 import { podeEditar as podeEditarRegistro } from '@/lib/permissoes'
-import { AUTORIZACAO, COTACAO, DEMANDA, EXECUCAO, LIBERACAO, ORIGENS, STATUS_CARACTERIZACAO, UNIDADES_PRECO, VALOR } from './configuracoes'
+import { AutorizacaoSubsecretario, RegistroPaf } from './Autorizacao'
+import { DEMANDA, EXECUCAO, ORIGENS, STATUS_CARACTERIZACAO } from './configuracoes'
 
 /** Item do submenu da demanda. */
 function ItemSecao({ id, atual, ir, icone, children }: { id: string; atual: string; ir: (id: string) => void; icone: ReactNode; children: ReactNode }) {
@@ -46,7 +47,7 @@ export function DemandaDetalhePage() {
   const usuario = useUsuario()
   const { dados, carregando, recarregar } = useTodos()
   const [params, setParams] = useSearchParams()
-  const [editando, setEditando] = useState<'dados' | 'encaminhamento' | 'valor' | 'execucao' | 'contrato' | null>(null)
+  const [editando, setEditando] = useState<'dados' | 'encaminhamento' | 'execucao' | 'contrato' | null>(null)
   const [alunoNovo, setAlunoNovo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const hoje = hojeIso()
@@ -65,7 +66,6 @@ export function DemandaDetalhePage() {
   const achar = (c: Colecao, rid: unknown) => lista(c).find((r) => r.id === rid)
   const processo = d.processo!
   const pode = podeEditarRegistro(usuario, 'demandas', demanda, achar)
-  const podeFinanceiro = podeEditarRegistro(usuario, 'autorizacoes_financeiras', { ...demanda, demanda_id: demanda.id } as Registro, achar)
   const modelos = lista('etapas_modelo').filter((m) => m.modulo === 'JUDICIAL')
   const { modelo } = etapaAtual(d, modelos)
   const modelosOrdenados = [...modelos].sort((a, b) => Number(a.ordem) - Number(b.ordem))
@@ -80,8 +80,6 @@ export function DemandaDetalhePage() {
   const escola = achar('escolas', demanda.escola_id)
   const alunosDemanda = d.alunosDemanda.map((da) => ({ da, aluno: achar('alunos', da.aluno_id)!, car: d.caracterizacoes.find((c) => c.demanda_aluno_id === da.id) }))
   const contrato = d.instrumentos.find((i) => i.tipo === 'contrato_caixa')
-  const menorCotacao = d.cotacoes.length ? d.cotacoes.reduce((m, c) => (Number(c.valor_mensal) < Number(m.valor_mensal) ? c : m)) : null
-  const precosVigentes = lista('precos_referencia').filter((p) => p.sre_id === demanda.sre_id && String(p.vigencia_inicio) <= hoje && (!p.vigencia_fim || String(p.vigencia_fim) >= hoje))
   const etapasOpcoes = [...modelos].sort((a, b) => Number(a.ordem) - Number(b.ordem)).map((m) => ({ codigo: String(m.codigo), nome: String(m.nome) }))
   const alunosOpcoes = alunosDemanda.map((a) => ({ id: a.aluno.id, nome: String(a.aluno.nome) }))
 
@@ -193,75 +191,13 @@ export function DemandaDetalhePage() {
           </div>
         )
       case 'J04':
-        return (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-slate-900">Valor definido</h3>
-                  {demanda.valor_mensal ? (
-                    <p className="mt-1">
-                      {formatarMoeda(demanda.valor_mensal)}/mês × {String(demanda.meses_previstos)} meses = <strong>{formatarMoeda(demanda.valor_total)}</strong>
-                      <span className="text-slate-500"> · {demanda.metodo_valor === 'tres_cotacoes' ? 'três cotações' : 'preço de referência'}</span>
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-slate-500">Ainda não definido.</p>
-                  )}
-                  {menorCotacao && (
-                    <p className="mt-1 text-green-700">
-                      Menor cotação: {String(menorCotacao.fornecedor)} — {formatarMoeda(menorCotacao.valor_mensal)}/mês
-                      {Boolean(demanda.valor_mensal) && Number(demanda.valor_mensal) > Number(menorCotacao.valor_mensal) && <span className="ml-1 font-medium text-orange-600">(valor definido está acima da menor cotação)</span>}
-                    </p>
-                  )}
-                </div>
-                {pode && <Botao variante="secundario" onClick={() => setEditando('valor')}><Pencil size={16} /> Definir valor</Botao>}
-              </div>
-              <div className="mt-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase">Preços de referência vigentes na SRE</p>
-                {precosVigentes.length === 0 ? (
-                  <p className="text-slate-500">Nenhum.</p>
-                ) : (
-                  <ul className="mt-1 space-y-0.5">
-                    {precosVigentes.map((p) => (
-                      <li key={p.id}>
-                        {String(achar('tipos_veiculo', p.tipo_veiculo_id)?.nome)} — {formatarMoeda(p.valor)} ({UNIDADES_PRECO.find((u) => u.valor === p.unidade)?.rotulo})
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-            <SecaoRegistros
-              config={COTACAO}
-              valoresFixos={{ demanda_id: demanda.id }}
-              registros={d.cotacoes}
-              referencias={dados}
-              podeEditar={pode}
-              aoAlterar={recarregar}
-              cabecalho="Registre ao menos três cotações. O sistema destaca a menor."
-              destacarLinha={(c) => (c.id === menorCotacao?.id ? 'bg-green-50' : undefined)}
-              padraoNovo={{ data: hoje }}
-            />
-          </div>
-        )
+        return <AutorizacaoSubsecretario demanda={demanda} d={d} dados={dados} aoAlterar={recarregar} />
       case 'J05':
-        return (
-          <div className="space-y-2">
-            <SecaoRegistros config={AUTORIZACAO} valoresFixos={{ demanda_id: demanda.id }} registros={d.autorizacoes} referencias={dados} podeEditar={podeFinanceiro} aoAlterar={recarregar} padraoNovo={{ data: hoje, valor: demanda.valor_total }} />
-            {!podeFinanceiro && <p className="text-xs text-slate-500">OP e PAF são lançados pelo órgão central.</p>}
-          </div>
-        )
+        return <RegistroPaf demanda={demanda} d={d} dados={dados} aoAlterar={recarregar} />
       case 'J06':
         return (
-          <div className="space-y-2">
-            <SecaoRegistros config={LIBERACAO} valoresFixos={{ demanda_id: demanda.id }} registros={d.liberacoes} referencias={dados} podeEditar={podeFinanceiro} aoAlterar={recarregar} padraoNovo={{ data: hoje, valor: demanda.valor_total }} />
-            {!podeFinanceiro && <p className="text-xs text-slate-500">A liberação do recurso é lançada pelo órgão central.</p>}
-          </div>
-        )
-      case 'J07':
-        return (
           <div className="space-y-4">
-          <div className="space-y-4">
+          <div>
             {contrato ? (
               (() => {
                 const s = calcularSituacao(contrato, lista('aditivos').filter((a) => a.instrumento_id === contrato.id), lista('parcelas').filter((p) => p.instrumento_id === contrato.id), hoje)
@@ -301,7 +237,7 @@ export function DemandaDetalhePage() {
             )}
           </div>
         )
-      case 'J08':
+      case 'J07':
         return (
           <div className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
@@ -329,13 +265,13 @@ export function DemandaDetalhePage() {
             )}
           </div>
         )
-      case 'J09':
+      case 'J08':
         return contrato ? (
           <PrestacaoContas instrumentoId={contrato.id} prestacoes={d.prestacoes} referencias={dados} podeEditar={pode} hoje={hoje} aoAlterar={recarregar} />
         ) : (
-          <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">A prestação de contas depende do contrato (etapa 7).</p>
+          <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">A prestação de contas depende do contrato (etapa 6).</p>
         )
-      case 'J10':
+      case 'J09':
         return (
           <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
             <h3 className="font-semibold text-slate-900">Relatório de comprovação do cumprimento</h3>
@@ -381,7 +317,7 @@ export function DemandaDetalhePage() {
       {erro && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[15rem_1fr]">
-        {/* Submenu da demanda: visão geral, as 10 etapas, documentos e histórico */}
+        {/* Submenu da demanda: visão geral, as etapas, documentos e histórico */}
         <nav className="self-start rounded-lg border border-slate-200 bg-white p-2 text-sm lg:sticky lg:top-4" aria-label="Etapas da demanda">
           <ItemSecao id="geral" atual={secao} ir={irPara} icone={<LayoutList size={15} className="text-slate-500" />}>Visão geral</ItemSecao>
           <p className="mt-2 mb-1 px-2 text-xs font-semibold text-slate-500 uppercase">Etapas</p>
@@ -408,7 +344,7 @@ export function DemandaDetalhePage() {
                 <Cartao titulo="Etapa atual" valor={modelo ? `${modelo.ordem}. ${modelo.nome}` : 'Concluída'} onClick={modelo ? () => irPara(String(modelo.codigo)) : undefined} />
                 <Cartao titulo="Prazo judicial" valor={formatarData(demanda.prazo_judicial)} detalhe={demanda.data_inicio_transporte ? `transporte iniciado em ${formatarData(demanda.data_inicio_transporte)}` : 'transporte não iniciado'} />
                 <Cartao titulo="Alunos" valor={alunosDemanda.length} onClick={() => irPara('J03')} />
-                <Cartao titulo="Valor total" valor={demanda.valor_total ? formatarMoeda(demanda.valor_total) : '—'} onClick={() => irPara('J04')} />
+                <Cartao titulo="Valor autorizado" valor={demanda.valor_total ? formatarMoeda(demanda.valor_total) : '—'} detalhe={d.pafs[0] ? `PAF ${d.pafs[0].numero}` : 'sem PAF'} onClick={() => irPara(d.pafs.length ? 'J05' : 'J04')} />
               </div>
               <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
                 <h3 className="font-semibold text-slate-900">Resumo da decisão</h3>
@@ -436,22 +372,20 @@ export function DemandaDetalhePage() {
       </div>
 
       <Modal
-        titulo={{ dados: 'Editar demanda', encaminhamento: 'Encaminhamento à SRE', valor: 'Definição do valor', execucao: 'Início do transporte', contrato: 'Registrar contrato da Caixa Escolar' }[editando ?? 'dados']}
+        titulo={{ dados: 'Editar demanda', encaminhamento: 'Encaminhamento à SRE', execucao: 'Início do transporte', contrato: 'Registrar contrato da Caixa Escolar' }[editando ?? 'dados']}
         aberto={editando !== null}
         aoFechar={() => setEditando(null)}
       >
         {editando && (
           <FormularioRegistro
-            config={{ dados: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => c.nome !== 'numero_sei') }, encaminhamento: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => ['responsavel_sre_id', 'prazo_devolucao_formulario', 'caixa_escolar_id'].includes(c.nome)) }, valor: { ...VALOR, campos: VALOR.campos.map((c) => (c.nome === 'cotacao_escolhida_id' ? { ...c, filtroReferencia: (r: Registro) => r.demanda_id === demanda.id } : c.nome === 'preco_referencia_id' ? { ...c, filtroReferencia: (r: Registro) => r.sre_id === demanda.sre_id } : c)) }, execucao: EXECUCAO, contrato: INSTRUMENTO }[editando]}
+            config={{ dados: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => c.nome !== 'numero_sei') }, encaminhamento: { ...DEMANDA, campos: DEMANDA.campos.filter((c) => ['responsavel_sre_id', 'prazo_devolucao_formulario', 'caixa_escolar_id'].includes(c.nome)) }, execucao: EXECUCAO, contrato: INSTRUMENTO }[editando]}
             registro={editando === 'contrato' ? null : demanda}
             referencias={dados}
             valoresFixos={editando === 'contrato' ? { tipo: 'contrato_caixa', processo_id: processo.id } : undefined}
             valoresPadrao={
               editando === 'contrato'
                 ? { tipo: 'contrato_caixa', caixa_escolar_id: demanda.caixa_escolar_id, numero_sei: processo.numero_sei, valor_global: demanda.valor_total, objeto: `Transporte escolar em cumprimento da demanda ${processo.codigo}.`, gestor_id: demanda.responsavel_sre_id, fiscal_id: demanda.responsavel_sre_id, status: 'vigente', periodicidade_prestacao: 'semestral', prazo_prestacao_dias: 30 }
-                : editando === 'valor' && !demanda.valor_mensal && menorCotacao
-                  ? { valor_mensal: menorCotacao.valor_mensal, cotacao_escolhida_id: menorCotacao.id, metodo_valor: 'tres_cotacoes' }
-                  : undefined
+                : undefined
             }
             aoCancelar={() => setEditando(null)}
             aoSalvar={async () => {

@@ -177,6 +177,7 @@ export function criarBaseDemonstracao(versao: number): Base {
   const usuarios = [
     novo({ nome: 'Ana Administradora (fictícia)', email: 'admin@demo.exemplo', papel: 'admin', sre_id: null, ativo: true }),
     novo({ nome: 'Carlos Central (fictício)', email: 'central@demo.exemplo', papel: 'analista_central', sre_id: null, ativo: true }),
+    novo({ nome: 'Sofia Subsecretária (fictícia)', email: 'subsecretaria@demo.exemplo', papel: 'subsecretario', sre_id: null, ativo: true }),
     novo({ nome: 'Diana Diretora DAFI – UDI (fictícia)', email: 'dafi.udi@demo.exemplo', papel: 'diretor_sre', sre_id: sre('UDI'), ativo: true }),
     novo({ nome: 'Sérgio Analista – UDI (fictício)', email: 'analista.udi@demo.exemplo', papel: 'analista_sre', sre_id: sre('UDI'), ativo: true }),
     novo({ nome: 'Mariana Analista – MOC (fictícia)', email: 'analista.moc@demo.exemplo', papel: 'analista_sre', sre_id: sre('MOC'), ativo: true }),

@@ -2,7 +2,8 @@
 
 import { hojeIso } from '../diasUteis'
 import type { ContextoValidacao } from './regrasContratos'
-import { validarCpf } from '../validacao'
+import { somarMeses } from '../datas'
+import { normalizarDocumento, validarCnpj, validarCpf } from '../validacao'
 import type { Colecao, ColecaoDocumento, ColecaoFluxo, ColecaoFrota, ColecaoJudicial, ColecaoPte, Consulta, Registro } from './tipos'
 
 export type ColecaoModulo = ColecaoDocumento | ColecaoFluxo | ColecaoJudicial | ColecaoPte | ColecaoFrota
@@ -27,9 +28,8 @@ export const OBRIGATORIOS_MODULOS: Record<ColecaoModulo, string[]> = {
   caracterizacoes: ['demanda_id', 'demanda_aluno_id', 'status'],
   caracterizacoes_saude: ['caracterizacao_id'],
   responsaveis_legais: ['caracterizacao_id'],
-  cotacoes: ['demanda_id', 'fornecedor', 'valor_mensal', 'data'],
-  autorizacoes_financeiras: ['demanda_id', 'tipo', 'numero', 'data', 'valor'],
-  liberacoes_recurso: ['demanda_id', 'data', 'valor'],
+  autorizacoes_subsecretario: ['demanda_id', 'decisao', 'data', 'subsecretario_id'],
+  pafs: ['demanda_id', 'numero', 'data_criacao', 'data_vigencia', 'valor', 'cnpj_destinatario'],
   ciclos_pte: ['ano', 'status', 'dias_letivos', 'num_parcelas'],
   adesoes_pte: ['processo_id', 'ciclo_id', 'municipio_id', 'data_adesao', 'status'],
   pte_alunos: ['adesao_id', 'cod_simade', 'nome', 'escola_inep'],
@@ -63,8 +63,6 @@ export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Coleca
   { origem: 'demandas', campo: 'escola_id', alvo: 'escolas' },
   { origem: 'demandas', campo: 'caixa_escolar_id', alvo: 'caixas_escolares' },
   { origem: 'demandas', campo: 'responsavel_sre_id', alvo: 'usuarios' },
-  { origem: 'demandas', campo: 'preco_referencia_id', alvo: 'precos_referencia' },
-  { origem: 'demandas', campo: 'cotacao_escolhida_id', alvo: 'cotacoes' },
   { origem: 'demanda_alunos', campo: 'demanda_id', alvo: 'demandas' },
   { origem: 'demanda_alunos', campo: 'aluno_id', alvo: 'alunos' },
   { origem: 'caracterizacoes', campo: 'demanda_id', alvo: 'demandas' },
@@ -74,9 +72,9 @@ export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Coleca
   { origem: 'caracterizacoes', campo: 'analista_id', alvo: 'usuarios' },
   { origem: 'caracterizacoes_saude', campo: 'caracterizacao_id', alvo: 'caracterizacoes' },
   { origem: 'responsaveis_legais', campo: 'caracterizacao_id', alvo: 'caracterizacoes' },
-  { origem: 'cotacoes', campo: 'demanda_id', alvo: 'demandas' },
-  { origem: 'autorizacoes_financeiras', campo: 'demanda_id', alvo: 'demandas' },
-  { origem: 'liberacoes_recurso', campo: 'demanda_id', alvo: 'demandas' },
+  { origem: 'autorizacoes_subsecretario', campo: 'demanda_id', alvo: 'demandas' },
+  { origem: 'autorizacoes_subsecretario', campo: 'subsecretario_id', alvo: 'usuarios' },
+  { origem: 'pafs', campo: 'demanda_id', alvo: 'demandas' },
   { origem: 'adesoes_pte', campo: 'processo_id', alvo: 'processos' },
   { origem: 'adesoes_pte', campo: 'ciclo_id', alvo: 'ciclos_pte' },
   { origem: 'adesoes_pte', campo: 'municipio_id', alvo: 'municipios' },
@@ -119,7 +117,7 @@ export const UNICOS_MODULOS: Partial<Record<Colecao, { campos: string[]; mensage
   caracterizacoes: [{ campos: ['demanda_aluno_id'], mensagem: 'Já existe caracterização para este aluno nesta demanda.' }],
   caracterizacoes_saude: [{ campos: ['caracterizacao_id'], mensagem: 'Já registrado.' }],
   responsaveis_legais: [{ campos: ['caracterizacao_id'], mensagem: 'Já registrado.' }],
-  autorizacoes_financeiras: [{ campos: ['numero', 'tipo', 'demanda_id'], mensagem: 'Número já registrado.' }],
+  pafs: [{ campos: ['numero'], mensagem: 'Já existe PAF com este número oficial.' }],
   ciclos_pte: [{ campos: ['ano'], mensagem: 'Já existe ciclo para este ano.' }],
   adesoes_pte: [{ campos: ['municipio_id', 'ciclo_id'], mensagem: 'Município já aderiu a este ciclo.' }],
   pte_alunos: [{ campos: ['cod_simade', 'adesao_id'], mensagem: 'Aluno já consta na lista deste município.' }],
@@ -188,6 +186,11 @@ export function normalizarModulo(colecao: ColecaoModulo, d: Campos, consulta: Co
       break
     case 'contratacoes_municipais':
       if (d.tipo === 'frota_propria') d.transportador_id = null
+      break
+    case 'pafs':
+      // Vigência do PAF: 5 anos após a data de criação
+      if (d.data_criacao) d.data_vigencia = somarMeses(String(d.data_criacao), 60)
+      if (d.cnpj_destinatario) d.cnpj_destinatario = normalizarDocumento(String(d.cnpj_destinatario))
       break
   }
   return d
@@ -280,12 +283,6 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
         erros.data_ciencia = 'A ciência não pode ser posterior ao recebimento na SEE.'
       if (r.prazo_judicial && r.data_ciencia && String(r.prazo_judicial) < String(r.data_ciencia))
         erros.prazo_judicial = 'O prazo é anterior à data de ciência.'
-      if (r.metodo_valor === 'tres_cotacoes' && !vazio(r.cotacao_escolhida_id)) {
-        const cot = ctx.lista('cotacoes').filter((c) => c.demanda_id === r.id)
-        if (cot.length < 3) erros.metodo_valor = 'São necessárias ao menos 3 cotações.'
-      }
-      if (r.metodo_valor === 'preco_referencia' && vazio(r.preco_referencia_id) && !vazio(r.valor_mensal))
-        erros.preco_referencia_id = 'Informe o preço de referência usado.'
       break
 
     case 'caracterizacoes':
@@ -309,14 +306,24 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
       if (r.medicacao_trajeto && vazio(r.medicacao_detalhe)) erros.medicacao_detalhe = 'Informe a medicação e o horário.'
       break
 
-    case 'cotacoes':
-      if (num(r.valor_mensal) <= 0) erros.valor_mensal = 'O valor deve ser maior que zero.'
+    case 'autorizacoes_subsecretario':
+      if (ctx.anterior && !ctx.usuarioEhAdmin) erros._geral = 'A decisão do subsecretário não pode ser alterada; registre uma nova.'
+      if (r.decisao === 'aprovada') {
+        if (num(r.valor_mensal) <= 0) erros.valor_mensal = 'Informe o valor mensal autorizado.'
+        if (num(r.meses) <= 0) erros.meses = 'Informe o nº de meses.'
+      }
+      if (r.decisao === 'devolvida' && vazio(r.parecer)) erros.parecer = 'Informe o motivo da devolução.'
       break
 
-    case 'autorizacoes_financeiras':
-    case 'liberacoes_recurso':
+    case 'pafs': {
       if (num(r.valor) <= 0) erros.valor = 'O valor deve ser maior que zero.'
+      if (r.data_criacao && String(r.data_criacao) > hoje) erros.data_criacao = 'Data de criação no futuro.'
+      if (r.cnpj_destinatario && !validarCnpj(String(r.cnpj_destinatario))) erros.cnpj_destinatario = 'CNPJ inválido.'
+      const demanda = ctx.consulta('demandas', r.demanda_id)
+      if (demanda?.valor_total && num(r.valor) > num(demanda.valor_total))
+        erros.valor = `Acima do valor autorizado pelo subsecretário (R$ ${num(demanda.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`
       break
+    }
 
     case 'ciclos_pte':
       for (const c of ['dias_letivos', 'num_parcelas'])

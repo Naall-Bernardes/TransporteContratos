@@ -17,9 +17,9 @@ export interface DadosProcesso {
   alunosDemanda: Registro[]
   caracterizacoes: Registro[]
   saude: Registro[]
-  cotacoes: Registro[]
+  /** Decisões do subsecretário (aprovações e devoluções), da mais antiga para a mais recente. */
   autorizacoes: Registro[]
-  liberacoes: Registro[]
+  pafs: Registro[]
   instrumentos: Registro[]
   parcelas: Registro[]
   fiscalizacoes: Registro[]
@@ -65,9 +65,8 @@ export function montarDadosProcesso(lista: Lista, processoId: string, hoje = hoj
     alunosDemanda: de('demanda_alunos', 'demanda_id', demanda?.id).filter((a) => !a.removido_em),
     caracterizacoes,
     saude: lista('caracterizacoes_saude').filter((s) => caracterizacoes.some((c) => c.id === s.caracterizacao_id)),
-    cotacoes: de('cotacoes', 'demanda_id', demanda?.id),
-    autorizacoes: de('autorizacoes_financeiras', 'demanda_id', demanda?.id),
-    liberacoes: de('liberacoes_recurso', 'demanda_id', demanda?.id),
+    autorizacoes: de('autorizacoes_subsecretario', 'demanda_id', demanda?.id).sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em))),
+    pafs: de('pafs', 'demanda_id', demanda?.id),
     instrumentos,
     parcelas: doInstrumento('parcelas'),
     fiscalizacoes: doInstrumento('fiscalizacoes'),
@@ -100,33 +99,28 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
       break
     }
     case 'J04':
-      exige(d.demanda?.metodo_valor, 'Escolha o método de definição do valor (3 cotações ou preço de referência).')
-      exige(d.demanda?.valor_mensal && d.demanda?.meses_previstos, 'Defina o valor mensal e o nº de meses.')
-      if (d.demanda?.metodo_valor === 'tres_cotacoes') exige(d.cotacoes.length >= 3, `Registre ao menos 3 cotações (há ${d.cotacoes.length}).`)
+      // A etapa só é concluída pela decisão do subsecretário (aprovar ou devolver)
+      p.push('Aguardando a decisão do subsecretário (aprovar a liberação ou devolver para ajuste).')
       break
     case 'J05':
-      exige(d.autorizacoes.some((a) => a.tipo === 'OP'), 'Registre a OP (número, data e valor).')
-      exige(d.autorizacoes.some((a) => a.tipo === 'PAF'), 'Registre o PAF (número, data e valor).')
+      exige(d.pafs.length > 0, 'Crie o PAF (número oficial, data de criação, valor e CNPJ).')
       break
-    case 'J06':
-      exige(d.liberacoes.length > 0, 'Registre a liberação do recurso à Caixa Escolar.')
-      break
-    case 'J07': {
+    case 'J06': {
       exige(d.instrumentos.some((i) => i.tipo === 'contrato_caixa'), 'Registre o contrato firmado pela Caixa Escolar.')
       exige(d.alocacoes.some((a) => a.veiculo_id) && d.alocacoes.some((a) => a.condutor_id), 'Informe o veículo e o motorista que farão o transporte (aba Frota e conformidade do contrato).')
       const pend = totalPendencias(d.conformidade)
       exige(pend === 0, `${pend} documento(s) obrigatório(s) do contratado, veículo ou condutor ausente(s) ou vencido(s) (CTB arts. 136–138 e 329; Res. SEE 3.670/2017).`)
       break
     }
-    case 'J08':
+    case 'J07':
       exige(d.demanda?.data_inicio_transporte, 'Informe a data de início efetivo do transporte.')
       exige(d.fiscalizacoes.length > 0, 'Registre ao menos um mês de fiscalização.')
       break
-    case 'J09':
+    case 'J08':
     case 'P05':
       exige(prestacoesDecididas, 'Todas as prestações de contas precisam estar decididas (aprovada, com ressalvas ou reprovada).')
       break
-    case 'J10':
+    case 'J09':
       exige(d.demanda?.relatorio_gerado_em, 'Gere o relatório de comprovação do cumprimento.')
       break
     case 'P02':

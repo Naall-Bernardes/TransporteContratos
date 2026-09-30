@@ -11,12 +11,17 @@ import type { Colecao, Consulta, Papel, Registro, Usuario } from './dados/tipos'
 export const ROTULO_PAPEL: Record<Papel, string> = {
   admin: 'Administrador',
   analista_central: 'Analista do órgão central',
+  subsecretario: 'Subsecretário(a)',
   diretor_sre: 'Diretor DAFI (SRE)',
   analista_sre: 'Analista SRE',
 }
 
 export const ehCentral = (u: Usuario) => u.papel === 'admin' || u.papel === 'analista_central'
 export const ehDiretorOuCentral = (u: Usuario) => ehCentral(u) || u.papel === 'diretor_sre'
+/** Quem enxerga todas as regionais (órgão central e subsecretário). */
+export const veTodasSres = (u: Usuario) => ehCentral(u) || u.papel === 'subsecretario'
+/** Só o subsecretário autoriza a liberação do recurso. */
+export const podeAutorizarLiberacao = (u: Usuario) => u.papel === 'subsecretario'
 
 /** Tabelas com o campo sre_id no próprio registro. */
 const SRE_DIRETA: Colecao[] = ['escolas', 'precos_referencia', 'usuarios', 'processos', 'instrumentos', 'demandas', 'adesoes_pte']
@@ -37,9 +42,8 @@ const PAI: Partial<Record<Colecao, [string, Colecao]>> = {
   caracterizacoes: ['demanda_id', 'demandas'],
   caracterizacoes_saude: ['caracterizacao_id', 'caracterizacoes'],
   responsaveis_legais: ['caracterizacao_id', 'caracterizacoes'],
-  cotacoes: ['demanda_id', 'demandas'],
-  autorizacoes_financeiras: ['demanda_id', 'demandas'],
-  liberacoes_recurso: ['demanda_id', 'demandas'],
+  autorizacoes_subsecretario: ['demanda_id', 'demandas'],
+  pafs: ['demanda_id', 'demandas'],
   pte_alunos: ['adesao_id', 'adesoes_pte'],
   divergencias: ['adesao_id', 'adesoes_pte'],
   calculos_repasse: ['adesao_id', 'adesoes_pte'],
@@ -63,11 +67,14 @@ const SOMENTE_CENTRAL: Colecao[] = [
   'ciclos_pte',
   'simade_registros',
   'calculos_repasse',
-  'autorizacoes_financeiras',
-  'liberacoes_recurso',
+  'pafs',
 ]
 
 export function podeEditarColecao(u: Usuario, colecao: Colecao): boolean {
+  // A decisão de liberação é exclusiva do subsecretário
+  if (colecao === 'autorizacoes_subsecretario') return u.papel === 'subsecretario'
+  // O subsecretário decide; ao aprovar/devolver, o sistema atualiza a demanda e as etapas
+  if (u.papel === 'subsecretario') return colecao === 'demandas' || colecao === 'processo_etapas'
   if (u.papel === 'admin') return true
   if (SOMENTE_ADMIN.includes(colecao)) return false
   if (u.papel === 'analista_central') return true
@@ -97,14 +104,14 @@ export function sreDoRegistro(colecao: Colecao, r: Registro | undefined, consult
 }
 
 export function podeVer(u: Usuario, colecao: Colecao, r: Registro, consulta: Consulta): boolean {
-  if (ehCentral(u)) return true
+  if (veTodasSres(u)) return true
   const sre = sreDoRegistro(colecao, r, consulta)
   return sre === null || sre === u.sre_id
 }
 
 export function podeEditar(u: Usuario, colecao: Colecao, r: Registro, consulta: Consulta): boolean {
   if (!podeEditarColecao(u, colecao)) return false
-  if (ehCentral(u)) return true
+  if (veTodasSres(u)) return true
   const sre = sreDoRegistro(colecao, r, consulta)
   return sre === null || sre === u.sre_id
 }

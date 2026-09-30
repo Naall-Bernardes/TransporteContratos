@@ -39,74 +39,35 @@ export const DEMANDA: CadastroConfig = {
   ],
 }
 
-export const VALOR: CadastroConfig = {
-  colecao: 'demandas',
-  titulo: 'Definição do valor',
-  singular: 'definição do valor',
+export const AUTORIZACAO_SUBSECRETARIO: CadastroConfig = {
+  colecao: 'autorizacoes_subsecretario',
+  titulo: 'Autorizações do subsecretário',
+  singular: 'autorização',
   descricao: '',
-  ordenarPor: () => '',
+  ordenarPor: (r) => String(r.criado_em),
   campos: [
-    {
-      nome: 'metodo_valor',
-      rotulo: 'Método',
-      tipo: 'selecao',
-      opcoes: opcoes({ tres_cotacoes: 'Três cotações (menor preço)', preco_referencia: 'Preço de referência vigente' }),
-      obrigatorioSe: () => true,
-    },
-    {
-      nome: 'preco_referencia_id',
-      rotulo: 'Preço de referência',
-      tipo: 'referencia',
-      referencia: 'precos_referencia',
-      visivel: (v) => v.metodo_valor === 'preco_referencia',
-      obrigatorioSe: (v) => v.metodo_valor === 'preco_referencia',
-    },
-    { nome: 'cotacao_escolhida_id', rotulo: 'Cotação escolhida', tipo: 'referencia', referencia: 'cotacoes', visivel: (v) => v.metodo_valor === 'tres_cotacoes' },
-    { nome: 'valor_mensal', rotulo: 'Valor mensal (R$)', tipo: 'moeda', obrigatorioSe: () => true },
-    { nome: 'meses_previstos', rotulo: 'Nº de meses', tipo: 'numero', obrigatorioSe: () => true },
+    { nome: 'decisao', rotulo: 'Decisão', tipo: 'selecao', opcoes: opcoes({ aprovada: 'Liberação aprovada', devolvida: 'Devolvida para ajuste' }), naTabela: true },
+    { nome: 'data', rotulo: 'Data', tipo: 'data', naTabela: true },
+    { nome: 'subsecretario_id', rotulo: 'Subsecretário(a)', tipo: 'referencia', referencia: 'usuarios', naTabela: true },
+    { nome: 'valor_mensal', rotulo: 'Valor mensal autorizado (R$)', tipo: 'moeda', naTabela: true },
+    { nome: 'meses', rotulo: 'Meses', tipo: 'numero', naTabela: true },
+    { nome: 'valor_total', rotulo: 'Valor total autorizado (R$)', tipo: 'moeda', naTabela: true },
+    { nome: 'parecer', rotulo: 'Parecer / motivo', tipo: 'texto_longo', naTabela: true },
   ],
 }
 
-export const COTACAO: CadastroConfig = {
-  colecao: 'cotacoes',
-  titulo: 'Cotações',
-  singular: 'cotação',
+export const PAF: CadastroConfig = {
+  colecao: 'pafs',
+  titulo: 'PAF',
+  singular: 'PAF',
   descricao: '',
-  ordenarPor: (r) => String(r.valor_mensal).padStart(12, '0'),
+  ordenarPor: (r) => String(r.data_criacao),
   campos: [
-    { nome: 'fornecedor', rotulo: 'Fornecedor', tipo: 'texto', naTabela: true },
-    { nome: 'cpf_cnpj', rotulo: 'CPF/CNPJ', tipo: 'texto', naTabela: true },
-    { nome: 'valor_mensal', rotulo: 'Valor mensal (R$)', tipo: 'moeda', naTabela: true },
-    { nome: 'data', rotulo: 'Data', tipo: 'data', naTabela: true },
-    { nome: 'observacao', rotulo: 'Observação', tipo: 'texto_longo' },
-  ],
-}
-
-export const AUTORIZACAO: CadastroConfig = {
-  colecao: 'autorizacoes_financeiras',
-  titulo: 'OP e PAF',
-  singular: 'OP / PAF',
-  descricao: 'OP e PAF são criados em paralelo; a etapa conclui quando os dois estão registrados.',
-  ordenarPor: (r) => String(r.tipo),
-  campos: [
-    { nome: 'tipo', rotulo: 'Tipo', tipo: 'selecao', opcoes: opcoes({ OP: 'Ordem de Pagamento (OP)', PAF: 'PAF' }), naTabela: true },
-    { nome: 'numero', rotulo: 'Número', tipo: 'texto', naTabela: true },
-    { nome: 'data', rotulo: 'Data', tipo: 'data', naTabela: true },
-    { nome: 'valor', rotulo: 'Valor (R$)', tipo: 'moeda', naTabela: true },
-  ],
-}
-
-export const LIBERACAO: CadastroConfig = {
-  colecao: 'liberacoes_recurso',
-  titulo: 'Liberação do recurso',
-  singular: 'liberação',
-  descricao: 'Repasse do recurso à Caixa Escolar.',
-  ordenarPor: (r) => String(r.data),
-  campos: [
-    { nome: 'data', rotulo: 'Data', tipo: 'data', naTabela: true },
-    { nome: 'valor', rotulo: 'Valor (R$)', tipo: 'moeda', naTabela: true },
-    { nome: 'numero_ordem_bancaria', rotulo: 'Nº da ordem bancária', tipo: 'texto', naTabela: true },
-    { nome: 'observacao', rotulo: 'Observação', tipo: 'texto_longo' },
+    { nome: 'numero', rotulo: 'Número oficial do PAF', tipo: 'texto', naTabela: true },
+    { nome: 'data_criacao', rotulo: 'Data de criação do PAF', tipo: 'data', naTabela: true },
+    { nome: 'data_vigencia', rotulo: 'Data de vigência (5 anos)', tipo: 'data', naTabela: true, emFormulario: false },
+    { nome: 'valor', rotulo: 'Valor financeiro (R$)', tipo: 'moeda', naTabela: true },
+    { nome: 'cnpj_destinatario', rotulo: 'CNPJ de destino', tipo: 'cpf_cnpj', naTabela: true },
   ],
 }
 

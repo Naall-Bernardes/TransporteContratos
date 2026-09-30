@@ -144,7 +144,7 @@ export function normalizar(colecao: Colecao, dados: Campos, consulta: Consulta):
       break
     case 'usuarios':
       if (d.email) d.email = String(d.email).toLowerCase()
-      if (d.papel === 'admin' || d.papel === 'analista_central') d.sre_id = null
+      if (d.papel === 'admin' || d.papel === 'analista_central' || d.papel === 'subsecretario') d.sre_id = null
       break
   }
   if (ehContrato(colecao)) return normalizarContrato(colecao, d, consulta)

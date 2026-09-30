@@ -35,9 +35,8 @@ export type ColecaoJudicial =
   | 'caracterizacoes'
   | 'caracterizacoes_saude'
   | 'responsaveis_legais'
-  | 'cotacoes'
-  | 'autorizacoes_financeiras'
-  | 'liberacoes_recurso'
+  | 'autorizacoes_subsecretario'
+  | 'pafs'
 
 /** Módulo PTE (Fase 5). */
 export type ColecaoPte =
@@ -100,9 +99,8 @@ export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicia
   'caracterizacoes',
   'caracterizacoes_saude',
   'responsaveis_legais',
-  'cotacoes',
-  'autorizacoes_financeiras',
-  'liberacoes_recurso',
+  'autorizacoes_subsecretario',
+  'pafs',
   'ciclos_pte',
   'adesoes_pte',
   'pte_alunos',
@@ -130,7 +128,7 @@ export const FILHAS_INSTRUMENTO: ColecaoContrato[] = [
   'prestacoes_contas',
 ]
 
-export type Papel = 'admin' | 'analista_central' | 'diretor_sre' | 'analista_sre'
+export type Papel = 'admin' | 'analista_central' | 'subsecretario' | 'diretor_sre' | 'analista_sre'
 
 export interface Registro {
   id: string

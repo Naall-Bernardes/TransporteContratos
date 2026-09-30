@@ -7,7 +7,7 @@ import { hojeIso } from '../diasUteis'
 import { avaliarEtapa, montarDadosProcesso } from '../fluxo/processo'
 import { prazoDaEtapa } from '../fluxo/sla'
 import { formatarData } from '../formatacao'
-import { ehCentral, ehDiretorOuCentral } from '../permissoes'
+import { ehCentral, ehDiretorOuCentral, podeAutorizarLiberacao } from '../permissoes'
 import { calcularRepasse, conciliar, DIVERGENCIAS_DE_ROTA, inconsistenciasRotas } from '../pte/pte'
 import { criarProcesso, ErroPermissao, ErroRegra, transacao, type Tx } from './repositorio'
 import type { Colecao, Registro, Usuario } from './tipos'
@@ -82,25 +82,99 @@ export function concluirEtapa(usuario: Usuario, processoEtapaId: string, justifi
         throw new ErroPermissao('Só o Diretor DAFI ou o órgão central pode avançar com checklist incompleto.')
     }
 
-    tx.salvar('processo_etapas', {
-      id: instancia.id,
-      status: 'concluida',
-      concluida_em: hojeIso(),
+    avancarDaEtapa(tx, usuario, instancia, modelo, {
       justificativa_avanco: av.faltantes.length ? justificativa : null,
       documentos_dispensados: av.faltantes.length ? av.faltantes.map((f) => f.nome).join(', ') : null,
       dispensa_autorizada_por: av.faltantes.length ? usuario.id : null,
     })
+  })
+}
 
-    const modulo = modelo.modulo as 'JUDICIAL' | 'PTE'
-    const proxima = modelosDo(tx, modulo).find((m) => Number(m.ordem) > Number(modelo.ordem))
-    const responsavelSre = dados.demanda?.responsavel_sre_id ?? null
-    if (proxima) {
-      iniciarEtapa(tx, String(instancia.processo_id), proxima, proxima.papel_responsavel === 'sre' ? responsavelSre : usuario.id)
-      if (dados.adesao) tx.salvar('adesoes_pte', { id: dados.adesao.id, status: STATUS_ADESAO[String(proxima.codigo)] ?? dados.adesao.status })
+/** Conclui a etapa e abre a próxima (ou encerra o processo, se era a última). */
+function avancarDaEtapa(tx: Tx, usuario: Usuario, instancia: Registro, modelo: Registro, extras: Record<string, unknown> = {}) {
+  tx.salvar('processo_etapas', { id: instancia.id, status: 'concluida', concluida_em: hojeIso(), ...extras })
+  const dados = montarDadosProcesso(tx.lista, String(instancia.processo_id))
+  const modulo = modelo.modulo as 'JUDICIAL' | 'PTE'
+  const proxima = modelosDo(tx, modulo).find((m) => Number(m.ordem) > Number(modelo.ordem))
+  if (proxima) {
+    iniciarEtapa(tx, String(instancia.processo_id), proxima, responsavelPadrao(tx, usuario, proxima, dados.demanda))
+    if (dados.adesao) tx.salvar('adesoes_pte', { id: dados.adesao.id, status: STATUS_ADESAO[String(proxima.codigo)] ?? dados.adesao.status })
+  } else {
+    if (dados.demanda) tx.salvar('demandas', { id: dados.demanda.id, situacao: 'cumprida' })
+    if (dados.adesao) tx.salvar('adesoes_pte', { id: dados.adesao.id, status: 'encerrado' })
+  }
+}
+
+/** Quem assume a próxima etapa: SRE → responsável da demanda; subsecretário → o(a) subsecretário(a); central → quem concluiu. */
+function responsavelPadrao(tx: Tx, usuario: Usuario, proxima: Registro, demanda?: Registro): unknown {
+  if (proxima.papel_responsavel === 'sre') return demanda?.responsavel_sre_id ?? null
+  if (proxima.papel_responsavel === 'subsecretario') return tx.lista('usuarios').find((u) => u.papel === 'subsecretario' && u.ativo)?.id ?? null
+  return ehCentral(usuario) ? usuario.id : null
+}
+
+function etapaEmAndamento(tx: Tx, processoId: unknown, codigo: string) {
+  const modelo = tx.lista('etapas_modelo').find((m) => m.codigo === codigo)
+  const instancia = tx.lista('processo_etapas').find((e) => e.processo_id === processoId && e.etapa_modelo_id === modelo?.id)
+  return { modelo, instancia: instancia?.status === 'em_andamento' ? instancia : undefined }
+}
+
+export interface DecisaoAutorizacao {
+  decisao: 'aprovada' | 'devolvida'
+  valor_mensal?: number
+  meses?: number
+  parecer?: string
+}
+
+/**
+ * Etapa 4 — o(a) subsecretário(a) aprova a liberação do recurso (com o valor autorizado)
+ * ou devolve a demanda para ajuste (volta à etapa 3, Caracterização).
+ */
+export function decidirAutorizacao(usuario: Usuario, demandaId: string, d: DecisaoAutorizacao) {
+  if (!podeAutorizarLiberacao(usuario)) return Promise.reject(new ErroPermissao('Só o(a) subsecretário(a) autoriza a liberação do recurso.'))
+  return transacao(usuario, (tx) => {
+    const demanda = tx.consulta('demandas', demandaId)!
+    const { modelo, instancia } = etapaEmAndamento(tx, demanda.processo_id, 'J04')
+    if (!modelo || !instancia) throw new ErroRegra('Esta demanda não está aguardando autorização.')
+    const valorTotal = d.decisao === 'aprovada' ? Math.round(Number(d.valor_mensal) * Number(d.meses) * 100) / 100 : null
+    tx.salvar('autorizacoes_subsecretario', {
+      demanda_id: demandaId,
+      decisao: d.decisao,
+      data: hojeIso(),
+      subsecretario_id: usuario.id,
+      valor_mensal: d.decisao === 'aprovada' ? d.valor_mensal : null,
+      meses: d.decisao === 'aprovada' ? d.meses : null,
+      valor_total: valorTotal,
+      parecer: d.parecer?.trim() || null,
+    })
+    if (d.decisao === 'aprovada') {
+      tx.salvar('demandas', { id: demandaId, valor_mensal: d.valor_mensal, meses_previstos: d.meses })
+      avancarDaEtapa(tx, usuario, instancia, modelo)
     } else {
-      if (dados.demanda) tx.salvar('demandas', { id: dados.demanda.id, situacao: 'cumprida' })
-      if (dados.adesao) tx.salvar('adesoes_pte', { id: dados.adesao.id, status: 'encerrado' })
+      // Devolução: a etapa 4 fica registrada como devolvida e a Caracterização é reaberta
+      tx.salvar('processo_etapas', { id: instancia.id, status: 'devolvida', concluida_em: hojeIso() })
+      const modeloJ03 = tx.lista('etapas_modelo').find((m) => m.codigo === 'J03')!
+      iniciarEtapa(tx, String(demanda.processo_id), modeloJ03, demanda.responsavel_sre_id ?? null)
     }
+  })
+}
+
+export interface DadosPaf {
+  numero: string
+  data_criacao: string
+  valor: number
+  cnpj_destinatario: string
+}
+
+/** Etapa 5 — registro manual do PAF criado (vigência = 5 anos após a criação). Conclui a etapa. */
+export function criarPaf(usuario: Usuario, demandaId: string, p: DadosPaf) {
+  if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('O PAF é registrado pelo órgão central.'))
+  return transacao(usuario, (tx) => {
+    const demanda = tx.consulta('demandas', demandaId)!
+    const { modelo, instancia } = etapaEmAndamento(tx, demanda.processo_id, 'J05')
+    if (!modelo || !instancia) throw new ErroRegra('A demanda não está na etapa de registro do PAF.')
+    const paf = tx.salvar('pafs', { demanda_id: demandaId, ...p })
+    avancarDaEtapa(tx, usuario, instancia, modelo)
+    return paf
   })
 }
 

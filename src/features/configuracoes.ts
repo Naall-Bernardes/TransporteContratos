@@ -4,7 +4,7 @@
 import { ETAPA_MODELO, CHECKLIST, DOCUMENTO, TIPO_DOCUMENTO } from './administracao/configuracoes'
 import { CADASTROS, type CadastroConfig, type CampoConfig } from './cadastros/configuracoes'
 import { CONFIGS_CONTRATO, ENCERRAMENTO } from './contratos/configuracoes'
-import { AUTORIZACAO, CARACTERIZACAO, COTACAO, DEMANDA, EXECUCAO, LIBERACAO, RESPONSAVEL, SAUDE, VALOR } from './judicial/configuracoes'
+import { AUTORIZACAO_SUBSECRETARIO, CARACTERIZACAO, DEMANDA, EXECUCAO, PAF, RESPONSAVEL, SAUDE } from './judicial/configuracoes'
 import { ADESAO, CICLO, DEMANDA_EXTRA, DIVERGENCIA, PTE_ALUNO } from './pte/configuracoes'
 import { ALOCACAO, CONDUTOR, CONTRATACAO_MUNICIPAL, DESPESA_PTE, EXIGENCIA, ROTA_PTE, VEICULO } from './frota/configuracoes'
 import type { Colecao } from '@/lib/dados/tipos'
@@ -59,14 +59,13 @@ export const CONFIGURACOES: Record<Colecao, CadastroConfig> = {
     { nome: 'concluida_em', rotulo: 'Concluída em', tipo: 'data' },
     { nome: 'justificativa_avanco', rotulo: 'Justificativa de avanço', tipo: 'texto' },
   ]),
-  demandas: juntar(DEMANDA, VALOR, EXECUCAO),
+  demandas: juntar(DEMANDA, EXECUCAO, { ...DEMANDA, campos: [{ nome: 'valor_mensal', rotulo: 'Valor mensal autorizado', tipo: 'moeda' }, { nome: 'meses_previstos', rotulo: 'Meses', tipo: 'numero' }, { nome: 'valor_total', rotulo: 'Valor total autorizado', tipo: 'moeda' }] }),
   demanda_alunos: simples('demanda_alunos', 'Alunos da demanda', [{ nome: 'aluno_id', rotulo: 'Aluno', tipo: 'referencia', referencia: 'alunos' }]),
   caracterizacoes: CARACTERIZACAO,
   caracterizacoes_saude: SAUDE,
   responsaveis_legais: RESPONSAVEL,
-  cotacoes: COTACAO,
-  autorizacoes_financeiras: AUTORIZACAO,
-  liberacoes_recurso: LIBERACAO,
+  autorizacoes_subsecretario: AUTORIZACAO_SUBSECRETARIO,
+  pafs: PAF,
   ciclos_pte: CICLO,
   adesoes_pte: ADESAO,
   pte_alunos: PTE_ALUNO,

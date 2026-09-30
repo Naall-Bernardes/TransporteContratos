@@ -486,5 +486,6 @@ Princípio: **regra de negócio crítica no banco** (checklist, cálculo de sald
 | D42 | Removidos alertas por e-mail, registro de riscos e exportação CSV/Power BI (a pedido). Mantidos: alertas na tela, semáforo/escalonamento visual, CSV das listas e auditoria | 30/09/2026 |
 | D43 | Sem páginas avulsas de Documentos e de Frota: documentos e conformidade ficam só dentro de cada demanda, adesão e contrato | 30/09/2026 |
 | D44 | Judicial/MP com submenus por etapa (fila de demandas com "o que falta") e demanda organizada pelas 10 etapas, cada uma com seus dados, checklist e conclusão | 30/09/2026 |
+| D45 | Etapas 4–6 (valor/cotações, OP/PAF, liberação) substituídas por **4. Autorização do subsecretário** (novo perfil Subsecretário(a); dossiê do processo; aprova com valor mensal × meses ou devolve à etapa 3 com parecer obrigatório) e **5. Registro do PAF** (número oficial, data de criação, vigência automática de 5 anos, valor ≤ autorizado, CNPJ de destino). Cotações e OP removidas; fluxo judicial com 9 etapas. Tabelas novas: autorizacoes_subsecretario, pafs | 30/09/2026 |
 
 Pendentes: nenhum bloqueante no momento.

@@ -6,7 +6,7 @@ import type { Base } from './tipos'
 
 const CHAVE = 'transporte-escolar:demo'
 // Ao mudar a estrutura dos dados, aumente a versão: o navegador recarrega a demonstração.
-const VERSAO = 5
+const VERSAO = 6
 
 let cache: Base | null = null
 

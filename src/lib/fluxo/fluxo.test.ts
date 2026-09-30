@@ -44,7 +44,6 @@ describe('checklist condicional', () => {
   const modelos = [
     r({ tipo_documento_id: 'matricula', condicao: 'sempre' }),
     r({ tipo_documento_id: 'laudo', condicao: 'se_pcd' }),
-    r({ tipo_documento_id: 'cot', condicao: 'se_tres_cotacoes' }),
   ]
 
   it('laudo só é exigido se o estudante for PcD', () => {
@@ -55,8 +54,8 @@ describe('checklist condicional', () => {
   })
 
   it('documento enviado atende o item', () => {
-    const ativas = condicoesAtivas({ demanda: r({ metodo_valor: 'tres_cotacoes' }), caracterizacoes: [], saude: [] })
-    const itens = avaliarChecklist(modelos, tipos, [r({ tipo_documento_id: 'matricula' }), r({ tipo_documento_id: 'cot' })], ativas)
+    const ativas = condicoesAtivas({ caracterizacoes: [], saude: [] })
+    const itens = avaliarChecklist(modelos, tipos, [r({ tipo_documento_id: 'matricula' })], ativas)
     expect(documentosFaltantes(itens)).toHaveLength(0)
   })
 })

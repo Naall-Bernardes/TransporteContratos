@@ -3,7 +3,7 @@
 // fique amarrado pelo mesmo código único. Datas relativas a "hoje".
 
 import { gerarCodigoUnico } from '../codigoUnico'
-import { somarDias } from '../datas'
+import { somarDias, somarMeses } from '../datas'
 import { diasUteisEntre, ehDiaUtil } from '../diasUteis'
 import { prazoDaEtapa } from '../fluxo/sla'
 import { conciliar, calcularRepasse, inconsistenciasRotas } from '../pte/pte'
@@ -182,8 +182,14 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     prazo_judicial: string
     origem: string
     responsavel: string | null
-    valor?: { metodo: string; mensal: number; meses: number; cotacoes?: number[]; preco?: Registro }
-    financeiro?: { op?: boolean; paf?: boolean; liberacao?: boolean }
+    /** Valor autorizado pelo subsecretário (mensal × meses) — só nas demandas que já passaram da etapa 4. */
+    valor?: { mensal: number; meses: number }
+    /** Valor estimado na caracterização (item 7.9), quando diferente do autorizado. */
+    valorEstimado?: number
+    /** Autorização do subsecretário e PAF já registrados. */
+    financeiro?: { autorizado?: boolean; paf?: boolean }
+    /** Devolução anterior do subsecretário (histórico). */
+    devolucaoAnterior?: string
     inicioTransporte?: string
     statusCaracterizacao: string
     pcd?: boolean
@@ -223,8 +229,6 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
       caixa_escolar_id: caixaDa(esc).id,
       responsavel_sre_id: s.responsavel,
       situacao: 'ativa',
-      metodo_valor: s.valor?.metodo ?? null,
-      preco_referencia_id: s.valor?.preco?.id ?? null,
       valor_mensal: s.valor?.mensal ?? null,
       meses_previstos: s.valor?.meses ?? null,
       valor_total: s.valor ? s.valor.mensal * s.valor.meses : null,
@@ -242,7 +246,8 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
         tipo_veiculo_indicado_id: completa ? tipoVeiculo(s.pcd ? 'Veículo adaptado' : 'Automóvel') : null,
         tipo_veiculo_aprovado_id: s.statusCaracterizacao === 'aprovada' ? tipoVeiculo(s.pcd ? 'Veículo adaptado' : 'Automóvel') : null,
         data_inicio_pretendida: completa ? somarDias(inicio, 20) : null,
-        valor_estimado_mensal: completa ? (s.valor?.mensal ?? 4000) : null,
+        valor_estimado_mensal: completa ? (s.valorEstimado ?? s.valor?.mensal ?? 4000) : null,
+        valor_referencia_aprovado: s.statusCaracterizacao === 'aprovada' ? (s.valorEstimado ?? s.valor?.mensal ?? 4000) : null,
         analista_id: s.statusCaracterizacao === 'aprovada' ? s.responsavel ?? usuario('central@demo.exemplo') : null,
         data_recebimento_formulario: completa ? somarDias(inicio, 5) : null,
         documentacao_completa: completa,
@@ -268,18 +273,18 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
         acompanha_trajeto: s.pcd ? 'sempre' : 'nao',
       }))
     }
-    for (const [i, v] of (s.valor?.cotacoes ?? []).entries())
-      push('cotacoes', novo({ demanda_id: dem.id, fornecedor: `Fornecedor fictício ${String.fromCharCode(65 + i)}`, valor_mensal: v, data: somarDias(inicio, 12 + i) }))
     const f = s.financeiro ?? {}
-    const valorTotal = s.valor ? s.valor.mensal * s.valor.meses : 0
-    if (f.op) push('autorizacoes_financeiras', novo({ demanda_id: dem.id, tipo: 'OP', numero: `OP ${2026}${String(codigos.length).padStart(4, '0')}`, data: somarDias(inicio, 22), valor: valorTotal }))
-    if (f.paf) push('autorizacoes_financeiras', novo({ demanda_id: dem.id, tipo: 'PAF', numero: `PAF ${2026}.${String(codigos.length).padStart(3, '0')}`, data: somarDias(inicio, 22), valor: valorTotal }))
-    if (f.liberacao) push('liberacoes_recurso', novo({ demanda_id: dem.id, data: somarDias(inicio, 27), valor: valorTotal, numero_ordem_bancaria: `2026OB${String(codigos.length).padStart(5, '0')}` }))
+    const subsecretaria = usuario('subsecretaria@demo.exemplo')
+    if (s.devolucaoAnterior)
+      push('autorizacoes_subsecretario', novo({ demanda_id: dem.id, decisao: 'devolvida', data: d(-20), subsecretario_id: subsecretaria, parecer: s.devolucaoAnterior, criado_em: `${d(-20)}T10:00:00.000Z` }))
+    if (f.autorizado && s.valor)
+      push('autorizacoes_subsecretario', novo({ demanda_id: dem.id, decisao: 'aprovada', data: somarDias(inicio, 18), subsecretario_id: subsecretaria, valor_mensal: s.valor.mensal, meses: s.valor.meses, valor_total: s.valor.mensal * s.valor.meses, parecer: 'Liberação autorizada conforme caracterização aprovada pela SRE (fictício).' }))
+    if (f.paf && s.valor)
+      push('pafs', novo({ demanda_id: dem.id, numero: `PAF 2026.${String((out.pafs?.length ?? 0) + 101).padStart(4, '0')}`, data_criacao: somarDias(inicio, 22), data_vigencia: somarMeses(somarDias(inicio, 22), 60), valor: s.valor.mensal * s.valor.meses, cnpj_destinatario: caixaDa(esc).cnpj }))
 
     const lista = modelos('JUDICIAL').map((m) => String(m.codigo))
     const concluidas = lista.slice(0, lista.indexOf(s.etapa))
     const extrasDoc = [...(s.docsExtras ?? []), ...(s.pcd ? ['J03:se_pcd', 'J03:se_dispositivo_ou_acompanhante'] : []), 'J03:se_obstaculos', 'J03:se_rota_nao_atende']
-    if (s.valor?.metodo === 'tres_cotacoes') extrasDoc.push('J04:se_tres_cotacoes')
     documentos(processo.id, concluidas, somarDias(inicio, 3), s.statusCaracterizacao === 'rascunho' ? [] : extrasDoc, s.omitir)
     return dem
   }
@@ -292,21 +297,18 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const sergio = usuario('analista.udi@demo.exemplo')
   const mariana = usuario('analista.moc@demo.exemplo')
 
-  const execucao = (inst: Registro, fim: string) => ({ J08: diasUteisEntre(String(inst.vigencia_inicio), fim, feriados) })
-  demanda({ duracoes: execucao(c1, d(-45)), processo_id: c1.processo_id as string, sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Um', 'Aluno Fictício Sete'], etapa: 'J09', inicioEtapa: d(-45), prazo_judicial: somarDias(String(c1.vigencia_inicio), 3), origem: 'judicial', responsavel: sergio, valor: { metodo: 'tres_cotacoes', mensal: 12000, meses: 8, cotacoes: [12000, 12800, 13500] }, financeiro: { op: true, paf: true, liberacao: true }, inicioTransporte: String(c1.vigencia_inicio), statusCaracterizacao: 'aprovada', docsExtras: ['J08:sempre'], omitir: ['parecer'] })
-  demanda({ processo_id: c2.processo_id as string, sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Dois'], etapa: 'J08', inicioEtapa: String(c2.vigencia_inicio), prazo_judicial: somarDias(String(c2.vigencia_inicio), 2), origem: 'judicial', responsavel: sergio, valor: { metodo: 'tres_cotacoes', mensal: 10000, meses: 6, cotacoes: [10000, 10400, 11000] }, financeiro: { op: true, paf: true, liberacao: true }, inicioTransporte: String(c2.vigencia_inicio), statusCaracterizacao: 'aprovada', pcd: true })
-  demanda({ duracoes: execucao(c3, d(-10)), processo_id: c3.processo_id as string, sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluno Fictício Três'], etapa: 'J09', inicioEtapa: d(-10), prazo_judicial: somarDias(String(c3.vigencia_inicio), 5), origem: 'judicial', responsavel: mariana, valor: { metodo: 'tres_cotacoes', mensal: 6000, meses: 12, cotacoes: [6000, 6300, 7100] }, financeiro: { op: true, paf: true, liberacao: true }, inicioTransporte: String(c3.vigencia_inicio), statusCaracterizacao: 'aprovada' })
-  demanda({ processo_id: c4.processo_id as string, sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Quatro'], etapa: 'J08', inicioEtapa: d(-30), prazo_judicial: d(-28), origem: 'ministerio_publico', responsavel: mariana, valor: { metodo: 'tres_cotacoes', mensal: 3500, meses: 12, cotacoes: [3500, 3900, 4200] }, financeiro: { op: true, paf: true, liberacao: true }, inicioTransporte: d(-30), statusCaracterizacao: 'aprovada' })
+  const execucao = (inst: Registro, fim: string) => ({ J07: diasUteisEntre(String(inst.vigencia_inicio), fim, feriados) })
+  demanda({ duracoes: execucao(c1, d(-45)), processo_id: c1.processo_id as string, sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Um', 'Aluno Fictício Sete'], etapa: 'J08', inicioEtapa: d(-45), prazo_judicial: somarDias(String(c1.vigencia_inicio), 3), origem: 'judicial', responsavel: sergio, valor: { mensal: 12000, meses: 8 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c1.vigencia_inicio), statusCaracterizacao: 'aprovada', omitir: ['parecer'] })
+  demanda({ processo_id: c2.processo_id as string, sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Dois'], etapa: 'J07', inicioEtapa: String(c2.vigencia_inicio), prazo_judicial: somarDias(String(c2.vigencia_inicio), 2), origem: 'judicial', responsavel: sergio, valor: { mensal: 10000, meses: 6 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c2.vigencia_inicio), statusCaracterizacao: 'aprovada', pcd: true })
+  demanda({ duracoes: execucao(c3, d(-10)), processo_id: c3.processo_id as string, sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluno Fictício Três'], etapa: 'J08', inicioEtapa: d(-10), prazo_judicial: somarDias(String(c3.vigencia_inicio), 5), origem: 'judicial', responsavel: mariana, valor: { mensal: 6000, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c3.vigencia_inicio), statusCaracterizacao: 'aprovada' })
+  demanda({ processo_id: c4.processo_id as string, sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Quatro'], etapa: 'J07', inicioEtapa: d(-30), prazo_judicial: d(-28), origem: 'ministerio_publico', responsavel: mariana, valor: { mensal: 3500, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: d(-30), statusCaracterizacao: 'aprovada' })
   // Novas, sem contrato ainda
   demanda({ sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Nove'], etapa: 'J03', inicioEtapa: d(-3), prazo_judicial: d(9), origem: 'ministerio_publico', responsavel: sergio, statusCaracterizacao: 'rascunho' })
-  demanda({ sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluna Fictícia Dez'], etapa: 'J05', inicioEtapa: d(-11), prazo_judicial: d(5), origem: 'judicial', responsavel: mariana, valor: { metodo: 'preco_referencia', mensal: 9800, meses: 10, preco: precoMocAdaptado }, financeiro: { op: true }, statusCaracterizacao: 'aprovada', pcd: true, omitir: ['paf'] })
+  // Aguardando o subsecretário: caracterização aprovada pela SRE, veículo adaptado
+  demanda({ sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluna Fictícia Dez'], etapa: 'J04', inicioEtapa: d(-4), prazo_judicial: d(5), origem: 'judicial', responsavel: mariana, valorEstimado: Number(precoMocAdaptado.valor), statusCaracterizacao: 'aprovada', pcd: true })
   demanda({ sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Doze'], etapa: 'J01', inicioEtapa: d(-1), prazo_judicial: d(20), origem: 'judicial', responsavel: null, statusCaracterizacao: 'rascunho' })
-  demanda({ sre: 'MTA', escola: 'Coração de Minas', alunos: ['Aluno Fictício Onze'], etapa: 'J04', inicioEtapa: d(-9), prazo_judicial: d(-2), origem: 'judicial', responsavel: usuario('central@demo.exemplo'), valor: { metodo: 'tres_cotacoes', mensal: 0, meses: 0, cotacoes: [5200, 5900] }, statusCaracterizacao: 'enviada' })
-  // a demanda MOC em J05 já tem a OP digitalizada; falta o PAF
-  documentos(out.demandas![5].processo_id as string, ['J05'], d(-5), [], ['paf'])
-  // a demanda MTA ainda não tem valor definido
-  const dMta = out.demandas!.at(-1)!
-  Object.assign(dMta, { valor_mensal: null, meses_previstos: null, valor_total: null })
+  // Aguardando o subsecretário, com devolução anterior no histórico e prazo judicial vencido
+  demanda({ sre: 'MTA', escola: 'Coração de Minas', alunos: ['Aluno Fictício Onze'], etapa: 'J04', inicioEtapa: d(-9), prazo_judicial: d(-2), origem: 'judicial', responsavel: usuario('central@demo.exemplo'), valorEstimado: 5200, statusCaracterizacao: 'aprovada', devolucaoAnterior: 'Km diário da caracterização incompatível com o mapa da rota; revisar antes de liberar (fictício).' })
 
   // ---------- PTE ----------
   const t1 = instrumento('TC 015/2026', 'Repasse')

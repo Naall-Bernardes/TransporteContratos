@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { hojeIso } from '../diasUteis'
 import { carregarBase, restaurarDemonstracao } from './armazenamento'
-import { ErroPermissao, ErroRegra, salvar, transacao } from './repositorio'
-import { aprovarCiclo, calcularAdesao, concluirEtapa, criarDemanda, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas } from './servicos'
+import { ErroPermissao, ErroRegra, ErroValidacao, salvar, transacao } from './repositorio'
+import { aprovarCiclo, calcularAdesao, concluirEtapa, criarPaf, decidirAutorizacao, criarDemanda, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas } from './servicos'
 import type { Registro, Usuario } from './tipos'
 
 beforeEach(() => {
@@ -40,9 +40,34 @@ describe('fluxo judicial', () => {
     expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('J02')
   })
 
-  it('requisito de dados não é dispensável (J05 sem PAF)', async () => {
-    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'J05')!
+  it('etapa 4 não se conclui pelo botão comum: só pela decisão do subsecretário', async () => {
+    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'J04')!
     await expect(concluirEtapa(central(), etapaAberta(dem.processo_id).id, 'qualquer')).rejects.toBeInstanceOf(ErroRegra)
+  })
+
+  it('só o subsecretário decide; aprovação define o valor e abre o registro do PAF', async () => {
+    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'J04')!
+    await expect(decidirAutorizacao(central(), dem.id, { decisao: 'aprovada', valor_mensal: 1000, meses: 10 })).rejects.toBeInstanceOf(ErroPermissao)
+    await decidirAutorizacao(usuario('subsecretaria@demo.exemplo'), dem.id, { decisao: 'aprovada', valor_mensal: 9800, meses: 10, parecer: 'ok' })
+    expect(b().colecoes.demandas.find((d) => d.id === dem.id)!.valor_total).toBe(98000)
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('J05')
+
+    // PAF: vigência de 5 anos, não pode passar do valor autorizado, e conclui a etapa
+    const caixa = b().colecoes.caixas_escolares.find((c) => c.id === dem.caixa_escolar_id)!
+    await expect(criarPaf(central(), dem.id, { numero: 'PAF X', data_criacao: '2026-09-01', valor: 99000, cnpj_destinatario: String(caixa.cnpj) })).rejects.toBeInstanceOf(ErroValidacao)
+    const paf = await criarPaf(central(), dem.id, { numero: 'PAF X', data_criacao: '2026-09-01', valor: 98000, cnpj_destinatario: String(caixa.cnpj) })
+    expect(paf.data_vigencia).toBe('2031-09-01')
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('J06')
+  })
+
+  it('devolução do subsecretário exige motivo e reabre a caracterização', async () => {
+    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'J04')!
+    const sub = usuario('subsecretaria@demo.exemplo')
+    await expect(decidirAutorizacao(sub, dem.id, { decisao: 'devolvida' })).rejects.toBeInstanceOf(ErroValidacao)
+    await decidirAutorizacao(sub, dem.id, { decisao: 'devolvida', parecer: 'Rever o km da rota.' })
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('J03')
+    const j04 = b().colecoes.processo_etapas.find((e) => e.processo_id === dem.processo_id && codigoEtapa(e) === 'J04')!
+    expect(j04.status).toBe('devolvida')
   })
 })
 

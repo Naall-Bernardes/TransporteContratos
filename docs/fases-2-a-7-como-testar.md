@@ -15,7 +15,7 @@ npm test      # 57 testes automáticos
 
 | Onde | Situação preparada |
 |---|---|
-| Judicial | 8 demandas, uma em cada ponto do fluxo: J01 recém-chegada, J03 caracterização em rascunho, J04 com prazo judicial **vencido** (MTA), J05 com OP e sem PAF e etapa **vencida** (MOC), J08 execução, J09 prestação de contas |
+| Judicial | 8 demandas, uma em cada ponto do fluxo: J01 recém-chegada, J03 caracterização em rascunho, duas em J04 aguardando o subsecretário (MOC, veículo adaptado; MTA, prazo judicial **vencido** e com uma devolução anterior), J07 execução, J08 prestação de contas |
 | PTE | Ciclo 2025 encerrado (Januária) · ciclo 2026 aprovado, em execução (Montes Claros, 150 alunos) · ciclo 2027 em adesão (Uberlândia com 5 divergências TER × SIMADE; Januária com aluno duplicado) |
 | Contratos | Os 6 instrumentos da Fase 3, agora ligados às demandas e adesões pelo mesmo código único |
 | Documentos | ~150 documentos fictícios (ao abrir, o sistema gera um PDF ilustrativo) |
@@ -37,8 +37,7 @@ npm test      # 57 testes automáticos
 | 10 | Mesmo formulário | "Exibir dados sensíveis" | Seção 5 aparece; acesso registrado na auditoria |
 | 11 | Demanda J01 (UDI) → Fluxo | Entrar como **Sérgio** → "Concluir etapa" | Bloqueado (falta a decisão) e não aparece "concluir com justificativa" |
 | 12 | Mesma demanda | Entrar como **Diana (DAFI)** → "Concluir com justificativa" | Avança para J02; justificativa fica no histórico |
-| 13 | Demanda J05 (MOC) | Tentar concluir | Bloqueado: "Registre o PAF" (requisito de dados não dispensável) |
-| 14 | Aba Valor | Incluir cotações | A menor fica destacada; "Definir valor" já sugere a menor |
+| 13–14 | (substituídos pela Rodada 4) | — | — |
 | 15 | Aba Contratação | "Registrar contrato" | Contrato nasce com o mesmo código da demanda |
 | 16 | Aba Cumprimento | "Visualizar / imprimir relatório" | Relatório para AGE/Judiciário com cronologia e evidências |
 | **Fase 5 — PTE** |||
@@ -75,8 +74,23 @@ O sistema agora tem dois módulos (seletor no topo do menu): **Transporte Escola
 
 | # | Onde | Passo | Esperado |
 |---|---|---|---|
-| 43 | Menu → Judicial / MP | Clicar | Abre o submenu: "Todas as demandas" + as 10 etapas, cada uma com a quantidade de demandas |
+| 43 | Menu → Judicial / MP | Clicar | Abre o submenu: "Todas as demandas" + as 9 etapas, cada uma com a quantidade de demandas |
 | 44 | Submenu "3. Caracterização da demanda" | Clicar | Fila das demandas nessa etapa, com a coluna "O que falta para concluir" |
 | 45 | Clicar numa demanda da fila | — | A demanda abre direto na etapa 3, com alunos/formulários, checklist e botão Concluir |
 | 46 | Dentro da demanda, menu à esquerda | Clicar em outras etapas | Etapas concluídas mostram o que foi feito; futuras mostram o que será exigido |
 | 47 | Dentro da demanda | "Documentos" e "Histórico das etapas" | Todos os documentos do processo e o tempo de cada etapa × SLA |
+
+## Rodada 4 — Autorização do subsecretário e PAF
+
+As antigas etapas 4 (valor/cotações), 5 (OP/PAF) e 6 (liberação) viraram duas: **4. Autorização do subsecretário** e **5. Registro do PAF**. O fluxo agora tem 9 etapas.
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 48 | Judicial → "4. Autorização do subsecretário" | Clicar | Fila com as demandas MOC e MTA |
+| 49 | Demanda MTA → etapa 4, como **Central** | Ler a tela | Dossiê: decisão, prazo judicial vencido em vermelho, alunos com caracterização (veículo, km, 7.9 e 10.5), preços de referência, documentos e a devolução anterior. Sem botões de decisão ("Aguardando a decisão…") e "Concluir etapa" bloqueado |
+| 50 | Entrar como **Sofia (Subsecretária)** → mesma demanda | "Devolver para ajuste" sem parecer | Recusado: exige o motivo |
+| 51 | Mesma tela | Escrever parecer → "Devolver para ajuste" | Demanda volta para a etapa 3 (Caracterização); a devolução aparece nas "Decisões anteriores" |
+| 52 | Demanda MOC → etapa 4, como Sofia | Conferir valor mensal sugerido (soma aprovada pela SRE) e meses → "Aprovar liberação" | Valor total gravado na demanda; avança para a etapa 5 |
+| 53 | Entrar como **Central** → demanda MOC → etapa 5 | Preencher número oficial, data de criação, valor e CNPJ | Vigência calculada sozinha (5 anos); o nome da Caixa Escolar aparece abaixo do CNPJ |
+| 54 | Mesma tela | Valor acima do autorizado, ou data de criação futura | Recusado com a mensagem do motivo |
+| 55 | Mesma tela | "Criar PAF" | Cartão do PAF aparece e a demanda vai para a etapa 6 (Contratação pela Caixa Escolar) |
