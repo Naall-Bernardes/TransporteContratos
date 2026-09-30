@@ -113,17 +113,17 @@ export function JudicialPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">{modeloFila ? `${modeloFila.ordem}. ${modeloFila.nome}` : 'Cumprimento de sentença'}</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{modeloFila ? `${modeloFila.ordem}. ${modeloFila.nome}` : 'Contratações'}</h1>
           <p className="mt-1 text-sm text-slate-600">
             {modeloFila
               ? `Demandas paradas nesta etapa · SLA ${modeloFila.sla_dias_uteis ? `${modeloFila.sla_dias_uteis} dias úteis` : 'não se aplica'} · atua: ${modeloFila.papel_responsavel === 'sre' ? 'SRE' : modeloFila.papel_responsavel === 'subsecretario' ? ROTULO_PAPEL.subsecretario : 'órgão central'}.`
-              : 'Cada cumprimento nasce de um ofício de intimação. Semáforo = o menor entre o prazo judicial e o prazo (SLA) da etapa atual, em dias úteis.'}
+              : 'Cada contratação nasce de um ofício de intimação para cumprimento de sentença. Semáforo = o menor entre o prazo judicial e o prazo (SLA) da etapa atual, em dias úteis.'}
           </p>
         </div>
         <div className="flex gap-2">
           <Botao variante="secundario" onClick={exportar} disabled={!filtradas.length}><Download size={16} /> Exportar CSV</Botao>
           {!codigo && ehCentral(usuario) && (
-            <Link to="/judicial/oficios" className="inline-flex items-center gap-2 rounded-md bg-marca-600 px-3 py-2 text-sm font-medium text-white hover:bg-marca-700">
+            <Link to="/oficios" className="inline-flex items-center gap-2 rounded-md bg-marca-600 px-3 py-2 text-sm font-medium text-white hover:bg-marca-700">
               <Mail size={16} /> Iniciar a partir de um ofício
             </Link>
           )}

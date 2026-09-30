@@ -46,7 +46,7 @@ export function PainelPage() {
         <p className="mt-1 text-sm text-slate-600">Indicadores calculados na hora, a partir dos dados que você pode ver.</p>
       </div>
 
-      <Bloco titulo="Ofícios" link={{ para: '/judicial/oficios', rotulo: 'Abrir ofícios' }}>
+      <Bloco titulo="Ofícios" link={{ para: '/oficios', rotulo: 'Abrir ofícios' }}>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Cartao titulo="Pendentes de resposta" valor={oficios.filter((o) => o.situacao !== 'respondido').length} />
           <Cartao titulo="Aguardando SRE" valor={oficios.filter((o) => o.situacao === 'aguardando_sre').length} />
@@ -56,7 +56,7 @@ export function PainelPage() {
         </div>
       </Bloco>
 
-      <Bloco titulo="Cumprimento de sentença" link={{ para: '/judicial', rotulo: 'Abrir cumprimentos' }}>
+      <Bloco titulo="Contratações (Judicial/MP)" link={{ para: '/judicial', rotulo: 'Abrir contratações' }}>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Cartao titulo="Ativas" valor={p.ativas} />
           <Cartao titulo="Vencidas" valor={p.vermelho} cor={p.vermelho ? 'text-red-600' : undefined} detalhe={<span className="inline-flex items-center gap-1"><PontoSemaforo cor="vermelho" /> semáforo vermelho</span>} />
@@ -66,7 +66,7 @@ export function PainelPage() {
         </div>
         <div className="mt-5 grid gap-6 lg:grid-cols-2">
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-slate-800">Cumprimentos ativos por etapa atual</h3>
+            <h3 className="mb-2 text-sm font-semibold text-slate-800">Contratações ativas por etapa atual</h3>
             <BarrasHorizontais itens={p.porEtapa} />
           </div>
           <div>

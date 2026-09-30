@@ -134,7 +134,7 @@ export function OficiosPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtradas.map((l) => (
-              <tr key={l.oficio.id} className="cursor-pointer hover:bg-marca-50" onClick={() => navegar(`/judicial/oficios/${l.oficio.id}`)}>
+              <tr key={l.oficio.id} className="cursor-pointer hover:bg-marca-50" onClick={() => navegar(`/oficios/${l.oficio.id}`)}>
                 <td className="px-3 py-2">
                   <p className="font-medium whitespace-nowrap text-marca-700">{String(l.processo?.codigo ?? '')}</p>
                   <p className="text-xs text-slate-500">nº {String(l.oficio.numero)}{l.sigla ? ` · ${l.sigla}` : ''}</p>
@@ -147,7 +147,7 @@ export function OficiosPage() {
                 <td className="max-w-md px-3 py-2">
                   <p className="text-xs font-medium text-slate-500">{TIPOS_OFICIO.find((o) => o.valor === l.oficio.tipo)?.rotulo}</p>
                   <p className="line-clamp-2">{String(l.oficio.assunto ?? '')}</p>
-                  {l.cumprimento && <p className="text-xs text-marca-700">Cumprimento {String(l.cumprimento.codigo)}</p>}
+                  {l.cumprimento && <p className="text-xs text-marca-700">Contratação {String(l.cumprimento.codigo)}</p>}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">{formatarData(l.oficio.data_recebimento)}</td>
                 <td className="px-3 py-2">
@@ -195,7 +195,7 @@ export function OficiosPage() {
             aoSalvar={async (r) => {
               setNovo(false)
               await recarregar()
-              navegar(`/judicial/oficios/${r.id}`)
+              navegar(`/oficios/${r.id}`)
             }}
           />
         )}

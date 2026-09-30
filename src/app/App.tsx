@@ -43,8 +43,8 @@ export function App() {
             <Route path="contratos/:id" element={<ContratoDetalhePage />} />
             <Route path="auditoria" element={<AuditoriaPage />} />
             <Route path="painel" element={<PainelPage />} />
-            <Route path="judicial/oficios" element={<OficiosPage />} />
-            <Route path="judicial/oficios/:id" element={<OficioDetalhePage />} />
+            <Route path="oficios" element={<OficiosPage />} />
+            <Route path="oficios/:id" element={<OficioDetalhePage />} />
             <Route path="judicial" element={<JudicialPage />} />
             <Route path="judicial/etapa/:codigo" element={<JudicialPage />} />
             <Route path="judicial/:id" element={<DemandaDetalhePage />} />

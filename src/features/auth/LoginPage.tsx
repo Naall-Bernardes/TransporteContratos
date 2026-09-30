@@ -29,7 +29,7 @@ export function LoginPage() {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-slate-900">Transporte Escolar – SEE/MG</h1>
-            <p className="text-sm text-slate-600">Ofícios e cumprimento de sentença (Judicial/MP), PTE e gestão contratual</p>
+            <p className="text-sm text-slate-600">Ofícios, contratações Judicial/MP, PTE e gestão contratual</p>
           </div>
         </div>
 

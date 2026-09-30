@@ -126,3 +126,4 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 | 71 | Um pedido de informação sem vínculo | "Vincular a um cumprimento existente" | Passa a aparecer na aba Ofícios do cumprimento escolhido |
 | 72 | Painel | — | Bloco "Ofícios" com pendentes, aguardando SRE, a vencer, vencidos e respondidos |
 
+> Atualização: **Ofícios** virou item próprio do menu (fora de Judicial/MP, endereço `/oficios`) e, dentro de Judicial/MP, "Cumprimento de sentença" passou a se chamar **Contratações**.

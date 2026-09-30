@@ -61,7 +61,7 @@ export function OficioDetalhePage() {
   if (!oficio)
     return (
       <p className="text-sm text-slate-600">
-        Ofício não encontrado ou sem permissão. <Link to="/judicial/oficios" className="text-marca-700 underline">Voltar</Link>
+        Ofício não encontrado ou sem permissão. <Link to="/oficios" className="text-marca-700 underline">Voltar</Link>
       </p>
     )
 
@@ -93,7 +93,7 @@ export function OficioDetalhePage() {
 
   return (
     <div>
-      <Link to="/judicial/oficios" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-marca-700">
+      <Link to="/oficios" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-marca-700">
         <ArrowLeft size={16} /> Ofícios
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -221,7 +221,7 @@ export function OficioDetalhePage() {
             )}
           </Bloco>
 
-          <Bloco titulo="Cumprimento de sentença">
+          <Bloco titulo="Contratação (Judicial/MP)">
             {demanda ? (
               <div>
                 <Link to={`/judicial/${demanda.id}`} className="inline-flex items-center gap-1 font-medium text-marca-700 hover:underline">
@@ -237,18 +237,18 @@ export function OficioDetalhePage() {
             ) : oficio.tipo === 'intimacao_cumprimento' ? (
               central ? (
                 <div>
-                  <p className="text-slate-600">Esta intimação determina o transporte. Inicie o cumprimento: ele começa na Caracterização, com os dados deste ofício.</p>
-                  <Botao className="mt-3" onClick={() => setModal('cumprimento')}><Play size={16} /> Iniciar cumprimento de sentença</Botao>
+                  <p className="text-slate-600">Esta intimação determina o transporte. Inicie a contratação: ela começa na Caracterização, com os dados deste ofício.</p>
+                  <Botao className="mt-3" onClick={() => setModal('cumprimento')}><Play size={16} /> Iniciar contratação</Botao>
                 </div>
               ) : (
-                <p className="text-slate-500">Cumprimento ainda não iniciado pelo órgão central.</p>
+                <p className="text-slate-500">Contratação ainda não iniciada pelo órgão central.</p>
               )
             ) : central ? (
               <div className="flex flex-wrap items-end gap-2">
                 <label className="block">
-                  <span className="text-xs text-slate-600">Vincular a um cumprimento existente (reiteração, cobrança, pedido de comprovação)</span>
+                  <span className="text-xs text-slate-600">Vincular a uma contratação existente (reiteração, cobrança, pedido de comprovação)</span>
                   <select className="campo mt-1 w-auto min-w-72" value={vincular} onChange={(e) => setVincular(e.target.value)}>
-                    <option value="">Escolha o cumprimento…</option>
+                    <option value="">Escolha a contratação…</option>
                     {lista('demandas').map((dm) => (
                       <option key={dm.id} value={dm.id}>
                         {String(achar('processos', dm.processo_id)?.codigo ?? '')} — {String(dm.numero_processo_origem)} · {String(achar('escolas', dm.escola_id)?.nome ?? '')}
@@ -261,7 +261,7 @@ export function OficioDetalhePage() {
                 </Botao>
               </div>
             ) : (
-              <p className="text-slate-500">Não vinculado a cumprimento.</p>
+              <p className="text-slate-500">Não vinculado a contratação.</p>
             )}
           </Bloco>
         </div>
@@ -279,7 +279,7 @@ export function OficioDetalhePage() {
         </div>
       )}
 
-      <Modal titulo={modal === 'editar' ? 'Editar ofício' : 'Iniciar cumprimento de sentença'} aberto={modal !== null} aoFechar={() => setModal(null)}>
+      <Modal titulo={modal === 'editar' ? 'Editar ofício' : 'Iniciar contratação'} aberto={modal !== null} aoFechar={() => setModal(null)}>
         {modal === 'editar' && (
           <FormularioRegistro
             config={OFICIO}
@@ -305,7 +305,7 @@ export function OficioDetalhePage() {
               decisao_resumo: oficio.assunto,
             }}
             acao={(v) => iniciarCumprimento(usuario, oficio.id, v)}
-            rotuloSalvar="Iniciar cumprimento"
+            rotuloSalvar="Iniciar contratação"
             aoCancelar={() => setModal(null)}
             aoSalvar={async (r) => {
               setModal(null)

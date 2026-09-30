@@ -223,7 +223,7 @@ export function DemandaDetalhePage() {
   return (
     <div>
       <Link to="/judicial" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-marca-700">
-        <ArrowLeft size={16} /> Cumprimento de sentença
+        <ArrowLeft size={16} /> Contratações
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -277,7 +277,7 @@ export function DemandaDetalhePage() {
               </div>
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-slate-900">Dados do cumprimento</h3>
+                  <h3 className="text-sm font-semibold text-slate-900">Dados da contratação</h3>
                   {pode && <Botao variante="secundario" onClick={() => setEditando('dados')}><Pencil size={16} /> Editar dados</Botao>}
                 </div>
                 <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
@@ -318,7 +318,7 @@ export function DemandaDetalhePage() {
                   {oficios.map((o) => (
                     <tr key={o.id}>
                       <td className="px-3 py-2">
-                        <Link to={`/judicial/oficios/${o.id}`} className="font-medium text-marca-700 hover:underline">{String(achar('processos', o.processo_id)?.codigo ?? '')}</Link>
+                        <Link to={`/oficios/${o.id}`} className="font-medium text-marca-700 hover:underline">{String(achar('processos', o.processo_id)?.codigo ?? '')}</Link>
                         <p className="text-xs text-slate-500">nº {String(o.numero)} · {String(o.orgao_nome ?? '')}</p>
                       </td>
                       <td className="px-3 py-2">{TIPOS_OFICIO.find((t) => t.valor === o.tipo)?.rotulo}</td>

@@ -80,7 +80,7 @@ export function LiberacaoRapida({ demanda, codigo, valorSugerido, aoFechar, aoCo
   return (
     <div className="space-y-3 text-sm">
       <p className="text-slate-600">
-        Cumprimento <strong>{codigo}</strong>. Ao autorizar, a demanda segue para o Registro do PAF.{' '}
+        Contratação <strong>{codigo}</strong>. Ao autorizar, a demanda segue para o Registro do PAF.{' '}
         <Link to={`/judicial/${demanda.id}?secao=C02`} className="text-marca-700 hover:underline">Ver dossiê completo</Link>
       </p>
       <div className="grid gap-3 sm:grid-cols-3">
