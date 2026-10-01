@@ -5,6 +5,7 @@ import { conformidadeDoContexto, totalPendencias, type ConformidadeEntidade } fr
 import { ESTADOS_FINAIS_PRESTACAO } from '../contratos/calculos'
 import { hojeIso } from '../diasUteis'
 import type { Colecao, Registro } from '../dados/tipos'
+import { MINIMO_COTACOES, resumoCotacoes } from '../judicial/cotacoes'
 import { avaliarChecklist, condicoesAtivas, documentosFaltantes, type ItemChecklist } from './checklist'
 
 export type Lista = (colecao: Colecao) => Registro[]
@@ -17,6 +18,8 @@ export interface DadosProcesso {
   alunosDemanda: Registro[]
   caracterizacoes: Registro[]
   saude: Registro[]
+  /** Cotações da escolha do transporte. */
+  cotacoes: Registro[]
   /** Decisões do subsecretário (aprovações e devoluções), da mais antiga para a mais recente. */
   autorizacoes: Registro[]
   pafs: Registro[]
@@ -65,6 +68,7 @@ export function montarDadosProcesso(lista: Lista, processoId: string, hoje = hoj
     alunosDemanda: de('demanda_alunos', 'demanda_id', demanda?.id).filter((a) => !a.removido_em),
     caracterizacoes,
     saude: lista('caracterizacoes_saude').filter((s) => caracterizacoes.some((c) => c.id === s.caracterizacao_id)),
+    cotacoes: de('cotacoes', 'demanda_id', demanda?.id).sort((a, b) => String(a.data_cotacao).localeCompare(String(b.data_cotacao))),
     autorizacoes: de('autorizacoes_subsecretario', 'demanda_id', demanda?.id).sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em))),
     pafs: de('pafs', 'demanda_id', demanda?.id),
     instrumentos,
@@ -99,6 +103,13 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
         return !c || !['enviada', 'aprovada'].includes(String(c.status))
       })
       exige(semForm.length === 0, `${semForm.length} aluno(s) sem formulário de caracterização enviado.`)
+      break
+    }
+    case 'C06': {
+      const r = resumoCotacoes(d.cotacoes)
+      exige(r.qtd >= MINIMO_COTACOES, `Registre ao menos ${MINIMO_COTACOES} cotações (há ${r.qtd}).`)
+      exige(r.escolhida, 'Marque a cotação escolhida.')
+      exige(!r.escolhidaNaoEhMenor || d.demanda?.justificativa_cotacao, 'A escolhida não é a de menor valor: justifique a escolha.')
       break
     }
     case 'C02':

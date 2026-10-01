@@ -43,6 +43,7 @@ const PAI: Partial<Record<Colecao, [string, Colecao]>> = {
   caracterizacoes: ['demanda_id', 'demandas'],
   caracterizacoes_saude: ['caracterizacao_id', 'caracterizacoes'],
   responsaveis_legais: ['caracterizacao_id', 'caracterizacoes'],
+  cotacoes: ['demanda_id', 'demandas'],
   autorizacoes_subsecretario: ['demanda_id', 'demandas'],
   pafs: ['demanda_id', 'demandas'],
   pte_alunos: ['adesao_id', 'adesoes_pte'],

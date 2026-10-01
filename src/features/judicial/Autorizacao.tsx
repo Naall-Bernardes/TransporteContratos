@@ -14,6 +14,7 @@ import { hojeIso } from '@/lib/diasUteis'
 import type { DadosProcesso } from '@/lib/fluxo/processo'
 import { formatarCpfCnpj, formatarData, formatarMoeda } from '@/lib/formatacao'
 import { ehCentral, podeAutorizarLiberacao } from '@/lib/permissoes'
+import { resumoCotacoes } from '@/lib/judicial/cotacoes'
 import { STATUS_CARACTERIZACAO, UNIDADES_PRECO } from './configuracoes'
 
 interface Props {
@@ -50,8 +51,17 @@ function Linha({ rotulo, children }: { rotulo: string; children: ReactNode }) {
 /** Meses previstos quando a demanda ainda não tem: ano letivo (fevereiro a novembro). */
 export const MESES_PADRAO = 10
 
-/** Valor mensal sugerido para a liberação: soma do aprovado pela SRE (10.5) ou, na falta, do estimado (7.9) de cada aluno. */
+/** Valor mensal sugerido para a liberação: média das cotações; sem cotação, soma do aprovado pela SRE (10.5) ou do estimado (7.9). */
 export function valorMensalSugerido(d: DadosProcesso): number {
+  if (d.cotacoes.length) return resumoCotacoes(d.cotacoes).mediaMensal
+  return valorMensalCaracterizacao(d)
+}
+
+/** Meses sugeridos: os da demanda; senão, os das cotações (se iguais); senão, o ano letivo. */
+export const mesesSugeridos = (d: DadosProcesso) => Number(d.demanda?.meses_previstos || resumoCotacoes(d.cotacoes).meses || MESES_PADRAO)
+
+/** Soma do valor aprovado pela SRE (10.5) ou, na falta, do estimado (7.9) de cada aluno. */
+export function valorMensalCaracterizacao(d: DadosProcesso): number {
   return d.alunosDemanda.reduce((t, da) => {
     const car = d.caracterizacoes.find((c) => c.demanda_aluno_id === da.id)
     return t + Number(car?.valor_referencia_aprovado || car?.valor_estimado_mensal || 0)
@@ -59,10 +69,10 @@ export function valorMensalSugerido(d: DadosProcesso): number {
 }
 
 /** Liberação direto da fila da etapa: confirma valor mensal × meses e aprova. */
-export function LiberacaoRapida({ demanda, codigo, valorSugerido, aoFechar, aoConcluir }: { demanda: Registro; codigo: string; valorSugerido: number; aoFechar: () => void; aoConcluir: () => Promise<void> | void }) {
+export function LiberacaoRapida({ demanda, codigo, valorSugerido, mesesSugerido, aoFechar, aoConcluir }: { demanda: Registro; codigo: string; valorSugerido: number; mesesSugerido: number; aoFechar: () => void; aoConcluir: () => Promise<void> | void }) {
   const usuario = useUsuario()
   const [valorMensal, setValorMensal] = useState(String(demanda.valor_mensal ?? (valorSugerido || '')))
-  const [meses, setMeses] = useState(String(demanda.meses_previstos ?? MESES_PADRAO))
+  const [meses, setMeses] = useState(String(demanda.meses_previstos ?? mesesSugerido))
   const [parecer, setParecer] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const total = Number(valorMensal) * Number(meses)
@@ -117,13 +127,14 @@ export function AutorizacaoSubsecretario({ demanda, d, dados, aoAlterar }: Props
   const achar = (c: Colecao, id: unknown) => lista(c).find((r) => r.id === id)
   const hoje = hojeIso()
   const alunos = d.alunosDemanda.map((da) => ({ da, aluno: achar('alunos', da.aluno_id), car: d.caracterizacoes.find((c) => c.demanda_aluno_id === da.id) }))
-  const somaAprovada = valorMensalSugerido(d)
+  const somaAprovada = valorMensalCaracterizacao(d)
+  const cot = resumoCotacoes(d.cotacoes)
   const precos = lista('precos_referencia').filter((p) => p.sre_id === demanda.sre_id && String(p.vigencia_inicio) <= hoje && (!p.vigencia_fim || String(p.vigencia_fim) >= hoje))
   const emAndamento = d.etapas.some((e) => achar('etapas_modelo', e.etapa_modelo_id)?.codigo === 'C02' && e.status === 'em_andamento')
   const podeDecidir = podeAutorizarLiberacao(usuario) && emAndamento
 
-  const [valorMensal, setValorMensal] = useState(String(demanda.valor_mensal ?? (somaAprovada || '')))
-  const [meses, setMeses] = useState(String(demanda.meses_previstos ?? MESES_PADRAO))
+  const [valorMensal, setValorMensal] = useState(String(demanda.valor_mensal ?? (valorMensalSugerido(d) || '')))
+  const [meses, setMeses] = useState(String(mesesSugeridos(d)))
   const [parecer, setParecer] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const total = Number(valorMensal) * Number(meses)
@@ -198,7 +209,28 @@ export function AutorizacaoSubsecretario({ demanda, d, dados, aoAlterar }: Props
             </tbody>
           </table>
         </div>
-        <p className="mt-2">Soma mensal aprovada pela SRE: <strong>{formatarMoeda(somaAprovada)}</strong></p>
+        <p className="mt-2">Soma mensal aprovada pela SRE (referência): <strong>{formatarMoeda(somaAprovada)}</strong></p>
+      </Bloco>
+
+      <Bloco titulo={`Cotações da escolha do transporte (${cot.qtd})`}>
+        {cot.qtd === 0 ? (
+          <p className="text-slate-500">Nenhuma cotação registrada.</p>
+        ) : (
+          <>
+            <ul className="space-y-0.5">
+              {d.cotacoes.map((c) => (
+                <li key={c.id} className={c.escolhida ? 'font-medium text-green-800' : ''}>
+                  {String(achar('transportadores', c.transportador_id)?.razao_social ?? '')} — {formatarMoeda(c.valor_mensal)}/mês × {String(c.meses)} = {formatarMoeda(c.valor_total)}
+                  {Boolean(c.escolhida) && ' (escolhida)'}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2">
+              <strong>Média das cotações (valor sugerido): {formatarMoeda(cot.mediaTotal)}</strong> <span className="text-slate-500">· {formatarMoeda(cot.mediaMensal)}/mês</span>
+            </p>
+            {Boolean(demanda.justificativa_cotacao) && <p className="mt-1 text-slate-600">Justificativa da escolha: {String(demanda.justificativa_cotacao)}</p>}
+          </>
+        )}
       </Bloco>
 
       <div className="grid gap-4 lg:grid-cols-2">

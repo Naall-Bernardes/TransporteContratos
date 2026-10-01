@@ -167,3 +167,13 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 | 86 | Após cadastrar, como **Sérgio (UDI)** → Detalhamento da demanda | Ver cartões dos alunos | Cada aluno com "Necessidade de transporte" para preencher; "O que falta" avisa os alunos sem necessidade |
 | 87 | Preencher e "Salvar necessidade" | — | Cartão vira resumo; o "Formulário completo" já traz turno, horários, dias, endereço, acessibilidade e responsável |
 
+## Rodada 9 — Escolha do transporte (cotações)
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 88 | Contratações → Escolha do transporte (como **Mariana (MOC)**) | Abrir a demanda da E.E. Vereda Grande | 2/3 cotações; "O que falta" pede a 3ª e a escolhida |
+| 89 | "Incluir" cotação | Escolher o transportador que falta, valor e meses | 3/3; menor valor e média aparecem nos cartões |
+| 90 | "Escolher" numa cotação que não é a menor | — | Pede justificativa; após confirmar, a etapa pode ser concluída |
+| 91 | Concluir a etapa → Autorização (como **Sofia**) | Ver coluna "Valor a liberar" e o dossiê | Valor = média das cotações; dossiê lista as cotações e a justificativa |
+| 92 | "Devolver para ajuste" | — | A demanda volta para a Escolha do transporte |
+

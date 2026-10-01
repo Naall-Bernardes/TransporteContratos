@@ -9,6 +9,7 @@ import { prazoDaEtapa } from '../fluxo/sla'
 import { formatarData } from '../formatacao'
 import { ehCentral, ehDiretorOuCentral, podeAutorizarLiberacao } from '../permissoes'
 import { calcularPrioridade, errosAbertura, errosNecessidade, type DadosAbertura, type NecessidadeTransporte } from '../judicial/abertura'
+import { resumoCotacoes } from '../judicial/cotacoes'
 import { origemDoOrgao } from '../judicial/oficios'
 import { calcularRepasse, conciliar, DIVERGENCIAS_DE_ROTA, inconsistenciasRotas } from '../pte/pte'
 import { criarProcesso, ErroPermissao, ErroRegra, ErroValidacao, transacao, type Tx } from './repositorio'
@@ -201,6 +202,22 @@ export function salvarNecessidadeTransporte(usuario: Usuario, caracterizacaoId: 
   })
 }
 
+/**
+ * Escolha do transporte: marca a cotação escolhida (desmarca as demais). Se não for a de menor valor,
+ * a justificativa é obrigatória e fica registrada na demanda.
+ */
+export function escolherCotacao(usuario: Usuario, cotacaoId: string, justificativa?: string) {
+  return transacao(usuario, (tx) => {
+    const escolhida = tx.consulta('cotacoes', cotacaoId)
+    if (!escolhida) throw new ErroRegra('Cotação não encontrada.')
+    const todas = tx.lista('cotacoes').filter((c) => c.demanda_id === escolhida.demanda_id)
+    const r = resumoCotacoes(todas.map((c) => ({ ...c, escolhida: c.id === cotacaoId })))
+    if (r.escolhidaNaoEhMenor && !justificativa?.trim()) throw new ErroValidacao({ justificativa: 'Justifique por que não foi escolhida a de menor valor.', _geral: 'Justifique por que não foi escolhida a de menor valor.' })
+    for (const c of todas) if (Boolean(c.escolhida) !== (c.id === cotacaoId)) tx.salvar('cotacoes', { id: c.id, escolhida: c.id === cotacaoId })
+    tx.salvar('demandas', { id: escolhida.demanda_id, justificativa_cotacao: r.escolhidaNaoEhMenor ? justificativa!.trim() : null })
+  })
+}
+
 /** Inclui o aluno na demanda e já abre o formulário de caracterização em rascunho. */
 export function incluirAluno(usuario: Usuario, demandaId: string, alunoId: string) {
   return transacao(usuario, (tx) => {
@@ -276,7 +293,7 @@ export interface DecisaoAutorizacao {
 
 /**
  * Etapa 4 — o(a) subsecretário(a) aprova a liberação do recurso (com o valor autorizado)
- * ou devolve a demanda para ajuste (volta à etapa 1, Detalhamento da demanda).
+ * ou devolve a demanda para ajuste (volta à Escolha do transporte, de onde vem o valor).
  */
 export function decidirAutorizacao(usuario: Usuario, demandaId: string, d: DecisaoAutorizacao) {
   if (!podeAutorizarLiberacao(usuario)) return Promise.reject(new ErroPermissao('Só o(a) subsecretário(a) autoriza a liberação do recurso.'))
@@ -299,10 +316,10 @@ export function decidirAutorizacao(usuario: Usuario, demandaId: string, d: Decis
       tx.salvar('demandas', { id: demandaId, valor_mensal: d.valor_mensal, meses_previstos: d.meses })
       avancarDaEtapa(tx, usuario, instancia, modelo)
     } else {
-      // Devolução: a Autorização fica registrada como devolvida e o Detalhamento da demanda é reaberto
+      // Devolução: a Autorização fica registrada como devolvida e a Escolha do transporte é reaberta
       tx.salvar('processo_etapas', { id: instancia.id, status: 'devolvida', concluida_em: hojeIso() })
-      const modeloJ03 = tx.lista('etapas_modelo').find((m) => m.codigo === 'C01')!
-      iniciarEtapa(tx, String(demanda.processo_id), modeloJ03, demanda.responsavel_sre_id ?? null)
+      const volta = tx.lista('etapas_modelo').find((m) => m.codigo === 'C06')!
+      iniciarEtapa(tx, String(demanda.processo_id), volta, demanda.responsavel_sre_id ?? null)
     }
   })
 }

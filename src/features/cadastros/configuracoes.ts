@@ -92,6 +92,7 @@ export const ROTULO_REGISTRO: Record<Colecao, (r: Registro) => string> = {
   responsaveis_legais: (r) => String(r.nome),
   oficios: (r) => `Ofício ${r.numero}`,
   oficio_consultas: (r) => `Pedido à SRE ${r.solicitada_em}`,
+  cotacoes: (r) => `Cotação ${r.data_cotacao}`,
   autorizacoes_subsecretario: (r) => `${r.decisao} ${r.data}`,
   pafs: (r) => String(r.numero),
   ciclos_pte: (r) => `Ciclo ${r.ano}`,

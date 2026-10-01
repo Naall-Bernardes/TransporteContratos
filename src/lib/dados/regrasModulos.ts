@@ -30,6 +30,7 @@ export const OBRIGATORIOS_MODULOS: Record<ColecaoModulo, string[]> = {
   caracterizacoes: ['demanda_id', 'demanda_aluno_id', 'status'],
   caracterizacoes_saude: ['caracterizacao_id'],
   responsaveis_legais: ['caracterizacao_id'],
+  cotacoes: ['demanda_id', 'transportador_id', 'valor_mensal', 'meses', 'data_cotacao'],
   autorizacoes_subsecretario: ['demanda_id', 'decisao', 'data', 'subsecretario_id'],
   pafs: ['demanda_id', 'numero', 'data_criacao', 'data_vigencia', 'valor', 'cnpj_destinatario'],
   ciclos_pte: ['ano', 'status', 'dias_letivos', 'num_parcelas'],
@@ -83,6 +84,9 @@ export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Coleca
   { origem: 'caracterizacoes', campo: 'analista_id', alvo: 'usuarios' },
   { origem: 'caracterizacoes_saude', campo: 'caracterizacao_id', alvo: 'caracterizacoes' },
   { origem: 'responsaveis_legais', campo: 'caracterizacao_id', alvo: 'caracterizacoes' },
+  { origem: 'cotacoes', campo: 'demanda_id', alvo: 'demandas' },
+  { origem: 'cotacoes', campo: 'transportador_id', alvo: 'transportadores' },
+  { origem: 'cotacoes', campo: 'tipo_veiculo_id', alvo: 'tipos_veiculo' },
   { origem: 'autorizacoes_subsecretario', campo: 'demanda_id', alvo: 'demandas' },
   { origem: 'autorizacoes_subsecretario', campo: 'subsecretario_id', alvo: 'usuarios' },
   { origem: 'pafs', campo: 'demanda_id', alvo: 'demandas' },
@@ -130,6 +134,7 @@ export const UNICOS_MODULOS: Partial<Record<Colecao, { campos: string[]; mensage
   caracterizacoes_saude: [{ campos: ['caracterizacao_id'], mensagem: 'Já registrado.' }],
   responsaveis_legais: [{ campos: ['caracterizacao_id'], mensagem: 'Já registrado.' }],
   pafs: [{ campos: ['numero'], mensagem: 'Já existe PAF com este número oficial.' }],
+  cotacoes: [{ campos: ['transportador_id', 'demanda_id'], mensagem: 'Já existe cotação deste transportador nesta demanda.' }],
   ciclos_pte: [{ campos: ['ano'], mensagem: 'Já existe ciclo para este ano.' }],
   adesoes_pte: [{ campos: ['municipio_id', 'ciclo_id'], mensagem: 'Município já aderiu a este ciclo.' }],
   pte_alunos: [{ campos: ['cod_simade', 'adesao_id'], mensagem: 'Aluno já consta na lista deste município.' }],
@@ -198,6 +203,9 @@ export function normalizarModulo(colecao: ColecaoModulo, d: Campos, consulta: Co
       break
     case 'contratacoes_municipais':
       if (d.tipo === 'frota_propria') d.transportador_id = null
+      break
+    case 'cotacoes':
+      if (!vazio(d.valor_mensal) && !vazio(d.meses)) d.valor_total = Math.round(num(d.valor_mensal) * num(d.meses) * 100) / 100
       break
     case 'pafs':
       // Vigência do PAF: 5 anos após a data de criação
@@ -347,6 +355,13 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
         if (num(r.meses) <= 0) erros.meses = 'Informe o nº de meses.'
       }
       if (r.decisao === 'devolvida' && vazio(r.parecer)) erros.parecer = 'Informe o motivo da devolução.'
+      break
+
+    case 'cotacoes':
+      if (!vazio(r.valor_mensal) && num(r.valor_mensal) <= 0) erros.valor_mensal = 'O valor deve ser maior que zero.'
+      if (!vazio(r.meses) && (num(r.meses) <= 0 || num(r.meses) > 60)) erros.meses = 'Informe de 1 a 60 meses.'
+      if (r.data_cotacao && String(r.data_cotacao) > hoje) erros.data_cotacao = 'Data da cotação no futuro.'
+      if (r.validade_ate && r.data_cotacao && String(r.validade_ate) < String(r.data_cotacao)) erros.validade_ate = 'A validade é anterior à data da cotação.'
       break
 
     case 'pafs': {

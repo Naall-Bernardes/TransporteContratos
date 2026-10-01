@@ -139,6 +139,7 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     ['Aluno Fictício Onze', 'Coração de Minas'],
     ['Aluna Fictícia Doze', 'Rio das Pedras'],
     ['Aluno Fictício Treze', 'Aurora'],
+    ['Aluna Fictícia Catorze', 'Vereda Grande'],
   ].map(([nome, esc], i) =>
     push('alunos', novo({ nome, cod_simade: String(8800101 + i), data_nascimento: `201${2 + i}-0${i + 2}-10`, escola_atual_id: escola(esc).id, serie: `${6 + i}º ano`, turno: 'manha', ativo: true })),
   )
@@ -197,6 +198,8 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     pcd?: boolean
     docsExtras?: string[]
     omitir?: string[]
+    /** Nº de cotações na escolha do transporte (padrão: 3 se a etapa já passou, 0 se não). */
+    cotacoes?: number
     /** Duração (dias úteis) de etapas já concluídas, ex.: execução até a prestação de contas. */
     duracoes?: Record<string, number>
   }
@@ -289,6 +292,25 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
 
     const lista = modelos('JUDICIAL').map((m) => String(m.codigo))
     const concluidas = lista.slice(0, lista.indexOf(s.etapa))
+    // Escolha do transporte: cotações com os transportadores do cadastro; a de menor valor é a escolhida
+    const nCot = s.cotacoes ?? (concluidas.includes('C06') ? 3 : 0)
+    const baseCot = s.valor?.mensal ?? s.valorEstimado ?? 4000
+    const mesesCot = s.valor?.meses ?? 10
+    c.transportadores.slice(0, nCot).forEach((t, k) => {
+      const mensal = Math.round(baseCot * [0.94, 1, 1.09][k])
+      push('cotacoes', novo({
+        demanda_id: dem.id,
+        transportador_id: t.id,
+        tipo_veiculo_id: tipoVeiculo(s.pcd ? 'Veículo adaptado' : 'Automóvel'),
+        valor_mensal: mensal,
+        meses: mesesCot,
+        valor_total: mensal * mesesCot,
+        data_cotacao: somarDias(inicio, 8 + k) > hoje ? hoje : somarDias(inicio, 8 + k),
+        validade_ate: somarDias(inicio, 68 + k),
+        escolhida: nCot >= 3 && k === 0,
+        observacao: 'Proposta fictícia.',
+      }))
+    })
     const extrasDoc = [...(s.docsExtras ?? []), ...(s.pcd ? ['C01:se_pcd', 'C01:se_dispositivo_ou_acompanhante'] : []), 'C01:se_obstaculos', 'C01:se_rota_nao_atende']
     documentos(processo.id, concluidas, somarDias(inicio, 3), s.statusCaracterizacao === 'rascunho' ? [] : extrasDoc, s.omitir)
     return dem
@@ -313,6 +335,8 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   // Aguardando o subsecretário, com devolução anterior no histórico e prazo judicial vencido
   demanda({ sre: 'MTA', escola: 'Coração de Minas', alunos: ['Aluno Fictício Onze'], etapa: 'C02', inicioEtapa: d(-9), prazo_judicial: d(-2), origem: 'judicial', responsavel: usuario('central@demo.exemplo'), valorEstimado: 5200, statusCaracterizacao: 'aprovada', devolucaoAnterior: 'Km diário da caracterização incompatível com o mapa da rota; revisar antes de liberar (fictício).' })
 
+  // Na Escolha do transporte: duas cotações registradas, falta a terceira e marcar a escolhida
+  demanda({ sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Catorze'], etapa: 'C06', inicioEtapa: d(-2), prazo_judicial: d(12), origem: 'ministerio_publico', responsavel: mariana, valorEstimado: 3800, statusCaracterizacao: 'aprovada', cotacoes: 2 })
   // Em Contratos (etapa 4): contrato da Caixa Escolar já cadastrado, com garantia; falta concluir a habilitação do veículo/motorista
   const dContrato = demanda({ sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Treze'], etapa: 'C04', inicioEtapa: d(-3), prazo_judicial: d(8), origem: 'judicial', responsavel: sergio, valor: { mensal: 7500, meses: 10 }, financeiro: { autorizado: true, paf: true }, statusCaracterizacao: 'aprovada' })
   const procContrato = out.processos?.find((p) => p.id === dContrato.processo_id) ?? c.contratos.processos.find((p) => p.id === dContrato.processo_id)

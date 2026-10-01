@@ -103,6 +103,24 @@ export const OFICIO_CONSULTA: CadastroConfig = {
   ],
 }
 
+export const COTACAO: CadastroConfig = {
+  colecao: 'cotacoes',
+  titulo: 'Cotações',
+  singular: 'cotação',
+  descricao: '',
+  ordenarPor: (r) => String(r.data_cotacao),
+  campos: [
+    { nome: 'transportador_id', rotulo: 'Transportador', tipo: 'referencia', referencia: 'transportadores', naTabela: true, filtroReferencia: (t) => t.ativo !== false },
+    { nome: 'tipo_veiculo_id', rotulo: 'Tipo de veículo', tipo: 'referencia', referencia: 'tipos_veiculo', naTabela: true },
+    { nome: 'valor_mensal', rotulo: 'Valor mensal (R$)', tipo: 'moeda', naTabela: true },
+    { nome: 'meses', rotulo: 'Meses', tipo: 'numero', naTabela: true },
+    { nome: 'valor_total', rotulo: 'Valor total (R$)', tipo: 'moeda', naTabela: true, emFormulario: false },
+    { nome: 'data_cotacao', rotulo: 'Data da cotação', tipo: 'data', naTabela: true },
+    { nome: 'validade_ate', rotulo: 'Proposta válida até', tipo: 'data', naTabela: true },
+    { nome: 'observacao', rotulo: 'Observação', tipo: 'texto' },
+  ],
+}
+
 export const AUTORIZACAO_SUBSECRETARIO: CadastroConfig = {
   colecao: 'autorizacoes_subsecretario',
   titulo: 'Autorizações do subsecretário',

@@ -16,7 +16,7 @@ import { avaliarEtapa, montarDadosProcesso } from '@/lib/fluxo/processo'
 import { formatarData, formatarMoeda } from '@/lib/formatacao'
 import { situacaoDosProcessos } from '@/lib/monitoramento'
 import { ehCentral, podeAutorizarLiberacao, ROTULO_PAPEL } from '@/lib/permissoes'
-import { LiberacaoRapida, MESES_PADRAO, valorMensalSugerido } from './Autorizacao'
+import { LiberacaoRapida, MESES_PADRAO, mesesSugeridos, valorMensalSugerido } from './Autorizacao'
 import { ORIGENS } from './configuracoes'
 
 type Filtro = '' | 'ativas' | 'vermelho' | 'amarelo' | 'judicial_vencido' | 'nivel3' | 'cumpridas'
@@ -63,7 +63,7 @@ export function JudicialPage() {
                 return {
                   falta: [...av.pendencias, ...(av.faltantes.length ? [`Documento(s): ${av.faltantes.map((f) => f.nome).join(', ')}`] : [])],
                   valorMensal: valorMensalSugerido(dp),
-                  meses: Number(s.demanda!.meses_previstos || MESES_PADRAO),
+                  meses: mesesSugeridos(dp),
                 }
               })()
             : { falta: [] as string[], valorMensal: 0, meses: MESES_PADRAO }),
@@ -166,7 +166,7 @@ export function JudicialPage() {
               {!filaAutorizacao && <th className="px-3 py-2 font-medium">Etapa atual</th>}
               <th className="px-3 py-2 font-medium">Prazo judicial</th>
               <th className="px-3 py-2 font-medium">Semáforo</th>
-              {filaAutorizacao && <th className="px-3 py-2 text-right font-medium">Valor do contrato</th>}
+              {filaAutorizacao && <th className="px-3 py-2 text-right font-medium">Valor a liberar</th>}
               {codigo && !filaAutorizacao && <th className="px-3 py-2 font-medium">O que falta para concluir</th>}
               {filaAutorizacao && <th className="px-3 py-2 font-medium">Liberação</th>}
             </tr>
@@ -208,7 +208,7 @@ export function JudicialPage() {
                 {filaAutorizacao && (
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <p className="font-medium">{l.valorMensal ? formatarMoeda(l.valorMensal * l.meses) : '—'}</p>
-                    {l.valorMensal > 0 && <p className="text-xs text-slate-500">{formatarMoeda(l.valorMensal)}/mês × {l.meses} meses</p>}
+                    {l.valorMensal > 0 && <p className="text-xs text-slate-500">média das cotações · {formatarMoeda(l.valorMensal)}/mês × {l.meses} meses</p>}
                   </td>
                 )}
                 {codigo && !filaAutorizacao && (
@@ -252,6 +252,7 @@ export function JudicialPage() {
               demanda={l.demanda!}
               codigo={String(l.processo.codigo)}
               valorSugerido={l.valorMensal}
+              mesesSugerido={l.meses}
               aoFechar={() => setLiberando(null)}
               aoConcluir={async () => {
                 setLiberando(null)

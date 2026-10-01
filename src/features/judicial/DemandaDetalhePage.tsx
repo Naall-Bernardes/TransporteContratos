@@ -24,6 +24,7 @@ import { formatarData, formatarMoeda } from '@/lib/formatacao'
 import { podeEditar as podeEditarRegistro } from '@/lib/permissoes'
 import { AutorizacaoSubsecretario, RegistroPaf } from './Autorizacao'
 import { ContratoEtapa } from './ContratoEtapa'
+import { EscolhaTransporte } from './EscolhaTransporte'
 import { NecessidadeAluno } from './NecessidadeAluno'
 import { ROTULO_SITUACAO_OFICIO, situacaoOficio } from '@/lib/judicial/oficios'
 import { DEMANDA, EXECUCAO, ORIGENS, STATUS_CARACTERIZACAO, TIPOS_OFICIO } from './configuracoes'
@@ -166,6 +167,8 @@ export function DemandaDetalhePage() {
             )}
           </div>
         )
+      case 'C06':
+        return <EscolhaTransporte demanda={demanda} d={d} dados={dados} podeEditar={pode} aoAlterar={recarregar} />
       case 'C02':
         return <AutorizacaoSubsecretario demanda={demanda} d={d} dados={dados} aoAlterar={recarregar} />
       case 'C03':

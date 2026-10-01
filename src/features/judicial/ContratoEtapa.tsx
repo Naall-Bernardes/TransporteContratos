@@ -55,7 +55,7 @@ export function ContratoEtapa({ demanda, processo, d, dados, podeEditar, aoAlter
 
   const [f, setF] = useState<Record<string, string>>({
     numero: '',
-    transportador_id: '',
+    transportador_id: String(d.cotacoes.find((c) => c.escolhida)?.transportador_id ?? ''),
     valor_global: String(paf?.valor ?? demanda.valor_total ?? ''),
     data_assinatura: hoje,
     vigencia_inicio: '',

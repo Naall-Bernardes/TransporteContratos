@@ -4,7 +4,7 @@ import { carregarBase, restaurarDemonstracao } from './armazenamento'
 import { ErroPermissao, ErroRegra, ErroValidacao, salvar, transacao } from './repositorio'
 import { calcularPrioridade } from '../judicial/abertura'
 import { situacaoOficio } from '../judicial/oficios'
-import { aprovarCiclo, calcularAdesao, consultarSre, criarOficio, criarPaf, decidirAutorizacao, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas, abrirDemandaTransporte, salvarNecessidadeTransporte, registrarRespostaOficio, responderConsulta } from './servicos'
+import { aprovarCiclo, calcularAdesao, consultarSre, criarOficio, criarPaf, decidirAutorizacao, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas, abrirDemandaTransporte, escolherCotacao, salvarNecessidadeTransporte, registrarRespostaOficio, responderConsulta } from './servicos'
 import { concluirEtapa } from './servicos'
 import type { Registro, Usuario } from './tipos'
 
@@ -106,6 +106,22 @@ describe('fluxo judicial', () => {
     expect(b().colecoes.demandas.find((d) => d.id === dem.id)!.situacao).toBe('cumprida')
   })
 
+  it('escolha do transporte: mínimo de 3 cotações, escolhida marcada e justificativa se não for a menor', async () => {
+    const { montarDadosProcesso, pendenciasDeDados } = await import('../fluxo/processo')
+    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'C06')!
+    const pend = () => pendenciasDeDados('C06', montarDadosProcesso((c) => b().colecoes[c], String(dem.processo_id)))
+    expect(pend().some((p) => p.includes('ao menos 3'))).toBe(true)
+    const mariana = usuario('analista.moc@demo.exemplo')
+    const usados = b().colecoes.cotacoes.filter((c) => c.demanda_id === dem.id).map((c) => c.transportador_id)
+    const livre = b().colecoes.transportadores.find((t) => !usados.includes(t.id))!
+    await expect(salvar('cotacoes', { demanda_id: dem.id, transportador_id: usados[0], valor_mensal: 1, meses: 10, data_cotacao: hojeIso() }, mariana)).rejects.toBeInstanceOf(ErroValidacao) // mesmo transportador
+    const cara = await salvar('cotacoes', { demanda_id: dem.id, transportador_id: livre.id, valor_mensal: 9999, meses: 10, data_cotacao: hojeIso() }, mariana)
+    expect(cara.valor_total).toBe(99990)
+    await expect(escolherCotacao(mariana, cara.id)).rejects.toBeInstanceOf(ErroValidacao)
+    await escolherCotacao(mariana, cara.id, 'Única com veículo adaptado disponível.')
+    expect(pend()).toEqual([])
+  })
+
   it('etapa 4 não se conclui pelo botão comum: só pela decisão do subsecretário', async () => {
     const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'C02')!
     await expect(concluirEtapa(central(), etapaAberta(dem.processo_id).id, 'qualquer')).rejects.toBeInstanceOf(ErroRegra)
@@ -126,12 +142,12 @@ describe('fluxo judicial', () => {
     expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('C04')
   })
 
-  it('devolução do subsecretário exige motivo e reabre a caracterização', async () => {
+  it('devolução do subsecretário exige motivo e reabre a escolha do transporte', async () => {
     const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'C02')!
     const sub = usuario('subsecretaria@demo.exemplo')
     await expect(decidirAutorizacao(sub, dem.id, { decisao: 'devolvida' })).rejects.toBeInstanceOf(ErroValidacao)
     await decidirAutorizacao(sub, dem.id, { decisao: 'devolvida', parecer: 'Rever o km da rota.' })
-    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('C01')
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('C06')
     const j04 = b().colecoes.processo_etapas.find((e) => e.processo_id === dem.processo_id && codigoEtapa(e) === 'C02')!
     expect(j04.status).toBe('devolvida')
   })

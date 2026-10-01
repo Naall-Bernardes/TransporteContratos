@@ -37,6 +37,7 @@ export type ColecaoJudicial =
   | 'caracterizacoes'
   | 'caracterizacoes_saude'
   | 'responsaveis_legais'
+  | 'cotacoes'
   | 'autorizacoes_subsecretario'
   | 'pafs'
 
@@ -103,6 +104,7 @@ export const COLECOES_MODULOS: (ColecaoDocumento | ColecaoFluxo | ColecaoJudicia
   'caracterizacoes',
   'caracterizacoes_saude',
   'responsaveis_legais',
+  'cotacoes',
   'autorizacoes_subsecretario',
   'pafs',
   'ciclos_pte',

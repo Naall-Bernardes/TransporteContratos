@@ -10,10 +10,12 @@ const SLA = 5
 
 export const ETAPAS: [modulo: string, ordem: number, codigo: string, nome: string, papel: string, sla: number | null][] = [
   ['JUDICIAL', 1, 'C01', 'Detalhamento da demanda', 'sre', SLA],
-  ['JUDICIAL', 2, 'C02', 'Autorização', 'subsecretario', SLA],
-  ['JUDICIAL', 3, 'C03', 'Registro do PAF', 'central', SLA],
+  // C06 entrou depois: a ordem é que define a sequência (Detalhamento → Escolha do transporte → Autorização…)
+  ['JUDICIAL', 2, 'C06', 'Escolha do transporte', 'sre', SLA],
+  ['JUDICIAL', 3, 'C02', 'Autorização', 'subsecretario', SLA],
+  ['JUDICIAL', 4, 'C03', 'Registro do PAF', 'central', SLA],
   // Contratos inclui a execução e a fiscalização (aba): etapa contínua, sem SLA próprio
-  ['JUDICIAL', 4, 'C04', 'Contratos', 'sre', null],
+  ['JUDICIAL', 5, 'C04', 'Contratos', 'sre', null],
   ['PTE', 2, 'P02', 'Adesão e cadastro da demanda', 'sre', 15],
   ['PTE', 3, 'P03', 'Definição e repasse', 'central', 15],
   ['PTE', 4, 'P04', 'Execução e monitoramento', 'sre', null],
@@ -37,6 +39,7 @@ export const TIPOS_DOCUMENTO: [codigo: string, nome: string, modulo: string][] =
   ['oficio_recebido', 'Ofício recebido (Judiciário, MP, Defensoria…)', 'JUDICIAL'],
   ['oficio_resposta', 'Ofício de resposta', 'JUDICIAL'],
   ['informacao_sre', 'Informação da SRE', 'JUDICIAL'],
+  ['cotacao', 'Proposta / cotação de transporte', 'JUDICIAL'],
   ['paf', 'PAF (comprovante)', 'JUDICIAL'],
   ['contrato', 'Contrato', 'JUDICIAL'],
   ['aditivo', 'Termo aditivo', 'AMBOS'],
@@ -136,6 +139,7 @@ export const CHECKLIST: [etapa: string, documento: string, condicao: string][] =
   ['C01', 'fotos', 'se_obstaculos'],
   ['C01', 'mapa', 'opcional'],
   ['C01', 'sem_rota', 'se_rota_nao_atende'],
+  ['C06', 'cotacao', 'opcional'],
   ['C03', 'paf', 'opcional'],
   ['C04', 'contrato', 'sempre'],
   ['C04', 'relatorio_fiscalizacao', 'sempre'],

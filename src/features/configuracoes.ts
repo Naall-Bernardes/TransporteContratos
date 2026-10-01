@@ -4,7 +4,7 @@
 import { ETAPA_MODELO, CHECKLIST, DOCUMENTO, TIPO_DOCUMENTO } from './administracao/configuracoes'
 import { CADASTROS, type CadastroConfig, type CampoConfig } from './cadastros/configuracoes'
 import { CONFIGS_CONTRATO, ENCERRAMENTO } from './contratos/configuracoes'
-import { AUTORIZACAO_SUBSECRETARIO, CARACTERIZACAO, DEMANDA, EXECUCAO, OFICIO, OFICIO_CONSULTA, PAF, RESPONSAVEL, SAUDE } from './judicial/configuracoes'
+import { AUTORIZACAO_SUBSECRETARIO, CARACTERIZACAO, COTACAO, DEMANDA, EXECUCAO, OFICIO, OFICIO_CONSULTA, PAF, RESPONSAVEL, SAUDE } from './judicial/configuracoes'
 import { ADESAO, CICLO, DEMANDA_EXTRA, DIVERGENCIA, PTE_ALUNO } from './pte/configuracoes'
 import { ALOCACAO, CONDUTOR, CONTRATACAO_MUNICIPAL, DESPESA_PTE, EXIGENCIA, ROTA_PTE, VEICULO } from './frota/configuracoes'
 import type { Colecao } from '@/lib/dados/tipos'
@@ -66,6 +66,7 @@ export const CONFIGURACOES: Record<Colecao, CadastroConfig> = {
   responsaveis_legais: RESPONSAVEL,
   oficios: OFICIO,
   oficio_consultas: OFICIO_CONSULTA,
+  cotacoes: COTACAO,
   autorizacoes_subsecretario: AUTORIZACAO_SUBSECRETARIO,
   pafs: PAF,
   ciclos_pte: CICLO,
