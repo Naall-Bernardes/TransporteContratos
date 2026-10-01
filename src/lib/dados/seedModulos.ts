@@ -140,6 +140,8 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     ['Aluna Fictícia Doze', 'Rio das Pedras'],
     ['Aluno Fictício Treze', 'Aurora'],
     ['Aluna Fictícia Catorze', 'Vereda Grande'],
+    ['Aluno Fictício Quinze', 'Rio das Pedras'],
+    ['Aluna Fictícia Dezesseis', 'Serra Verde'],
   ].map(([nome, esc], i) =>
     push('alunos', novo({ nome, cod_simade: String(8800101 + i), data_nascimento: `201${2 + i}-0${i + 2}-10`, escola_atual_id: escola(esc).id, serie: `${6 + i}º ano`, turno: 'manha', ativo: true })),
   )
@@ -294,7 +296,7 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     const concluidas = lista.slice(0, lista.indexOf(s.etapa))
     // Escolha do transporte: cotações com os transportadores do cadastro; a de menor valor é a escolhida
     const nCot = s.cotacoes ?? (concluidas.includes('C06') ? 3 : 0)
-    const baseCot = s.valor?.mensal ?? s.valorEstimado ?? 4000
+    const baseCot = s.valorEstimado ?? s.valor?.mensal ?? 4000
     const mesesCot = s.valor?.meses ?? 10
     c.transportadores.slice(0, nCot).forEach((t, k) => {
       const mensal = Math.round(baseCot * [0.94, 1, 1.09][k])
@@ -337,6 +339,10 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
 
   // Na Escolha do transporte: duas cotações registradas, falta a terceira e marcar a escolhida
   demanda({ sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Catorze'], etapa: 'C06', inicioEtapa: d(-2), prazo_judicial: d(12), origem: 'ministerio_publico', responsavel: mariana, valorEstimado: 3800, statusCaracterizacao: 'aprovada', cotacoes: 2 })
+  // Na Escolha do transporte, completa: 3 cotações e a de menor valor escolhida (pronta para concluir)
+  demanda({ sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluno Fictício Quinze'], etapa: 'C06', inicioEtapa: d(-4), prazo_judicial: d(10), origem: 'judicial', responsavel: sergio, valorEstimado: 4600, statusCaracterizacao: 'aprovada', cotacoes: 3 })
+  // No Registro do PAF: liberação autorizada pelo subsecretário (média das cotações), PAF ainda não criado
+  demanda({ sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluna Fictícia Dezesseis'], etapa: 'C03', inicioEtapa: d(-1), prazo_judicial: d(9), origem: 'judicial', responsavel: mariana, valor: { mensal: 5050, meses: 10 }, valorEstimado: 5000, financeiro: { autorizado: true }, statusCaracterizacao: 'aprovada' })
   // Em Contratos (etapa 4): contrato da Caixa Escolar já cadastrado, com garantia; falta concluir a habilitação do veículo/motorista
   const dContrato = demanda({ sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Treze'], etapa: 'C04', inicioEtapa: d(-3), prazo_judicial: d(8), origem: 'judicial', responsavel: sergio, valor: { mensal: 7500, meses: 10 }, financeiro: { autorizado: true, paf: true }, statusCaracterizacao: 'aprovada' })
   const procContrato = out.processos?.find((p) => p.id === dContrato.processo_id) ?? c.contratos.processos.find((p) => p.id === dContrato.processo_id)
