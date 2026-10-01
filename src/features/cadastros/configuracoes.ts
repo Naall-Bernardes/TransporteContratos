@@ -197,6 +197,7 @@ export const CADASTROS: Record<ColecaoCadastro, CadastroConfig> = {
       { nome: 'nome', rotulo: 'Nome completo', tipo: 'texto', naTabela: true },
       { nome: 'cod_simade', rotulo: 'Matrícula SIMADE', tipo: 'texto', naTabela: true },
       { nome: 'data_nascimento', rotulo: 'Data de nascimento', tipo: 'data', naTabela: true },
+      { nome: 'cpf', rotulo: 'CPF', tipo: 'cpf_cnpj' },
       { nome: 'escola_atual_id', rotulo: 'Escola atual', tipo: 'referencia', referencia: 'escolas', naTabela: true },
       { nome: 'serie', rotulo: 'Turma / ano', tipo: 'texto' },
       { nome: 'turno', rotulo: 'Turno', tipo: 'selecao', opcoes: TURNOS, naTabela: true },

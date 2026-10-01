@@ -19,7 +19,6 @@ import { formatarData } from '@/lib/formatacao'
 import { ROTULO_SITUACAO_OFICIO, situacaoOficio } from '@/lib/judicial/oficios'
 import { ehCentral, podeEditar } from '@/lib/permissoes'
 import { OFICIO } from './configuracoes'
-import { IniciarContratacao } from './IniciarContratacao'
 import { TramitacaoOficio } from './TramitacaoOficio'
 
 function Bloco({ titulo, acao, children }: { titulo: string; acao?: ReactNode; children: ReactNode }) {
@@ -47,7 +46,7 @@ export function OficioDetalhePage() {
   const { dados, carregando, recarregar } = useTodos()
   const hoje = hojeIso()
   const central = ehCentral(usuario)
-  const [modal, setModal] = useState<'editar' | 'cumprimento' | null>(null)
+  const [modal, setModal] = useState<'editar' | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [vincular, setVincular] = useState('')
 
@@ -156,11 +155,11 @@ export function OficioDetalhePage() {
             ) : oficio.tipo === 'intimacao_cumprimento' ? (
               central ? (
                 <div>
-                  <p className="text-slate-600">Esta intimação determina o transporte. Inicie a contratação: ela começa na Caracterização, com os dados deste ofício.</p>
-                  <Botao className="mt-3" onClick={() => setModal('cumprimento')}><Play size={16} /> Iniciar contratação</Botao>
+                  <p className="text-slate-600">Esta intimação determina o transporte. Cadastre a demanda de transporte: ela começa na Caracterização, com os dados deste ofício.</p>
+                  <Botao className="mt-3" onClick={() => navegar(`/judicial/novo/cadastrar?oficio=${oficio.id}`)}><Play size={16} /> Cadastrar demanda de transporte</Botao>
                 </div>
               ) : (
-                <p className="text-slate-500">Contratação ainda não iniciada pelo órgão central.</p>
+                <p className="text-slate-500">Demanda de transporte ainda não cadastrada pelo órgão central.</p>
               )
             ) : central ? (
               <div className="flex flex-wrap items-end gap-2">
@@ -198,7 +197,7 @@ export function OficioDetalhePage() {
         </div>
       )}
 
-      <Modal titulo={modal === 'editar' ? 'Editar ofício' : 'Iniciar contratação'} aberto={modal !== null} aoFechar={() => setModal(null)}>
+      <Modal titulo="Editar ofício" aberto={modal !== null} aoFechar={() => setModal(null)}>
         {modal === 'editar' && (
           <FormularioRegistro
             config={OFICIO}
@@ -208,18 +207,6 @@ export function OficioDetalhePage() {
             aoSalvar={async () => {
               setModal(null)
               await recarregar()
-            }}
-          />
-        )}
-        {modal === 'cumprimento' && (
-          <IniciarContratacao
-            oficio={oficio}
-            dados={dados}
-            aoCancelar={() => setModal(null)}
-            aoCriar={async (r) => {
-              setModal(null)
-              await recarregar()
-              navegar(`/judicial/${r.id}`)
             }}
           />
         )}

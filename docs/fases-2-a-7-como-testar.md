@@ -145,3 +145,15 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 > Atualização: em **Contratações**, a primeira tela do submenu é **Cadastro a partir de ofício** (`/judicial/novo`): lista as intimações sem contratação, com o botão **Cadastrar contratação**.
 
 > Atualização: o item passou a se chamar **Cadastro**: botão **Cadastrar contratação** no topo (escolhe o ofício de intimação e preenche o formulário) e tabela com todas as contratações já cadastradas e o status de cada uma.
+
+## Rodada 8 — Cadastrar demanda de transporte
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 79 | Contratações → Demandas de transporte | Ver tabela | Todas as demandas com processo, SEI, ofício de origem, processo judicial, escola, data de cadastro, **prioridade** e status |
+| 80 | "Cadastrar demanda de transporte" | Escolher a intimação da E.E. Rio das Pedras | Bloco 1 traz automáticos (processo, comarca/vara, órgão, recebimento); bloco 2 já traz a escola, SRE, município e endereço |
+| 81 | Clicar em "Cadastrar" sem preencher | — | Campos obrigatórios marcados em vermelho, inclusive dentro de cada aluno |
+| 82 | Aluno 1: escolher do cadastro; Aluno 2: "+ Aluno ainda não cadastrado" | Preencher necessidade de transporte de cada um | Veículo acessível = Sim mostra "Utiliza cadeira de rodas?" |
+| 83 | Tipo de determinação = Liminar | Ver "Prioridade" | Urgente (sentença com prazo folgado = Alta) |
+| 84 | Cadastrar | — | Abre a demanda na Caracterização; os formulários de caracterização já vêm com turno, horários, dias, endereço e acessibilidade; o aluno novo aparece em Cadastros → Alunos |
+

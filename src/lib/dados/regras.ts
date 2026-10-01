@@ -192,6 +192,7 @@ export function validar(colecao: Colecao, r: Registro, existentes: Registro[], c
     case 'alunos':
       if (r.data_nascimento && String(r.data_nascimento) > hojeIso())
         erros.data_nascimento = 'Data de nascimento no futuro.'
+      if (r.cpf && !validarCpf(String(r.cpf))) erros.cpf = 'CPF inválido.'
       break
     case 'transportadores': {
       const doc = String(r.cpf_cnpj ?? '')

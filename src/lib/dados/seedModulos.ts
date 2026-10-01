@@ -6,6 +6,7 @@ import { gerarCodigoUnico } from '../codigoUnico'
 import { somarDias, somarMeses } from '../datas'
 import { ehDiaUtil } from '../diasUteis'
 import { prazoDaEtapa } from '../fluxo/sla'
+import { calcularPrioridade } from '../judicial/abertura'
 import { conciliar, calcularRepasse, inconsistenciasRotas } from '../pte/pte'
 import { cnpjComDigitos } from '../validacao'
 import { criarFabricaFrota } from './seedFrota'
@@ -215,6 +216,11 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
       processo_id: processo.id,
       sre_id: esc.sre_id,
       origem: s.origem,
+      tipo_determinacao: s.origem === 'judicial' ? (s.etapa === 'C05' ? 'sentenca' : 'liminar') : 'requisicao_mp',
+      prioridade: calcularPrioridade({ tipo_determinacao: s.origem === 'judicial' ? (s.etapa === 'C05' ? 'sentenca' : 'liminar') : 'requisicao_mp', prazo_judicial: s.prazo_judicial, multa_diaria: s.origem === 'judicial' ? 1000 : null, origem: s.origem }, hoje, feriados),
+      data_inicio_prevista: s.prazo_judicial,
+      prazo_indeterminado: true,
+      responsavel_central_id: usuario('central@demo.exemplo'),
       numero_processo_origem: s.origem === 'judicial' ? `5000${codigos.length}12-34.2026.8.13.0${100 + codigos.length}` : `MPMG-0${codigos.length}24.26.000123-4`,
       comarca: String(c.municipios.find((m) => m.id === esc.municipio_id)?.nome ?? ''),
       orgao: s.origem === 'judicial' ? 'Vara da Infância e da Juventude (fictícia)' : 'Promotoria de Justiça da Educação (fictícia)',

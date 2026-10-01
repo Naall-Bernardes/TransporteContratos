@@ -25,7 +25,7 @@ export const OBRIGATORIOS_MODULOS: Record<ColecaoModulo, string[]> = {
   processo_etapas: ['processo_id', 'etapa_modelo_id', 'status'],
   oficios: ['processo_id', 'numero', 'orgao_tipo', 'data_recebimento', 'prazo_resposta', 'assunto', 'tipo'],
   oficio_consultas: ['oficio_id', 'pergunta', 'solicitada_em', 'prazo', 'status'],
-  demandas: ['processo_id', 'origem', 'numero_processo_origem', 'comarca', 'data_recebimento', 'data_ciencia', 'prazo_judicial', 'escola_id', 'situacao'],
+  demandas: ['processo_id', 'origem', 'tipo_determinacao', 'numero_processo_origem', 'comarca', 'data_recebimento', 'data_ciencia', 'prazo_judicial', 'escola_id', 'situacao'],
   demanda_alunos: ['demanda_id', 'aluno_id', 'incluido_em'],
   caracterizacoes: ['demanda_id', 'demanda_aluno_id', 'status'],
   caracterizacoes_saude: ['caracterizacao_id'],
@@ -73,6 +73,7 @@ export const REFERENCIAS_MODULOS: { origem: Colecao; campo: string; alvo: Coleca
   { origem: 'demandas', campo: 'escola_id', alvo: 'escolas' },
   { origem: 'demandas', campo: 'caixa_escolar_id', alvo: 'caixas_escolares' },
   { origem: 'demandas', campo: 'responsavel_sre_id', alvo: 'usuarios' },
+  { origem: 'demandas', campo: 'responsavel_central_id', alvo: 'usuarios' },
   { origem: 'demanda_alunos', campo: 'demanda_id', alvo: 'demandas' },
   { origem: 'demanda_alunos', campo: 'aluno_id', alvo: 'alunos' },
   { origem: 'caracterizacoes', campo: 'demanda_id', alvo: 'demandas' },
@@ -312,6 +313,10 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
         erros.data_ciencia = 'A ciência não pode ser posterior ao recebimento na SEE.'
       if (r.prazo_judicial && r.data_ciencia && String(r.prazo_judicial) < String(r.data_ciencia))
         erros.prazo_judicial = 'O prazo é anterior à data de ciência.'
+      if (!vazio(r.multa_valor_maximo) && num(r.multa_valor_maximo) < num(r.multa_diaria))
+        erros.multa_valor_maximo = 'O teto não pode ser menor que a multa diária.'
+      if (r.data_termino_prevista && r.data_inicio_prevista && String(r.data_termino_prevista) < String(r.data_inicio_prevista))
+        erros.data_termino_prevista = 'O término é anterior ao início.'
       break
 
     case 'caracterizacoes':

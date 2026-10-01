@@ -2,6 +2,7 @@
 // FOR_Caracterizacao_Demanda_Transporte_Escolar (a numeração dos itens aparece no rótulo).
 
 import { opcoes, UNIDADES_PRECO, type CadastroConfig, type CampoConfig } from '@/features/cadastros/configuracoes'
+import { ROTULO_PRIORIDADE, SENTIDOS_VIAGEM, TIPOS_DETERMINACAO } from '@/lib/judicial/abertura'
 
 const sim = (campo: string) => (v: Record<string, unknown>) => !!v[campo]
 
@@ -21,10 +22,15 @@ export const DEMANDA: CadastroConfig = {
     { nome: 'numero_sei', rotulo: '1.2 Nº do processo SEI', tipo: 'texto', emFormulario: true },
     { nome: 'comarca', rotulo: 'Comarca', tipo: 'texto' },
     { nome: 'orgao', rotulo: 'Vara / Promotoria', tipo: 'texto' },
-    { nome: 'data_ciencia', rotulo: 'Data de ciência pelo Estado', tipo: 'data' },
+    { nome: 'tipo_determinacao', rotulo: 'Tipo de determinação', tipo: 'selecao', opcoes: opcoes(TIPOS_DETERMINACAO) },
+    { nome: 'data_ciencia', rotulo: 'Data da ciência / intimação', tipo: 'data' },
     { nome: 'data_recebimento', rotulo: '1.3 Data de recebimento', tipo: 'data' },
     { nome: 'prazo_judicial', rotulo: '1.5 Prazo de cumprimento', tipo: 'data' },
     { nome: 'multa_diaria', rotulo: 'Multa diária (R$)', tipo: 'moeda' },
+    { nome: 'multa_valor_maximo', rotulo: 'Valor máximo da multa (R$)', tipo: 'moeda' },
+    { nome: 'data_inicio_prevista', rotulo: 'Início previsto do transporte', tipo: 'data' },
+    { nome: 'prazo_indeterminado', rotulo: 'Prazo indeterminado', tipo: 'booleano' },
+    { nome: 'data_termino_prevista', rotulo: 'Término previsto', tipo: 'data', visivel: (v) => !v.prazo_indeterminado },
     { nome: 'prazo_devolucao_formulario', rotulo: '1.6 Devolver o formulário até', tipo: 'data' },
     { nome: 'escola_id', rotulo: '1.9 Escola estadual', tipo: 'referencia', referencia: 'escolas', ajuda: 'SRE e município vêm da escola.' },
     {
@@ -35,7 +41,10 @@ export const DEMANDA: CadastroConfig = {
       filtroReferencia: (c, v) => !v.escola_id || c.escola_id === v.escola_id,
     },
     { nome: 'responsavel_sre_id', rotulo: '1.11 Responsável pelo acompanhamento na SRE', tipo: 'referencia', referencia: 'usuarios' },
-    { nome: 'decisao_resumo', rotulo: 'Resumo da decisão', tipo: 'texto_longo' },
+    { nome: 'responsavel_central_id', rotulo: 'Responsável no órgão central', tipo: 'referencia', referencia: 'usuarios', filtroReferencia: (u) => u.papel === 'analista_central' || u.papel === 'admin' },
+    { nome: 'prioridade', rotulo: 'Prioridade', tipo: 'selecao', opcoes: opcoes(ROTULO_PRIORIDADE) },
+    { nome: 'decisao_resumo', rotulo: 'Resumo da determinação', tipo: 'texto_longo' },
+    { nome: 'observacoes_internas', rotulo: 'Observações internas', tipo: 'texto_longo' },
   ],
 }
 
@@ -92,14 +101,6 @@ export const OFICIO_CONSULTA: CadastroConfig = {
     { nome: 'resposta', rotulo: 'Informação da SRE', tipo: 'texto_longo', naTabela: true },
     { nome: 'respondida_em', rotulo: 'Respondida em', tipo: 'data', naTabela: true },
   ],
-}
-
-/** Dados pedidos ao iniciar o cumprimento (o resto vem do ofício). */
-export const INICIO_CUMPRIMENTO: CadastroConfig = {
-  ...DEMANDA,
-  campos: DEMANDA.campos
-    .filter((c) => ['escola_id', 'caixa_escolar_id', 'responsavel_sre_id', 'prazo_devolucao_formulario', 'prazo_judicial', 'multa_diaria', 'decisao_resumo'].includes(c.nome))
-    .map((c) => (['escola_id', 'responsavel_sre_id', 'prazo_judicial'].includes(c.nome) ? { ...c, obrigatorioSe: () => true } : c)),
 }
 
 export const AUTORIZACAO_SUBSECRETARIO: CadastroConfig = {
@@ -177,6 +178,8 @@ export const CAMPOS_CARACTERIZACAO: CampoConfig[] = [
   { secao: S4, nome: 'distancia_km_ida', rotulo: '4.5 Distância residência–escola (km, só ida)', tipo: 'numero' },
   { secao: S4, nome: 'tempo_ida_min', rotulo: '4.6 Tempo estimado de deslocamento (min, só ida)', tipo: 'numero' },
   { secao: S4, nome: 'viagens_dia', rotulo: '4.7 Nº de viagens por dia', tipo: 'selecao', opcoes: opcoes({ '2': '2 (ida e volta)', '4': '4', outro: 'Outro' }) },
+  { secao: S4, nome: 'sentido_viagem', rotulo: 'Viagem', tipo: 'selecao', opcoes: opcoes(SENTIDOS_VIAGEM) },
+  { secao: S4, nome: 'condicoes_transporte', rotulo: 'Outras condições do transporte (informadas na abertura)', tipo: 'texto' },
   { secao: S4, nome: 'tipo_via', rotulo: '4.8 Tipo de via predominante', tipo: 'selecao', opcoes: opcoes({ asfalto: 'Asfalto', cascalho: 'Cascalho', terra: 'Terra', misto: 'Trecho misto' }) },
   { secao: S4, nome: 'condicao_via', rotulo: '4.9 Condição da via', tipo: 'selecao', opcoes: opcoes({ boa: 'Boa', regular: 'Regular', ruim_chuva: 'Ruim / intransitável na chuva' }) },
   {

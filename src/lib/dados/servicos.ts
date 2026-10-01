@@ -8,9 +8,10 @@ import { avaliarEtapa, montarDadosProcesso } from '../fluxo/processo'
 import { prazoDaEtapa } from '../fluxo/sla'
 import { formatarData } from '../formatacao'
 import { ehCentral, ehDiretorOuCentral, podeAutorizarLiberacao } from '../permissoes'
+import { calcularPrioridade, errosAbertura, type DadosAbertura } from '../judicial/abertura'
 import { origemDoOrgao } from '../judicial/oficios'
 import { calcularRepasse, conciliar, DIVERGENCIAS_DE_ROTA, inconsistenciasRotas } from '../pte/pte'
-import { criarProcesso, ErroPermissao, ErroRegra, transacao, type Tx } from './repositorio'
+import { criarProcesso, ErroPermissao, ErroRegra, ErroValidacao, transacao, type Tx } from './repositorio'
 import type { Colecao, Registro, Usuario } from './tipos'
 
 /** Feriados nacionais e estaduais (municipais ficam de fora da contagem geral). */
@@ -105,24 +106,30 @@ export function registrarRespostaOficio(usuario: Usuario, oficioId: string, r: D
 }
 
 /**
- * Inicia o cumprimento de sentença a partir de um ofício de intimação: cria a demanda (código JUD-ano-SRE-seq)
- * com os dados do ofício e abre a primeira etapa (Caracterização) com o responsável da SRE.
+ * Cadastra a demanda de transporte a partir de um ofício de intimação: cria a demanda (código JUD-ano-SRE-seq)
+ * com os dados do ofício, inclui os alunos (criando no cadastro os que não existem), pré-preenche a
+ * caracterização de cada um e abre a primeira etapa (Caracterização) com o responsável da SRE.
  */
-export function iniciarCumprimento(usuario: Usuario, oficioId: string, dados: Record<string, unknown>) {
-  if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('O cumprimento é iniciado pelo órgão central.'))
+export function abrirDemandaTransporte(usuario: Usuario, oficioId: string, d: DadosAbertura) {
+  if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('A demanda é cadastrada pelo órgão central.'))
+  const erros = errosAbertura(d)
+  if (Object.keys(erros).length) return Promise.reject(new ErroValidacao({ ...erros, _geral: 'Há campos obrigatórios sem preencher. Revise os blocos destacados.' }))
   return transacao(usuario, (tx) => {
     const oficio = tx.consulta('oficios', oficioId)
     if (!oficio) throw new ErroRegra('Ofício não encontrado.')
-    if (oficio.tipo !== 'intimacao_cumprimento') throw new ErroRegra('Só ofício de intimação para cumprimento inicia um cumprimento de sentença.')
-    if (oficio.demanda_id) throw new ErroRegra('Este ofício já está vinculado a um cumprimento.')
+    if (oficio.tipo !== 'intimacao_cumprimento') throw new ErroRegra('Só ofício de intimação para cumprimento abre uma demanda de transporte.')
+    if (oficio.demanda_id) throw new ErroRegra('Este ofício já tem demanda de transporte cadastrada.')
     if (!oficio.numero_processo_judicial || !oficio.comarca) throw new ErroRegra('Preencha no ofício o nº do processo judicial e a comarca.')
-    const escola = tx.consulta('escolas', dados.escola_id)
+    const escola = tx.consulta('escolas', d.escola_id)
     if (!escola) throw new ErroRegra('Escolha a escola estadual.')
     const numeroSei = oficio.numero_sei || tx.consulta('processos', oficio.processo_id)?.numero_sei || null
     const processo = criarProcesso(tx, 'JUDICIAL', { ano: Number(String(oficio.data_recebimento).slice(0, 4)), sre_id: escola.sre_id, numero_sei: numeroSei })
     const origem = origemDoOrgao(oficio.orgao_tipo)
+    const hoje = hojeIso()
+    const { alunos, ...campos } = d
     const demanda = tx.salvar('demandas', {
-      ...dados,
+      ...campos,
+      data_termino_prevista: d.prazo_indeterminado ? null : d.data_termino_prevista,
       processo_id: processo.id,
       origem,
       origem_outro: origem === 'outro' ? String(oficio.orgao_nome || oficio.orgao_tipo) : null,
@@ -130,11 +137,45 @@ export function iniciarCumprimento(usuario: Usuario, oficioId: string, dados: Re
       comarca: oficio.comarca,
       orgao: oficio.orgao_nome ?? null,
       data_recebimento: oficio.data_recebimento,
-      data_ciencia: oficio.data_recebimento,
+      prioridade: calcularPrioridade({ ...d, origem }, hoje, feriadosDe(tx.lista)),
       situacao: 'ativa',
     })
+    for (const a of alunos) {
+      const alunoId = a.aluno_id
+        ? a.aluno_id
+        : tx.salvar('alunos', { ...a.novo, cpf: a.novo?.cpf || null, escola_atual_id: escola.id, turno: a.turno, ativo: true }).id
+      const da = tx.salvar('demanda_alunos', { demanda_id: demanda.id, aluno_id: alunoId, incluido_em: hoje })
+      const requisitos = [...(a.veiculo_acessivel ? ['veiculo_acessivel'] : []), ...(a.acompanhante ? ['acompanhante'] : [])]
+      const car = tx.salvar('caracterizacoes', {
+        demanda_id: demanda.id,
+        demanda_aluno_id: da.id,
+        status: 'rascunho',
+        turno: a.turno,
+        horario_entrada: a.horario_entrada,
+        horario_saida: a.horario_saida,
+        dias_semana: a.dias_semana,
+        endereco_residencia: a.endereco_origem,
+        sentido_viagem: a.viagem,
+        viagens_dia: a.viagem === 'ida_volta' ? '2' : 'outro',
+        condicoes_transporte: a.outras_condicoes?.trim() || null,
+        requisitos: requisitos.length ? requisitos : null,
+        data_inicio_pretendida: d.data_inicio_prevista,
+        periodo_atendimento: d.prazo_indeterminado ? 'ate_nova_decisao' : 'outro',
+      })
+      const pcd = Boolean(a.veiculo_acessivel || a.cadeira_rodas)
+      tx.salvar('caracterizacoes_saude', {
+        caracterizacao_id: car.id,
+        pcd_mobilidade_reduzida: pcd,
+        pcd_especificacao: pcd ? 'Informado na abertura da demanda: necessita veículo acessível. Detalhar e anexar laudo na caracterização.' : null,
+        dispositivo_mobilidade: a.cadeira_rodas ? 'outro' : 'nenhum',
+        dispositivo_medidas_peso: a.cadeira_rodas ? 'Cadeira de rodas — tipo, medidas e peso a confirmar na caracterização.' : null,
+        necessita_rampa_plataforma: Boolean(a.cadeira_rodas),
+        necessita_acompanhante: Boolean(a.acompanhante),
+      })
+      tx.salvar('responsaveis_legais', { caracterizacao_id: car.id, nome: a.responsavel_nome.trim() })
+    }
     tx.salvar('oficios', { id: oficio.id, demanda_id: demanda.id })
-    iniciarEtapa(tx, processo.id, modelosDo(tx, 'JUDICIAL')[0], dados.responsavel_sre_id ?? null)
+    iniciarEtapa(tx, processo.id, modelosDo(tx, 'JUDICIAL')[0], d.responsavel_sre_id ?? null)
     return demanda
   })
 }
