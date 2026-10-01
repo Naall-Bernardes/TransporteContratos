@@ -171,6 +171,11 @@ describe('PTE: termo de repasse e perfil Município', () => {
     await expect(criarTermoRepasse(central(), { ...dados, numero: 'TC 041/2027' })).rejects.toThrow(/já tem termo/)
   })
 
+  it('termo encerrado bloqueia novos lançamentos do município', async () => {
+    const jan = b().colecoes.adesoes_pte.find((a) => a.status === 'encerrado')!
+    await expect(salvar('despesas_pte', { adesao_id: jan.id, data_transacao: '2025-05-01', favorecido: 'X', categoria: 'combustivel', valor: 10 }, central())).rejects.toThrow(/encerrado/)
+  })
+
   it('prefeitura vê e preenche só o seu município; não vê o Judicial nem edita o termo', async () => {
     const pref = usuario('prefeitura.moc@demo.exemplo')
     const minhas = await listar('adesoes_pte', pref)
@@ -182,7 +187,7 @@ describe('PTE: termo de repasse e perfil Município', () => {
     const t = b().colecoes.transportadores[0]
     const contrato = await salvar('contratacoes_municipais', { adesao_id: minhas[0].id, tipo: 'terceirizado', transportador_id: t.id, numero_contrato: '099/2026', modalidade: 'pregao', vigencia_inicio: '2026-02-01', vigencia_fim: '2026-12-20', valor: 1000, valor_executado: 400 }, pref)
     expect(contrato.valor_saldo).toBe(600)
-    const outra = b().colecoes.adesoes_pte.find((a) => a.municipio_id !== pref.municipio_id)!
+    const outra = b().colecoes.adesoes_pte.find((a) => a.municipio_id !== pref.municipio_id && a.status !== 'encerrado')!
     await expect(salvar('contratacoes_municipais', { adesao_id: outra.id, tipo: 'frota_propria' }, pref)).rejects.toBeInstanceOf(ErroPermissao)
     const termo = b().colecoes.instrumentos.find((i) => i.tipo === 'termo_pte' && i.municipio_id === pref.municipio_id)!
     await expect(salvar('instrumentos', { id: termo.id, valor_global: 1 }, pref)).rejects.toBeInstanceOf(ErroPermissao)

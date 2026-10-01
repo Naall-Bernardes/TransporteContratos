@@ -1,7 +1,7 @@
 // Termo de repasse do PTE a um município (no estilo da gestão contratual). O Estado registra o termo
 // e os repasses; o município preenche contratos, frota, rotas e alunos, despesas e prestação de contas.
 
-import { ArrowLeft, Download } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Download } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Abas } from '@/components/comum/Abas'
@@ -9,14 +9,17 @@ import { ImportarCsv } from '@/components/comum/ImportarCsv'
 import { SeloVigencia } from '@/components/comum/Selo'
 import { Botao } from '@/components/ui/Botao'
 import { useUsuario } from '@/features/auth/Sessao'
-import { CONFIGS_CONTRATO } from '@/features/contratos/configuracoes'
+import { CONFIGS_CONTRATO, ENCERRAMENTO, SITUACOES_FINAIS } from '@/features/contratos/configuracoes'
+import { FormularioRegistro } from '@/features/cadastros/FormularioRegistro'
+import { Modal } from '@/components/ui/Modal'
 import { PrestacaoContas } from '@/features/contratos/PrestacaoContas'
 import { SecaoRegistros } from '@/features/contratos/SecaoRegistros'
 import { PainelDocumentos } from '@/features/documentos/PainelDocumentos'
 import { ALOCACAO, CONTRATACAO_MUNICIPAL, DESPESA_PTE, ROTA_PTE } from '@/features/frota/configuracoes'
 import { PainelConformidade } from '@/features/frota/PainelConformidade'
 import { conformidadeDoContexto, totalPendencias } from '@/lib/conformidade'
-import { calcularSituacao } from '@/lib/contratos/calculos'
+import { calcularSituacao, ESTADOS_FINAIS_PRESTACAO } from '@/lib/contratos/calculos'
+import { salvar } from '@/lib/dados/repositorio'
 import { baixarArquivo, gerarCsv } from '@/lib/csv'
 import { numeroBr } from '@/lib/csvImport'
 import { feriadosDe, importarAlunosTer, importarRotas } from '@/lib/dados/servicos'
@@ -27,7 +30,7 @@ import { formatarData, formatarMoeda } from '@/lib/formatacao'
 import { podeEditar as podeEditarRegistro } from '@/lib/permissoes'
 import { PTE_ALUNO } from './configuracoes'
 
-type IdAba = 'termo' | 'contratos' | 'frota' | 'rotas' | 'despesas' | 'prestacao' | 'documentos'
+type IdAba = 'termo' | 'contratos' | 'frota' | 'rotas' | 'despesas' | 'ocorrencias' | 'prestacao' | 'encerramento' | 'documentos'
 
 function Indicador({ rotulo, valor, detalhe, cor }: { rotulo: string; valor: string; detalhe?: string; cor?: string }) {
   return (
@@ -44,6 +47,7 @@ export function AdesaoPage() {
   const usuario = useUsuario()
   const { dados, carregando, recarregar } = useTodos()
   const [aba, setAba] = useState<IdAba>('termo')
+  const [encerrando, setEncerrando] = useState(false)
   const hoje = hojeIso()
   const adesao = dados.adesoes_pte?.find((a) => a.id === id)
   const lista = useMemo(() => (c: Colecao) => dados[c] ?? [], [dados])
@@ -71,6 +75,18 @@ export function AdesaoPage() {
   const contratado = contratos.reduce((t, c) => t + Number(c.valor || 0), 0)
   const executadoContratos = contratos.reduce((t, c) => t + Number(c.valor_executado || 0), 0)
   const docs = processo ? lista('documentos').filter((d) => d.processo_id === processo.id) : []
+  const ocorrencias = termo ? lista('ocorrencias').filter((o) => o.instrumento_id === termo.id) : []
+  const encerrado = termo ? ['encerrado', 'rescindido'].includes(String(termo.status)) : false
+  // Pendências verificadas antes do encerramento do termo
+  const pendencias = termo && s ? ([
+    s.dias_para_vencer > 0 && `A vigência só termina em ${formatarData(s.vigencia_fim_atual)} — encerramento antecipado (avalie se é rescisão).`,
+    parcelas.some((p) => !p.valor_pago) && `${parcelas.filter((p) => !p.valor_pago).length} repasse(s) previsto(s) sem pagamento.`,
+    s.valor_executado - gasto > 0 && `Saldo do repasse em conta de ${formatarMoeda(s.valor_executado - gasto)} (devolver ou reprogramar).`,
+    despesas.some(semComprovacao) && `${despesas.filter(semComprovacao).length} despesa(s) sem comprovação.`,
+    prestacoes.some((p) => !ESTADOS_FINAIS_PRESTACAO.includes(String(p.status))) && 'Há prestação de contas ainda não decidida.',
+    prestacoes.length === 0 && 'Nenhuma prestação de contas registrada.',
+    ocorrencias.some((o) => o.status !== 'resolvida') && 'Há ocorrências não resolvidas.',
+  ].filter(Boolean) as string[]) : []
 
   function exportarAlunos() {
     const csv = gerarCsv(['matricula', 'nome', 'inep', 'rota', 'km_ida', 'zona', 'turno'], alunos.map((a) => [String(a.cod_simade), String(a.nome), String(a.escola_inep), String(a.rota_codigo ?? ''), String(a.km_ida ?? '').replace('.', ','), String(a.zona ?? ''), String(a.turno ?? '')]))
@@ -83,7 +99,9 @@ export function AdesaoPage() {
     { id: 'frota' as const, rotulo: 'Frota e motoristas', alerta: totalPendencias(conformidade) > 0 },
     { id: 'rotas' as const, rotulo: 'Rotas e alunos', qtd: rotas.length },
     { id: 'despesas' as const, rotulo: 'Despesas', qtd: despesas.length, alerta: despesas.some(semComprovacao) },
+    { id: 'ocorrencias' as const, rotulo: 'Ocorrências', qtd: ocorrencias.length, alerta: ocorrencias.some((o) => o.status !== 'resolvida' && o.gravidade === 'alta') },
     { id: 'prestacao' as const, rotulo: 'Prestação de contas', qtd: prestacoes.length },
+    { id: 'encerramento' as const, rotulo: 'Encerramento' },
     { id: 'documentos' as const, rotulo: 'Documentos', qtd: docs.length },
   ]
 
@@ -236,10 +254,71 @@ export function AdesaoPage() {
           )
         )}
 
+        {aba === 'ocorrencias' && (
+          termo ? (
+            <SecaoRegistros
+              config={CONFIGS_CONTRATO.ocorrencias}
+              valoresFixos={{ instrumento_id: termo.id }}
+              registros={ocorrencias}
+              referencias={dados}
+              podeEditar={pode('ocorrencias', { instrumento_id: termo.id })}
+              aoAlterar={recarregar}
+              padraoNovo={{ data: hoje, status: 'aberta', gravidade: 'media' }}
+              cabecalho="Falhas na execução do transporte pelo município (veículo irregular, rota não cumprida, despesa indevida…) e as notificações enviadas, com prazo de resposta."
+              destacarLinha={(o) => (o.status !== 'resolvida' && o.gravidade === 'alta' ? 'bg-red-50' : undefined)}
+            />
+          ) : (
+            <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">As ocorrências são registradas no termo de repasse.</p>
+          )
+        )}
+
+        {aba === 'encerramento' && termo && (
+          encerrado ? (
+            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+              <p className="flex items-center gap-2 font-medium text-slate-900"><CheckCircle2 size={18} className="text-green-600" /> Termo encerrado em {formatarData(termo.encerrado_em)}</p>
+              <p className="mt-2"><span className="text-slate-500">Situação final:</span> {SITUACOES_FINAIS.find((o) => o.valor === termo.situacao_final)?.rotulo}</p>
+              <p><span className="text-slate-500">Termo de encerramento (SEI):</span> {String(termo.termo_encerramento_sei ?? '—')}</p>
+              {Boolean(termo.pendencias_encerramento) && <p><span className="text-slate-500">Pendências:</span> {String(termo.pendencias_encerramento)}</p>}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+              <h3 className="font-medium text-slate-900">Verificação antes do encerramento</h3>
+              {pendencias.length === 0 ? (
+                <p className="mt-2 flex items-center gap-2 text-green-700"><CheckCircle2 size={16} /> Nenhuma pendência encontrada.</p>
+              ) : (
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">{pendencias.map((p) => <li key={p}>{p}</li>)}</ul>
+              )}
+              <p className="mt-3 text-slate-600">Após o encerramento o termo fica bloqueado para novos lançamentos. Se houver pendências, escolha “Concluído com pendências” e descreva-as.</p>
+              {pode('instrumentos', termo) && <Botao className="mt-3" onClick={() => setEncerrando(true)}>Encerrar termo</Botao>}
+            </div>
+          )
+        )}
+        {aba === 'encerramento' && !termo && (
+          <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">Sem termo de repasse para encerrar.</p>
+        )}
+
         {aba === 'documentos' && processo && (
           <PainelDocumentos processoId={String(processo.id)} codigoProcesso={String(processo.codigo)} dados={dados} podeEnviar={pode('documentos', { processo_id: processo.id })} aoAlterar={recarregar} />
         )}
       </div>
+
+      <Modal titulo="Encerrar termo de repasse" aberto={encerrando} aoFechar={() => setEncerrando(false)}>
+        {encerrando && termo && (
+          <FormularioRegistro
+            config={ENCERRAMENTO}
+            registro={termo}
+            referencias={dados}
+            valoresPadrao={{ encerrado_em: hoje }}
+            rotuloSalvar="Encerrar"
+            aoCancelar={() => setEncerrando(false)}
+            aoSalvar={async () => {
+              setEncerrando(false)
+              await salvar('adesoes_pte', { id: adesao.id, status: 'encerrado' }, usuario)
+              await recarregar()
+            }}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

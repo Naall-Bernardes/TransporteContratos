@@ -221,6 +221,12 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
   const erros: Erros = {}
   const hoje = hojeIso()
 
+  // Termo do PTE encerrado: o município não lança mais contratos, rotas, alunos nem despesas
+  if (['contratacoes_municipais', 'rotas_pte', 'pte_alunos', 'despesas_pte'].includes(colecao) && !ctx.usuarioEhAdmin) {
+    const adesao = ctx.consulta('adesoes_pte', r.adesao_id)
+    if (adesao?.status === 'encerrado') erros._geral = 'O termo de repasse deste município já foi encerrado.'
+  }
+
   switch (colecao) {
     case 'documento_versoes':
       if (!TIPOS_ARQUIVO_ACEITOS.includes(String(r.mime))) erros.mime = 'Formato não aceito. Envie PDF ou imagem (JPG, PNG, WEBP).'
