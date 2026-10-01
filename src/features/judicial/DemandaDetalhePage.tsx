@@ -165,55 +165,73 @@ export function DemandaDetalhePage() {
         return <AutorizacaoSubsecretario demanda={demanda} d={d} dados={dados} aoAlterar={recarregar} />
       case 'C03':
         return <RegistroPaf demanda={demanda} d={d} dados={dados} aoAlterar={recarregar} />
-      case 'C04':
+      case 'C04': {
+        const aba = params.get('aba') === 'execucao' ? 'execucao' : 'contrato'
+        const irAba = (a: string) => setParams({ secao: 'C04', ...(a === 'execucao' ? { aba: a } : {}) })
         return (
           <div className="space-y-4">
-            <ContratoEtapa demanda={demanda} processo={processo} d={d} dados={dados} podeEditar={pode} aoAlterar={recarregar} />
-            {contrato && (
-              <>
-                <SecaoRegistros
-                  config={ALOCACAO}
-                  valoresFixos={{ instrumento_id: contrato.id }}
-                  registros={lista('alocacoes').filter((a) => a.instrumento_id === contrato.id)}
-                  referencias={dados}
-                  podeEditar={pode}
-                  aoAlterar={recarregar}
-                  padraoNovo={{ inicio: hoje }}
-                  cabecalho="Veículo, motorista e monitor que farão o transporte (CTB arts. 136 a 138)."
-                />
-                <PainelConformidade entidades={d.conformidade} dados={dados} podeEnviar={pode} aoAlterar={recarregar} />
-              </>
-            )}
-          </div>
-        )
-      case 'C05':
-        return (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-slate-900">Início efetivo do transporte</h3>
-                  <p className="mt-1">{demanda.data_inicio_transporte ? formatarData(demanda.data_inicio_transporte) : <span className="text-slate-500">não informado</span>}
-                    {Boolean(demanda.data_inicio_transporte) && (String(demanda.data_inicio_transporte) <= String(demanda.prazo_judicial)
-                      ? <span className="ml-2 text-green-700">dentro do prazo judicial</span>
-                      : <span className="ml-2 font-medium text-red-600">após o prazo judicial</span>)}
-                  </p>
-                </div>
-                {pode && <Botao variante="secundario" onClick={() => setEditando('execucao')}>Informar início</Botao>}
-              </div>
+            <div className="flex gap-1 border-b border-slate-200" role="tablist">
+              {[['contrato', 'Contrato'], ['execucao', 'Execução e fiscalização']].map(([id, rotulo]) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={aba === id}
+                  onClick={() => irAba(id)}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm ${aba === id ? 'border-marca-600 font-medium text-marca-700' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+                >
+                  {rotulo}
+                </button>
+              ))}
             </div>
-            {contrato && (
-              <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-                <h3 className="font-semibold text-slate-900">Fiscalização da execução</h3>
-                <p className="mt-1">
-                  {d.fiscalizacoes.length} mês(es) fiscalizado(s) · {d.fiscalizacoes.reduce((t, f) => t + Number(f.dias_rodados || 0), 0)} dias rodados ·{' '}
-                  {lista('ocorrencias').filter((o) => o.instrumento_id === contrato.id && o.status !== 'resolvida').length} ocorrência(s) em aberto
-                </p>
-                <Link to={`/contratos/${contrato.id}`} className="mt-2 inline-flex items-center gap-1 text-marca-700 hover:underline">Registrar fiscalização e ocorrências no contrato <ExternalLink size={14} /></Link>
+            {aba === 'contrato' ? (
+              <div className="space-y-4">
+                <ContratoEtapa demanda={demanda} processo={processo} d={d} dados={dados} podeEditar={pode} aoAlterar={recarregar} />
+                {contrato && (
+                  <>
+                    <SecaoRegistros
+                      config={ALOCACAO}
+                      valoresFixos={{ instrumento_id: contrato.id }}
+                      registros={lista('alocacoes').filter((a) => a.instrumento_id === contrato.id)}
+                      referencias={dados}
+                      podeEditar={pode}
+                      aoAlterar={recarregar}
+                      padraoNovo={{ inicio: hoje }}
+                      cabecalho="Veículo, motorista e monitor que farão o transporte (CTB arts. 136 a 138)."
+                    />
+                    <PainelConformidade entidades={d.conformidade} dados={dados} podeEnviar={pode} aoAlterar={recarregar} />
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-semibold text-slate-900">Início efetivo do transporte</h3>
+                      <p className="mt-1">{demanda.data_inicio_transporte ? formatarData(demanda.data_inicio_transporte) : <span className="text-slate-500">não informado</span>}
+                        {Boolean(demanda.data_inicio_transporte) && (String(demanda.data_inicio_transporte) <= String(demanda.prazo_judicial)
+                          ? <span className="ml-2 text-green-700">dentro do prazo judicial</span>
+                          : <span className="ml-2 font-medium text-red-600">após o prazo judicial</span>)}
+                      </p>
+                    </div>
+                    {pode && <Botao variante="secundario" onClick={() => setEditando('execucao')}>Informar início</Botao>}
+                  </div>
+                </div>
+                {contrato && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+                    <h3 className="font-semibold text-slate-900">Fiscalização da execução</h3>
+                    <p className="mt-1">
+                      {d.fiscalizacoes.length} mês(es) fiscalizado(s) · {d.fiscalizacoes.reduce((t, f) => t + Number(f.dias_rodados || 0), 0)} dias rodados ·{' '}
+                      {lista('ocorrencias').filter((o) => o.instrumento_id === contrato.id && o.status !== 'resolvida').length} ocorrência(s) em aberto
+                    </p>
+                    <Link to={`/contratos/${contrato.id}`} className="mt-2 inline-flex items-center gap-1 text-marca-700 hover:underline">Registrar fiscalização e ocorrências no contrato <ExternalLink size={14} /></Link>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )
+      }
       default:
         return null
     }

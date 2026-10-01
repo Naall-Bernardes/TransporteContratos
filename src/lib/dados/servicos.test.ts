@@ -89,7 +89,9 @@ describe('fluxo judicial', () => {
   })
 
   it('checklist incompleto só avança com justificativa, e só de diretor ou órgão central', async () => {
-    const dem = b().colecoes.demandas.find((d) => d.sre_id === b().colecoes.sres.find((x) => x.sigla === 'UDI')!.id && codigoEtapa(etapaAberta(d.processo_id)) === 'C05')!
+    const { montarDadosProcesso, pendenciasDeDados } = await import('../fluxo/processo')
+    const semPendencia = (d: Registro) => pendenciasDeDados('C04', montarDadosProcesso((c) => b().colecoes[c], String(d.processo_id))).length === 0
+    const dem = b().colecoes.demandas.find((d) => codigoEtapa(etapaAberta(d.processo_id)) === 'C04' && semPendencia(d))!
     const etapa = etapaAberta(dem.processo_id)
     await expect(concluirEtapa(central(), etapa.id)).rejects.toThrow(/Checklist incompleto/)
     await expect(concluirEtapa(usuario('analista.udi@demo.exemplo'), etapa.id, 'urgente')).rejects.toBeInstanceOf(ErroPermissao)

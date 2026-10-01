@@ -157,3 +157,4 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 | 83 | Tipo de determinação = Liminar | Ver "Prioridade" | Urgente (sentença com prazo folgado = Alta) |
 | 84 | Cadastrar | — | Abre a demanda na Caracterização; os formulários de caracterização já vêm com turno, horários, dias, endereço e acessibilidade; o aluno novo aparece em Cadastros → Alunos |
 
+> Atualização: **Execução e fiscalização** virou uma aba dentro de **Contratos** (abas Contrato · Execução e fiscalização). O submenu de Contratações fica: Demandas de transporte, Caracterização da demanda, Autorização, Registro do PAF e Contratos.

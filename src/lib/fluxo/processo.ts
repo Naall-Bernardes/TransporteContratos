@@ -108,12 +108,11 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
       exige(d.alocacoes.some((a) => a.veiculo_id) && d.alocacoes.some((a) => a.condutor_id), 'Informe o veículo e o motorista que farão o transporte (aba Frota e conformidade do contrato).')
       const pend = totalPendencias(d.conformidade)
       exige(pend === 0, `${pend} documento(s) obrigatório(s) do contratado, veículo ou condutor ausente(s) ou vencido(s) (CTB arts. 136–138 e 329; Res. SEE 3.670/2017).`)
+      // aba Execução e fiscalização
+      exige(d.demanda?.data_inicio_transporte, 'Informe a data de início efetivo do transporte (aba Execução e fiscalização).')
+      exige(d.fiscalizacoes.length > 0, 'Registre ao menos um mês de fiscalização (aba Execução e fiscalização).')
       break
     }
-    case 'C05':
-      exige(d.demanda?.data_inicio_transporte, 'Informe a data de início efetivo do transporte.')
-      exige(d.fiscalizacoes.length > 0, 'Registre ao menos um mês de fiscalização.')
-      break
     case 'P05':
       exige(prestacoesDecididas, 'Todas as prestações de contas precisam estar decididas (aprovada, com ressalvas ou reprovada).')
       break

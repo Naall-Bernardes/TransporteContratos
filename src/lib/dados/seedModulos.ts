@@ -217,8 +217,8 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
       processo_id: processo.id,
       sre_id: esc.sre_id,
       origem: s.origem,
-      tipo_determinacao: s.origem === 'judicial' ? (s.etapa === 'C05' ? 'sentenca' : 'liminar') : 'requisicao_mp',
-      prioridade: calcularPrioridade({ tipo_determinacao: s.origem === 'judicial' ? (s.etapa === 'C05' ? 'sentenca' : 'liminar') : 'requisicao_mp', prazo_judicial: s.prazo_judicial, multa_diaria: s.origem === 'judicial' ? 1000 : null, origem: s.origem }, hoje, feriados),
+      tipo_determinacao: s.origem === 'judicial' ? (s.inicioTransporte ? 'sentenca' : 'liminar') : 'requisicao_mp',
+      prioridade: calcularPrioridade({ tipo_determinacao: s.origem === 'judicial' ? (s.inicioTransporte ? 'sentenca' : 'liminar') : 'requisicao_mp', prazo_judicial: s.prazo_judicial, multa_diaria: s.origem === 'judicial' ? 1000 : null, origem: s.origem }, hoje, feriados),
       data_inicio_prevista: s.prazo_judicial,
       prazo_indeterminado: true,
       responsavel_central_id: usuario('central@demo.exemplo'),
@@ -302,10 +302,10 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const sergio = usuario('analista.udi@demo.exemplo')
   const mariana = usuario('analista.moc@demo.exemplo')
 
-  demanda({ processo_id: c1.processo_id as string, sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Um', 'Aluno Fictício Sete'], etapa: 'C05', inicioEtapa: String(c1.vigencia_inicio), prazo_judicial: somarDias(String(c1.vigencia_inicio), 3), origem: 'judicial', responsavel: sergio, valor: { mensal: 12000, meses: 8 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c1.vigencia_inicio), statusCaracterizacao: 'aprovada' })
-  demanda({ processo_id: c2.processo_id as string, sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Dois'], etapa: 'C05', inicioEtapa: String(c2.vigencia_inicio), prazo_judicial: somarDias(String(c2.vigencia_inicio), 2), origem: 'judicial', responsavel: sergio, valor: { mensal: 10000, meses: 6 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c2.vigencia_inicio), statusCaracterizacao: 'aprovada', pcd: true })
-  demanda({ processo_id: c3.processo_id as string, sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluno Fictício Três'], etapa: 'C05', inicioEtapa: String(c3.vigencia_inicio), prazo_judicial: somarDias(String(c3.vigencia_inicio), 5), origem: 'judicial', responsavel: mariana, valor: { mensal: 6000, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c3.vigencia_inicio), statusCaracterizacao: 'aprovada' })
-  demanda({ processo_id: c4.processo_id as string, sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Quatro'], etapa: 'C05', inicioEtapa: d(-30), prazo_judicial: d(-28), origem: 'ministerio_publico', responsavel: mariana, valor: { mensal: 3500, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: d(-30), statusCaracterizacao: 'aprovada' })
+  demanda({ processo_id: c1.processo_id as string, sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Um', 'Aluno Fictício Sete'], etapa: 'C04', inicioEtapa: String(c1.vigencia_inicio), prazo_judicial: somarDias(String(c1.vigencia_inicio), 3), origem: 'judicial', responsavel: sergio, valor: { mensal: 12000, meses: 8 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c1.vigencia_inicio), statusCaracterizacao: 'aprovada' })
+  demanda({ processo_id: c2.processo_id as string, sre: 'UDI', escola: 'Rio das Pedras', alunos: ['Aluna Fictícia Dois'], etapa: 'C04', inicioEtapa: String(c2.vigencia_inicio), prazo_judicial: somarDias(String(c2.vigencia_inicio), 2), origem: 'judicial', responsavel: sergio, valor: { mensal: 10000, meses: 6 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c2.vigencia_inicio), statusCaracterizacao: 'aprovada', pcd: true })
+  demanda({ processo_id: c3.processo_id as string, sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluno Fictício Três'], etapa: 'C04', inicioEtapa: String(c3.vigencia_inicio), prazo_judicial: somarDias(String(c3.vigencia_inicio), 5), origem: 'judicial', responsavel: mariana, valor: { mensal: 6000, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: String(c3.vigencia_inicio), statusCaracterizacao: 'aprovada' })
+  demanda({ processo_id: c4.processo_id as string, sre: 'MOC', escola: 'Vereda Grande', alunos: ['Aluna Fictícia Quatro'], etapa: 'C04', inicioEtapa: d(-30), prazo_judicial: d(-28), origem: 'ministerio_publico', responsavel: mariana, valor: { mensal: 3500, meses: 12 }, financeiro: { autorizado: true, paf: true }, inicioTransporte: d(-30), statusCaracterizacao: 'aprovada' })
   // Novas, sem contrato ainda
   demanda({ sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Nove'], etapa: 'C01', inicioEtapa: d(-3), prazo_judicial: d(9), origem: 'ministerio_publico', responsavel: sergio, statusCaracterizacao: 'rascunho' })
   // Aguardando o subsecretário: caracterização aprovada pela SRE, veículo adaptado
