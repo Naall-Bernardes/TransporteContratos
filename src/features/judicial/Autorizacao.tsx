@@ -142,7 +142,7 @@ export function AutorizacaoSubsecretario({ demanda, d, dados, aoAlterar }: Props
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-600">
-        A decisão é do(a) subsecretário(a). Aqui estão reunidas as informações do processo para apoiar a liberação do recurso. Se aprovar, a demanda segue para o registro do PAF; se devolver, volta para a Caracterização (etapa 3).
+        A decisão é do(a) subsecretário(a). Aqui estão reunidas as informações do processo para apoiar a liberação do recurso. Se aprovar, a demanda segue para o registro do PAF; se devolver, volta para o Detalhamento da demanda (etapa 1).
       </p>
 
       <Bloco titulo="Decisão judicial">

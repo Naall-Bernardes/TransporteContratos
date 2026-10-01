@@ -3,7 +3,7 @@
 import { ClipboardList, FileSignature, ListTree, type LucideIcon, ShieldCheck, Stamp } from 'lucide-react'
 
 export const ICONE_ETAPA: Record<string, LucideIcon> = {
-  C01: ClipboardList, // Caracterização
+  C01: ClipboardList, // Detalhamento da demanda
   C02: ShieldCheck, // Autorização
   C03: Stamp, // Registro do PAF
   C04: FileSignature, // Contratos (com a aba Execução e fiscalização)

@@ -158,3 +158,12 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 | 84 | Cadastrar | — | Abre a demanda na Caracterização; os formulários de caracterização já vêm com turno, horários, dias, endereço e acessibilidade; o aluno novo aparece em Cadastros → Alunos |
 
 > Atualização: **Execução e fiscalização** virou uma aba dentro de **Contratos** (abas Contrato · Execução e fiscalização). O submenu de Contratações fica: Demandas de transporte, Caracterização da demanda, Autorização, Registro do PAF e Contratos.
+
+> Atualização (D52): o cadastro da demanda ficou só com o que vem no ofício; a necessidade de transporte de cada aluno é preenchida pela SRE/escola na etapa **Detalhamento da demanda** (antes "Caracterização da demanda").
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 85 | Contratações → Demandas de transporte → Cadastrar | Ver o bloco 3 | Só "Alunos" (buscar no cadastro ou novo); aviso de que a necessidade é preenchida no Detalhamento |
+| 86 | Após cadastrar, como **Sérgio (UDI)** → Detalhamento da demanda | Ver cartões dos alunos | Cada aluno com "Necessidade de transporte" para preencher; "O que falta" avisa os alunos sem necessidade |
+| 87 | Preencher e "Salvar necessidade" | — | Cartão vira resumo; o "Formulário completo" já traz turno, horários, dias, endereço, acessibilidade e responsável |
+

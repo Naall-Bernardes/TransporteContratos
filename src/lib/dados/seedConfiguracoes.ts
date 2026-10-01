@@ -9,7 +9,7 @@ type Novo = (campos: Record<string, unknown>) => Registro
 const SLA = 5
 
 export const ETAPAS: [modulo: string, ordem: number, codigo: string, nome: string, papel: string, sla: number | null][] = [
-  ['JUDICIAL', 1, 'C01', 'Caracterização da demanda', 'sre', SLA],
+  ['JUDICIAL', 1, 'C01', 'Detalhamento da demanda', 'sre', SLA],
   ['JUDICIAL', 2, 'C02', 'Autorização', 'subsecretario', SLA],
   ['JUDICIAL', 3, 'C03', 'Registro do PAF', 'central', SLA],
   // Contratos inclui a execução e a fiscalização (aba): etapa contínua, sem SLA próprio

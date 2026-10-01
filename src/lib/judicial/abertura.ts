@@ -1,6 +1,7 @@
-// Abertura da demanda de transporte (primeira tela de Contratações): responde quem deve ser
-// atendido, por quê, onde, como e até quando. Os dados de cada aluno já pré-preenchem o
-// formulário de caracterização, que a SRE completa depois.
+// Demanda de transporte em dois momentos:
+//  - Cadastro (órgão central, com o que vem no ofício): por quê, onde, quem e até quando;
+//  - Detalhamento (SRE/escola, etapa 1): como — a necessidade de transporte de cada aluno,
+//    que alimenta o formulário de caracterização.
 
 import { diasUteisEntre } from '../diasUteis'
 
@@ -47,6 +48,10 @@ export interface AlunoAbertura {
   /** Aluno já cadastrado; sem ele, `novo` cria o aluno no cadastro. */
   aluno_id?: string
   novo?: { nome: string; cod_simade: string; cpf?: string; data_nascimento: string }
+}
+
+/** Necessidade de transporte de um aluno — preenchida no Detalhamento da demanda (SRE/escola). */
+export interface NecessidadeTransporte {
   responsavel_nome: string
   turno: string
   endereco_origem: string
@@ -98,12 +103,18 @@ export function errosAbertura(d: DadosAbertura): Record<string, string> {
       if (!a.novo || vazio(a.novo.cod_simade)) e[k('cod_simade')] = obrig
       if (!a.novo || vazio(a.novo.data_nascimento)) e[k('data_nascimento')] = obrig
     }
-    for (const c of ['responsavel_nome', 'turno', 'endereco_origem', 'dias_semana', 'viagem', 'horario_entrada', 'horario_saida'] as const) if (vazio(a[c])) e[k(c)] = obrig
-    if (a.veiculo_acessivel === null || a.veiculo_acessivel === undefined) e[k('veiculo_acessivel')] = 'Responda sim ou não.'
-    if (a.acompanhante === null || a.acompanhante === undefined) e[k('acompanhante')] = 'Responda sim ou não.'
-    if (a.horario_entrada && a.horario_saida && a.horario_saida <= a.horario_entrada) e[k('horario_saida')] = 'A saída deve ser depois da entrada.'
   })
   const ids = d.alunos.map((a) => a.aluno_id).filter(Boolean)
   if (new Set(ids).size !== ids.length) e.alunos = 'O mesmo aluno foi incluído duas vezes.'
+  return e
+}
+
+/** Campos obrigatórios da necessidade de transporte de um aluno. */
+export function errosNecessidade(n: NecessidadeTransporte): Record<string, string> {
+  const e: Record<string, string> = {}
+  for (const c of ['responsavel_nome', 'turno', 'endereco_origem', 'dias_semana', 'viagem', 'horario_entrada', 'horario_saida'] as const) if (vazio(n[c])) e[c] = 'Campo obrigatório.'
+  if (n.veiculo_acessivel === null || n.veiculo_acessivel === undefined) e.veiculo_acessivel = 'Responda sim ou não.'
+  if (n.acompanhante === null || n.acompanhante === undefined) e.acompanhante = 'Responda sim ou não.'
+  if (n.horario_entrada && n.horario_saida && n.horario_saida <= n.horario_entrada) e.horario_saida = 'A saída deve ser depois da entrada.'
   return e
 }

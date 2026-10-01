@@ -38,7 +38,7 @@ export function NovaContratacaoPage() {
           codigoOficio: String(l('processos').find((p) => p.id === oficio?.processo_id)?.codigo ?? ''),
           escola: String(l('escolas').find((e) => e.id === s.demanda!.escola_id)?.nome ?? ''),
           sigla: String(l('sres').find((x) => x.id === s.sre_id)?.sigla ?? ''),
-          // cadastro = início da primeira etapa (Caracterização)
+          // cadastro = início da primeira etapa (Detalhamento da demanda)
           cadastradoEm: String(l('processo_etapas').filter((e) => e.processo_id === s.processo.id).map((e) => String(e.iniciada_em)).sort()[0] ?? String(s.processo.criado_em).slice(0, 10)),
           alunos: l('demanda_alunos').filter((a) => a.demanda_id === s.demanda!.id && !a.removido_em).length,
         }

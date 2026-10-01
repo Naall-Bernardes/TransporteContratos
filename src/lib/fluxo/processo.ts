@@ -89,6 +89,11 @@ export function pendenciasDeDados(codigoEtapa: string, d: DadosProcesso): string
     case 'C01': {
       exige(d.demanda?.responsavel_sre_id, 'Defina o responsável pelo acompanhamento na SRE.')
       exige(d.alunosDemanda.length > 0, 'Inclua ao menos um aluno na demanda.')
+      const semNecessidade = d.alunosDemanda.filter((a) => {
+        const c = d.caracterizacoes.find((x) => x.demanda_aluno_id === a.id)
+        return !c?.turno || !c?.endereco_residencia || !c?.horario_entrada
+      })
+      exige(semNecessidade.length === 0, `${semNecessidade.length} aluno(s) sem a necessidade de transporte informada (turno, horários, endereço).`)
       const semForm = d.alunosDemanda.filter((a) => {
         const c = d.caracterizacoes.find((x) => x.demanda_aluno_id === a.id)
         return !c || !['enviada', 'aprovada'].includes(String(c.status))

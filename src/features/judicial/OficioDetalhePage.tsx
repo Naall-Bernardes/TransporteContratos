@@ -155,7 +155,7 @@ export function OficioDetalhePage() {
             ) : oficio.tipo === 'intimacao_cumprimento' ? (
               central ? (
                 <div>
-                  <p className="text-slate-600">Esta intimação determina o transporte. Cadastre a demanda de transporte: ela começa na Caracterização, com os dados deste ofício.</p>
+                  <p className="text-slate-600">Esta intimação determina o transporte. Cadastre a demanda de transporte: ela começa no Detalhamento da demanda, com os dados deste ofício.</p>
                   <Botao className="mt-3" onClick={() => navegar(`/judicial/novo/cadastrar?oficio=${oficio.id}`)}><Play size={16} /> Cadastrar demanda de transporte</Botao>
                 </div>
               ) : (

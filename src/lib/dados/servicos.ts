@@ -8,7 +8,7 @@ import { avaliarEtapa, montarDadosProcesso } from '../fluxo/processo'
 import { prazoDaEtapa } from '../fluxo/sla'
 import { formatarData } from '../formatacao'
 import { ehCentral, ehDiretorOuCentral, podeAutorizarLiberacao } from '../permissoes'
-import { calcularPrioridade, errosAbertura, type DadosAbertura } from '../judicial/abertura'
+import { calcularPrioridade, errosAbertura, errosNecessidade, type DadosAbertura, type NecessidadeTransporte } from '../judicial/abertura'
 import { origemDoOrgao } from '../judicial/oficios'
 import { calcularRepasse, conciliar, DIVERGENCIAS_DE_ROTA, inconsistenciasRotas } from '../pte/pte'
 import { criarProcesso, ErroPermissao, ErroRegra, ErroValidacao, transacao, type Tx } from './repositorio'
@@ -107,8 +107,8 @@ export function registrarRespostaOficio(usuario: Usuario, oficioId: string, r: D
 
 /**
  * Cadastra a demanda de transporte a partir de um ofício de intimação: cria a demanda (código JUD-ano-SRE-seq)
- * com os dados do ofício, inclui os alunos (criando no cadastro os que não existem), pré-preenche a
- * caracterização de cada um e abre a primeira etapa (Caracterização) com o responsável da SRE.
+ * com os dados do ofício, inclui os alunos (criando no cadastro os que não existem) e abre a primeira etapa
+ * (Detalhamento da demanda) com o responsável da SRE, que completa a necessidade de transporte de cada aluno.
  */
 export function abrirDemandaTransporte(usuario: Usuario, oficioId: string, d: DadosAbertura) {
   if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('A demanda é cadastrada pelo órgão central.'))
@@ -141,42 +141,63 @@ export function abrirDemandaTransporte(usuario: Usuario, oficioId: string, d: Da
       situacao: 'ativa',
     })
     for (const a of alunos) {
-      const alunoId = a.aluno_id
-        ? a.aluno_id
-        : tx.salvar('alunos', { ...a.novo, cpf: a.novo?.cpf || null, escola_atual_id: escola.id, turno: a.turno, ativo: true }).id
+      const alunoId = a.aluno_id ? a.aluno_id : tx.salvar('alunos', { ...a.novo, cpf: a.novo?.cpf || null, escola_atual_id: escola.id, ativo: true }).id
       const da = tx.salvar('demanda_alunos', { demanda_id: demanda.id, aluno_id: alunoId, incluido_em: hoje })
-      const requisitos = [...(a.veiculo_acessivel ? ['veiculo_acessivel'] : []), ...(a.acompanhante ? ['acompanhante'] : [])]
-      const car = tx.salvar('caracterizacoes', {
+      // formulário de caracterização em rascunho: a necessidade de transporte vem no Detalhamento (SRE/escola)
+      tx.salvar('caracterizacoes', {
         demanda_id: demanda.id,
         demanda_aluno_id: da.id,
         status: 'rascunho',
-        turno: a.turno,
-        horario_entrada: a.horario_entrada,
-        horario_saida: a.horario_saida,
-        dias_semana: a.dias_semana,
-        endereco_residencia: a.endereco_origem,
-        sentido_viagem: a.viagem,
-        viagens_dia: a.viagem === 'ida_volta' ? '2' : 'outro',
-        condicoes_transporte: a.outras_condicoes?.trim() || null,
-        requisitos: requisitos.length ? requisitos : null,
         data_inicio_pretendida: d.data_inicio_prevista,
         periodo_atendimento: d.prazo_indeterminado ? 'ate_nova_decisao' : 'outro',
       })
-      const pcd = Boolean(a.veiculo_acessivel || a.cadeira_rodas)
-      tx.salvar('caracterizacoes_saude', {
-        caracterizacao_id: car.id,
-        pcd_mobilidade_reduzida: pcd,
-        pcd_especificacao: pcd ? 'Informado na abertura da demanda: necessita veículo acessível. Detalhar e anexar laudo na caracterização.' : null,
-        dispositivo_mobilidade: a.cadeira_rodas ? 'outro' : 'nenhum',
-        dispositivo_medidas_peso: a.cadeira_rodas ? 'Cadeira de rodas — tipo, medidas e peso a confirmar na caracterização.' : null,
-        necessita_rampa_plataforma: Boolean(a.cadeira_rodas),
-        necessita_acompanhante: Boolean(a.acompanhante),
-      })
-      tx.salvar('responsaveis_legais', { caracterizacao_id: car.id, nome: a.responsavel_nome.trim() })
     }
     tx.salvar('oficios', { id: oficio.id, demanda_id: demanda.id })
     iniciarEtapa(tx, processo.id, modelosDo(tx, 'JUDICIAL')[0], d.responsavel_sre_id ?? null)
     return demanda
+  })
+}
+
+/**
+ * Detalhamento da demanda: grava a necessidade de transporte de um aluno no formulário de caracterização
+ * (turno, horários, dias, endereço, viagem), na saúde (acessibilidade, cadeira, acompanhante) e no responsável legal.
+ */
+export function salvarNecessidadeTransporte(usuario: Usuario, caracterizacaoId: string, n: NecessidadeTransporte) {
+  const erros = errosNecessidade(n)
+  if (Object.keys(erros).length) return Promise.reject(new ErroValidacao({ ...erros, _geral: 'Preencha os campos obrigatórios.' }))
+  return transacao(usuario, (tx) => {
+    const car = tx.consulta('caracterizacoes', caracterizacaoId)
+    if (!car) throw new ErroRegra('Formulário não encontrado.')
+    if (car.status === 'aprovada') throw new ErroRegra('A caracterização já foi aprovada; peça a reabertura para alterar.')
+    const requisitos = new Set((Array.isArray(car.requisitos) ? car.requisitos : []) as string[])
+    for (const [r, ligado] of [['veiculo_acessivel', n.veiculo_acessivel], ['acompanhante', n.acompanhante]] as const) {
+      if (ligado) requisitos.add(r)
+      else requisitos.delete(r)
+    }
+    tx.salvar('caracterizacoes', {
+      id: car.id,
+      turno: n.turno,
+      horario_entrada: n.horario_entrada,
+      horario_saida: n.horario_saida,
+      dias_semana: n.dias_semana,
+      endereco_residencia: n.endereco_origem,
+      sentido_viagem: n.viagem,
+      viagens_dia: n.viagem === 'ida_volta' ? '2' : 'outro',
+      condicoes_transporte: n.outras_condicoes?.trim() || null,
+      requisitos: requisitos.size ? [...requisitos] : null,
+    })
+    const pcd = Boolean(n.veiculo_acessivel || n.cadeira_rodas)
+    const saude = tx.lista('caracterizacoes_saude').find((x) => x.caracterizacao_id === car.id)
+    tx.salvar('caracterizacoes_saude', {
+      ...(saude ? { id: saude.id } : { caracterizacao_id: car.id }),
+      pcd_mobilidade_reduzida: pcd,
+      pcd_especificacao: pcd ? (saude?.pcd_especificacao || 'Necessita veículo acessível (informado no detalhamento). Detalhar e anexar laudo.') : null,
+      dispositivo_mobilidade: n.cadeira_rodas ? (saude?.dispositivo_mobilidade && saude.dispositivo_mobilidade !== 'nenhum' ? saude.dispositivo_mobilidade : 'outro') : 'nenhum',
+      necessita_rampa_plataforma: Boolean(n.cadeira_rodas),
+      necessita_acompanhante: Boolean(n.acompanhante),
+    })
+    const resp = tx.lista('responsaveis_legais').find((x) => x.caracterizacao_id === car.id)
+    tx.salvar('responsaveis_legais', { ...(resp ? { id: resp.id } : { caracterizacao_id: car.id }), nome: n.responsavel_nome.trim() })
   })
 }
 
@@ -255,7 +276,7 @@ export interface DecisaoAutorizacao {
 
 /**
  * Etapa 4 — o(a) subsecretário(a) aprova a liberação do recurso (com o valor autorizado)
- * ou devolve a demanda para ajuste (volta à etapa 3, Caracterização).
+ * ou devolve a demanda para ajuste (volta à etapa 1, Detalhamento da demanda).
  */
 export function decidirAutorizacao(usuario: Usuario, demandaId: string, d: DecisaoAutorizacao) {
   if (!podeAutorizarLiberacao(usuario)) return Promise.reject(new ErroPermissao('Só o(a) subsecretário(a) autoriza a liberação do recurso.'))
@@ -278,7 +299,7 @@ export function decidirAutorizacao(usuario: Usuario, demandaId: string, d: Decis
       tx.salvar('demandas', { id: demandaId, valor_mensal: d.valor_mensal, meses_previstos: d.meses })
       avancarDaEtapa(tx, usuario, instancia, modelo)
     } else {
-      // Devolução: a etapa 4 fica registrada como devolvida e a Caracterização é reaberta
+      // Devolução: a Autorização fica registrada como devolvida e o Detalhamento da demanda é reaberto
       tx.salvar('processo_etapas', { id: instancia.id, status: 'devolvida', concluida_em: hojeIso() })
       const modeloJ03 = tx.lista('etapas_modelo').find((m) => m.codigo === 'C01')!
       iniciarEtapa(tx, String(demanda.processo_id), modeloJ03, demanda.responsavel_sre_id ?? null)

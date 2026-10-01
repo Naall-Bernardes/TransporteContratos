@@ -4,7 +4,7 @@ import { carregarBase, restaurarDemonstracao } from './armazenamento'
 import { ErroPermissao, ErroRegra, ErroValidacao, salvar, transacao } from './repositorio'
 import { calcularPrioridade } from '../judicial/abertura'
 import { situacaoOficio } from '../judicial/oficios'
-import { aprovarCiclo, calcularAdesao, consultarSre, criarOficio, criarPaf, decidirAutorizacao, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas, abrirDemandaTransporte, registrarRespostaOficio, responderConsulta } from './servicos'
+import { aprovarCiclo, calcularAdesao, consultarSre, criarOficio, criarPaf, decidirAutorizacao, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas, abrirDemandaTransporte, salvarNecessidadeTransporte, registrarRespostaOficio, responderConsulta } from './servicos'
 import { concluirEtapa } from './servicos'
 import type { Registro, Usuario } from './tipos'
 
@@ -46,22 +46,23 @@ describe('fluxo judicial', () => {
     expect(situacaoOficio(doOficio(), consultas())).toBe('respondido')
   })
 
-  it('demanda de transporte: abre da intimação com alunos (existente e novo), pré-preenche a caracterização e calcula a prioridade', async () => {
+  it('demanda de transporte: cadastro com o que vem no ofício; necessidade de transporte no detalhamento', async () => {
     const of = b().colecoes.oficios.find((o) => o.tipo === 'intimacao_cumprimento' && !o.demanda_id)!
     const escola = b().colecoes.escolas.find((e) => e.id === of.escola_id)!
     const existente = b().colecoes.alunos.find((a) => a.escola_atual_id === escola.id)!
-    const necessidade = { responsavel_nome: 'Mãe Fictícia', turno: 'manha', endereco_origem: 'Zona rural, km 12', dias_semana: ['seg', 'ter', 'qua', 'qui', 'sex'], viagem: 'ida_volta', horario_entrada: '07:00', horario_saida: '11:30', acompanhante: false }
+    const necessidade = { responsavel_nome: 'Mãe Fictícia', turno: 'manha', endereco_origem: 'Zona rural, km 12', dias_semana: ['seg', 'ter', 'qua', 'qui', 'sex'], viagem: 'ida_volta', horario_entrada: '07:00', horario_saida: '11:30', acompanhante: false, veiculo_acessivel: true, cadeira_rodas: true }
     const dados = {
       tipo_determinacao: 'liminar', data_ciencia: of.data_recebimento as string, prazo_judicial: of.prazo_resposta as string, escola_id: escola.id,
       data_inicio_prevista: of.prazo_resposta as string, prazo_indeterminado: true, caixa_escolar_id: b().colecoes.caixas_escolares.find((c) => c.escola_id === escola.id)!.id,
       responsavel_sre_id: usuario('analista.udi@demo.exemplo').id, prazo_devolucao_formulario: of.prazo_resposta as string, decisao_resumo: 'Transporte adequado.',
       alunos: [
-        { aluno_id: existente.id, ...necessidade, veiculo_acessivel: false },
-        { novo: { nome: 'Aluno Novo Fictício', cod_simade: '99887766', data_nascimento: '2014-03-01' }, ...necessidade, veiculo_acessivel: true, cadeira_rodas: true },
+        { aluno_id: existente.id },
+        { novo: { nome: 'Aluno Novo Fictício', cod_simade: '99887766', data_nascimento: '' } },
       ],
     }
-    // obrigatórios: sem turno do 2º aluno, recusa apontando o campo
-    await expect(abrirDemandaTransporte(central(), of.id, { ...dados, alunos: [dados.alunos[0], { ...dados.alunos[1], turno: '' }] })).rejects.toMatchObject({ erros: { 'alunos.1.turno': expect.any(String) } })
+    // obrigatórios: aluno novo sem nascimento, recusa apontando o campo
+    await expect(abrirDemandaTransporte(central(), of.id, dados)).rejects.toMatchObject({ erros: { 'alunos.1.data_nascimento': expect.any(String) } })
+    dados.alunos[1].novo!.data_nascimento = '2014-03-01'
     const dem = await abrirDemandaTransporte(central(), of.id, dados)
     expect(b().colecoes.processos.find((p) => p.id === dem.processo_id)!.codigo).toMatch(/^JUD-\d{4}-UDI-\d{4}$/)
     expect(dem.numero_processo_origem).toBe(of.numero_processo_judicial)
@@ -72,9 +73,14 @@ describe('fluxo judicial', () => {
     expect(novo.escola_atual_id).toBe(escola.id)
     const cars = b().colecoes.caracterizacoes.filter((c) => c.demanda_id === dem.id)
     expect(cars).toHaveLength(2)
-    expect(cars[0].endereco_residencia).toBe('Zona rural, km 12')
-    const saudeNovo = b().colecoes.caracterizacoes_saude.find((x) => x.caracterizacao_id === cars[1].id)!
-    expect(saudeNovo.pcd_mobilidade_reduzida).toBe(true)
+    expect(codigoEtapa(etapaAberta(dem.processo_id))).toBe('C01')
+    // Detalhamento: a SRE completa a necessidade de transporte do aluno
+    const sergio = usuario('analista.udi@demo.exemplo')
+    await expect(salvarNecessidadeTransporte(sergio, cars[1].id, { ...necessidade, turno: '' })).rejects.toMatchObject({ erros: { turno: expect.any(String) } })
+    await salvarNecessidadeTransporte(sergio, cars[1].id, necessidade)
+    expect(b().colecoes.caracterizacoes.find((c) => c.id === cars[1].id)!.endereco_residencia).toBe('Zona rural, km 12')
+    expect(b().colecoes.caracterizacoes_saude.find((x) => x.caracterizacao_id === cars[1].id)!.pcd_mobilidade_reduzida).toBe(true)
+    expect(b().colecoes.responsaveis_legais.find((x) => x.caracterizacao_id === cars[1].id)!.nome).toBe('Mãe Fictícia')
     await expect(abrirDemandaTransporte(central(), of.id, dados)).rejects.toThrow(/já tem demanda/)
     const pedido = b().colecoes.oficios.find((o) => o.tipo === 'pedido_informacao')!
     await expect(abrirDemandaTransporte(central(), pedido.id, dados)).rejects.toThrow(/intimação/)

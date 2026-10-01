@@ -13,15 +13,13 @@ import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
 import { prazoDaEtapa } from '@/lib/fluxo/sla'
 import { formatarCpfCnpj, formatarData } from '@/lib/formatacao'
-import { calcularPrioridade, ROTULO_PRIORIDADE, SENTIDOS_VIAGEM, TIPOS_DETERMINACAO, type AlunoAbertura } from '@/lib/judicial/abertura'
+import { calcularPrioridade, ROTULO_PRIORIDADE, TIPOS_DETERMINACAO, type AlunoAbertura } from '@/lib/judicial/abertura'
 import { origemDoOrgao } from '@/lib/judicial/oficios'
 import { ehCentral } from '@/lib/permissoes'
 import { ORGAOS_OFICIO } from './configuracoes'
 
 type Dados = Partial<Record<Colecao, Registro[]>>
 
-const TURNOS: Record<string, string> = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite', integral: 'Integral' }
-const DIAS: Record<string, string> = { seg: 'Seg', ter: 'Ter', qua: 'Qua', qui: 'Qui', sex: 'Sex', sab: 'Sáb' }
 const COR_PRIORIDADE = { urgente: 'bg-red-100 text-red-800', alta: 'bg-amber-100 text-amber-800', normal: 'bg-slate-100 text-slate-700' }
 
 interface AlunoForm {
@@ -31,23 +29,9 @@ interface AlunoForm {
   cod_simade: string
   cpf: string
   data_nascimento: string
-  responsavel_nome: string
-  turno: string
-  endereco_origem: string
-  dias_semana: string[]
-  viagem: string
-  horario_entrada: string
-  horario_saida: string
-  veiculo_acessivel: boolean | null
-  cadeira_rodas: boolean
-  acompanhante: boolean | null
-  outras_condicoes: string
 }
 
-const alunoVazio = (): AlunoForm => ({
-  modo: 'cadastro', aluno_id: '', nome: '', cod_simade: '', cpf: '', data_nascimento: '', responsavel_nome: '', turno: '', endereco_origem: '',
-  dias_semana: ['seg', 'ter', 'qua', 'qui', 'sex'], viagem: 'ida_volta', horario_entrada: '', horario_saida: '', veiculo_acessivel: null, cadeira_rodas: false, acompanhante: null, outras_condicoes: '',
-})
+const alunoVazio = (): AlunoForm => ({ modo: 'cadastro', aluno_id: '', nome: '', cod_simade: '', cpf: '', data_nascimento: '' })
 
 function Bloco({ numero, titulo, pergunta, children }: { numero: number; titulo: string; pergunta: string; children: ReactNode }) {
   return (
@@ -75,23 +59,6 @@ function Campo({ rotulo, obrig, erro, children, largo, auto }: { rotulo: string;
 
 const Auto = ({ valor }: { valor: ReactNode }) => <div className="campo bg-slate-50 text-slate-700">{valor || '—'}</div>
 
-function SimNao({ valor, aoMudar }: { valor: boolean | null; aoMudar: (v: boolean) => void }) {
-  return (
-    <div className="flex gap-2">
-      {[true, false].map((v) => (
-        <button
-          key={String(v)}
-          type="button"
-          onClick={() => aoMudar(v)}
-          className={`rounded-md border px-3 py-1.5 text-sm ${valor === v ? 'border-marca-600 bg-marca-50 font-medium text-marca-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
-        >
-          {v ? 'Sim' : 'Não'}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 export function CadastrarDemandaPage() {
   const { dados, carregando, recarregar } = useTodos()
   const usuario = useUsuario()
@@ -111,7 +78,7 @@ export function CadastrarDemandaPage() {
         </Link>
         <h1 className="text-xl font-semibold text-slate-900">Cadastrar demanda de transporte</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Responde rapidamente: <strong>quem</strong> deve ser atendido, <strong>por quê</strong>, <strong>onde</strong>, <strong>como</strong> e <strong>até quando</strong>. A documentação do aluno, a definição do atendimento e o orçamento vêm nas etapas seguintes.
+          Com o que vem no ofício: <strong>por quê</strong>, <strong>onde</strong>, <strong>quem</strong> e <strong>até quando</strong>. O <strong>como</strong> (necessidade de transporte de cada aluno) é completado pela SRE/escola no Detalhamento da demanda.
         </p>
       </div>
 
@@ -197,20 +164,9 @@ function FormularioDemanda({ oficio, dados, aoCriar }: { oficio: Registro; dados
     setErros({})
     setSalvando(true)
     const num = (v: string) => (v === '' ? null : Number(v))
-    const alunosAbertura: AlunoAbertura[] = alunos.map((a) => ({
-      ...(a.modo === 'cadastro' ? { aluno_id: a.aluno_id || undefined } : { novo: { nome: a.nome.trim(), cod_simade: a.cod_simade.trim(), cpf: a.cpf.trim() || undefined, data_nascimento: a.data_nascimento } }),
-      responsavel_nome: a.responsavel_nome,
-      turno: a.turno,
-      endereco_origem: a.endereco_origem,
-      dias_semana: a.dias_semana,
-      viagem: a.viagem,
-      horario_entrada: a.horario_entrada,
-      horario_saida: a.horario_saida,
-      veiculo_acessivel: a.veiculo_acessivel,
-      cadeira_rodas: a.veiculo_acessivel ? a.cadeira_rodas : false,
-      acompanhante: a.acompanhante,
-      outras_condicoes: a.outras_condicoes,
-    }))
+    const alunosAbertura: AlunoAbertura[] = alunos.map((a) =>
+      a.modo === 'cadastro' ? { aluno_id: a.aluno_id || undefined } : { novo: { nome: a.nome.trim(), cod_simade: a.cod_simade.trim(), cpf: a.cpf.trim() || undefined, data_nascimento: a.data_nascimento } },
+    )
     try {
       const dem = await abrirDemandaTransporte(usuario, String(oficio.id), {
         ...f,
@@ -276,7 +232,8 @@ function FormularioDemanda({ oficio, dados, aoCriar }: { oficio: Registro; dados
         </div>
       </Bloco>
 
-      <Bloco numero={3} titulo="Alunos e necessidade de transporte" pergunta="Quem deve ser atendido e como?">
+      <Bloco numero={3} titulo="Alunos" pergunta="Quem deve ser atendido?">
+        <p className="mb-3 rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-900">Turno, horários, endereço de origem, frequência e condições do transporte são informados pela SRE/escola na etapa <strong>Detalhamento da demanda</strong>.</p>
         {erros.alunos && <p className="mb-2 text-xs text-red-600">{erros.alunos}</p>}
         <div className="space-y-4">
           {alunos.map((a, i) => {
@@ -293,7 +250,6 @@ function FormularioDemanda({ oficio, dados, aoCriar }: { oficio: Registro; dados
                   )}
                 </div>
 
-                <p className="mb-1 text-xs font-semibold text-slate-500 uppercase">Identificação</p>
                 <div className={grade}>
                   <Campo rotulo="Aluno" obrig erro={e('nome')}>
                     <select
@@ -302,7 +258,7 @@ function FormularioDemanda({ oficio, dados, aoCriar }: { oficio: Registro; dados
                       onChange={(ev) => {
                         const v = ev.target.value
                         if (v === '__novo__') mudarAluno(i, { modo: 'novo', aluno_id: '' })
-                        else mudarAluno(i, { modo: 'cadastro', aluno_id: v, turno: a.turno || String(achar('alunos', v)?.turno ?? '') })
+                        else mudarAluno(i, { modo: 'cadastro', aluno_id: v })
                       }}
                     >
                       <option value="">Buscar no cadastro…</option>
@@ -328,60 +284,8 @@ function FormularioDemanda({ oficio, dados, aoCriar }: { oficio: Registro; dados
                       <Campo rotulo="CPF" auto><Auto valor={doCadastro.cpf ? formatarCpfCnpj(doCadastro.cpf) : 'virá com a documentação'} /></Campo>
                     </>
                   ) : null}
-                  <Campo rotulo="Responsável legal" obrig erro={e('responsavel_nome')}>
-                    <input className="campo" value={a.responsavel_nome} onChange={(ev) => mudarAluno(i, { responsavel_nome: ev.target.value })} placeholder="Nome (contato na etapa documental)" />
-                  </Campo>
-                  <Campo rotulo="Turno" obrig erro={e('turno')}>
-                    <select className="campo" value={a.turno} onChange={(ev) => mudarAluno(i, { turno: ev.target.value })}>
-                      <option value="">Escolha…</option>
-                      {Object.entries(TURNOS).map(([v, r]) => <option key={v} value={v}>{r}</option>)}
-                    </select>
-                  </Campo>
                 </div>
 
-                <p className="mt-4 mb-1 text-xs font-semibold text-slate-500 uppercase">Necessidade de transporte</p>
-                <div className={grade}>
-                  <Campo rotulo="Endereço de origem do aluno" obrig erro={e('endereco_origem')} largo>
-                    <input className="campo" value={a.endereco_origem} onChange={(ev) => mudarAluno(i, { endereco_origem: ev.target.value })} placeholder="Rua, nº, comunidade, distrito, CEP" />
-                  </Campo>
-                  <Campo rotulo="Destino" auto><Auto valor={String(escola?.nome ?? '')} /></Campo>
-                  <Campo rotulo="Frequência" obrig erro={e('dias_semana')}>
-                    <div className="flex flex-wrap gap-1">
-                      {Object.entries(DIAS).map(([v, r]) => {
-                        const marcado = a.dias_semana.includes(v)
-                        return (
-                          <button key={v} type="button" onClick={() => mudarAluno(i, { dias_semana: marcado ? a.dias_semana.filter((x) => x !== v) : [...a.dias_semana, v] })}
-                            className={`rounded border px-2 py-1 text-xs ${marcado ? 'border-marca-600 bg-marca-50 text-marca-800' : 'border-slate-300 text-slate-600'}`}>
-                            {r}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </Campo>
-                  <Campo rotulo="Viagem" obrig erro={e('viagem')}>
-                    <select className="campo" value={a.viagem} onChange={(ev) => mudarAluno(i, { viagem: ev.target.value })}>
-                      {Object.entries(SENTIDOS_VIAGEM).map(([v, r]) => <option key={v} value={v}>{r}</option>)}
-                    </select>
-                  </Campo>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Campo rotulo="Entrada" obrig erro={e('horario_entrada')}><input className="campo" type="time" value={a.horario_entrada} onChange={(ev) => mudarAluno(i, { horario_entrada: ev.target.value })} /></Campo>
-                    <Campo rotulo="Saída" obrig erro={e('horario_saida')}><input className="campo" type="time" value={a.horario_saida} onChange={(ev) => mudarAluno(i, { horario_saida: ev.target.value })} /></Campo>
-                  </div>
-                  <Campo rotulo="Necessita veículo acessível?" obrig erro={e('veiculo_acessivel')}>
-                    <SimNao valor={a.veiculo_acessivel} aoMudar={(v) => mudarAluno(i, { veiculo_acessivel: v, cadeira_rodas: v ? a.cadeira_rodas : false })} />
-                  </Campo>
-                  {a.veiculo_acessivel && (
-                    <Campo rotulo="Utiliza cadeira de rodas?">
-                      <SimNao valor={a.cadeira_rodas} aoMudar={(v) => mudarAluno(i, { cadeira_rodas: v })} />
-                    </Campo>
-                  )}
-                  <Campo rotulo="Necessita acompanhante / monitor?" obrig erro={e('acompanhante')}>
-                    <SimNao valor={a.acompanhante} aoMudar={(v) => mudarAluno(i, { acompanhante: v })} />
-                  </Campo>
-                  <Campo rotulo="Outras condições do transporte" largo>
-                    <input className="campo" maxLength={200} value={a.outras_condicoes} onChange={(ev) => mudarAluno(i, { outras_condicoes: ev.target.value })} placeholder="Ex.: estrada de terra, travessia de rio" />
-                  </Campo>
-                </div>
               </div>
             )
           })}
