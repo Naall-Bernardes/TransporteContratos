@@ -301,6 +301,7 @@ export const CADASTROS: Record<ColecaoCadastro, CadastroConfig> = {
         visivel: (v) => v.papel === 'diretor_sre' || v.papel === 'analista_sre',
         obrigatorioSe: (v) => v.papel === 'diretor_sre' || v.papel === 'analista_sre',
       },
+      { nome: 'municipio_id', rotulo: 'Município', tipo: 'referencia', referencia: 'municipios', naTabela: true, visivel: (v) => v.papel === 'municipio', obrigatorioSe: (v) => v.papel === 'municipio' },
       ATIVO,
     ],
   },

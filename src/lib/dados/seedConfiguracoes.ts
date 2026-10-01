@@ -16,10 +16,6 @@ export const ETAPAS: [modulo: string, ordem: number, codigo: string, nome: strin
   ['JUDICIAL', 4, 'C03', 'Registro do PAF', 'central', SLA],
   // Contratos inclui a execução e a fiscalização (aba): etapa contínua, sem SLA próprio
   ['JUDICIAL', 5, 'C04', 'Contratos', 'sre', null],
-  ['PTE', 2, 'P02', 'Adesão e cadastro da demanda', 'sre', 15],
-  ['PTE', 3, 'P03', 'Definição e repasse', 'central', 15],
-  ['PTE', 4, 'P04', 'Execução e monitoramento', 'sre', null],
-  ['PTE', 5, 'P05', 'Prestação de contas', 'sre', 30],
 ]
 
 export const TIPOS_DOCUMENTO: [codigo: string, nome: string, modulo: string][] = [
@@ -143,18 +139,6 @@ export const CHECKLIST: [etapa: string, documento: string, condicao: string][] =
   ['C03', 'paf', 'opcional'],
   ['C04', 'contrato', 'sempre'],
   ['C04', 'relatorio_fiscalizacao', 'sempre'],
-  ['P02', 'termo_adesao', 'sempre'],
-  ['P02', 'lista_ter', 'sempre'],
-  ['P03', 'termo_convenio', 'sempre'],
-  ['P03', 'comprovante_repasse', 'sempre'],
-  ['P04', 'relatorio_fiscalizacao', 'sempre'],
-  ['P02', 'contrato_municipal', 'opcional'],
-  ['P05', 'pte_oficio', 'sempre'],
-  ['P05', 'pte_demonstrativo', 'sempre'],
-  ['P05', 'pte_relacao_pagamentos', 'sempre'],
-  ['P05', 'pte_declaracao', 'sempre'],
-  ['P05', 'pte_extratos', 'sempre'],
-  ['P05', 'parecer', 'sempre'],
 ]
 
 

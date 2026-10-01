@@ -2,6 +2,7 @@
 // documentais e dados do PTE executados pelo município (contratações, rotas, despesas).
 
 import { opcoes, type CadastroConfig } from '@/features/cadastros/configuracoes'
+import { TIPOS_GARANTIA } from '@/features/contratos/configuracoes'
 
 const rodoviario = (v: Record<string, unknown>) => v.tipo_transporte !== 'aquaviario'
 const aquaviario = (v: Record<string, unknown>) => v.tipo_transporte === 'aquaviario'
@@ -103,7 +104,7 @@ const terceirizado = (v: Record<string, unknown>) => v.tipo === 'terceirizado'
 
 export const CONTRATACAO_MUNICIPAL: CadastroConfig = {
   colecao: 'contratacoes_municipais',
-  titulo: 'Como o município executa o transporte',
+  titulo: 'Contratos do município',
   singular: 'contratação / frota própria',
   descricao: 'Serviços terceirizados contratados pelo município (Lei 14.133/2021) e frota própria, mantidos com recursos do PTE.',
   ordenarPor: (r) => String(r.tipo),
@@ -125,6 +126,11 @@ export const CONTRATACAO_MUNICIPAL: CadastroConfig = {
     { nome: 'vigencia_inicio', rotulo: 'Início da vigência', tipo: 'data', naTabela: true, visivel: terceirizado, obrigatorioSe: terceirizado },
     { nome: 'vigencia_fim', rotulo: 'Fim da vigência', tipo: 'data', naTabela: true, visivel: terceirizado, obrigatorioSe: terceirizado },
     { nome: 'valor', rotulo: 'Valor do contrato (R$)', tipo: 'moeda', naTabela: true, visivel: terceirizado, obrigatorioSe: terceirizado },
+    { nome: 'valor_executado', rotulo: 'Valor executado (R$)', tipo: 'moeda', naTabela: true, visivel: terceirizado, ajuda: 'Informado pelo município. O saldo é calculado.' },
+    { nome: 'valor_saldo', rotulo: 'Saldo (R$)', tipo: 'moeda', naTabela: true, emFormulario: false },
+    { nome: 'tipo_garantia', rotulo: 'Tipo de garantia', tipo: 'selecao', opcoes: TIPOS_GARANTIA, padrao: 'sem_garantia', visivel: terceirizado },
+    { nome: 'valor_garantia', rotulo: 'Valor da garantia (R$)', tipo: 'moeda', visivel: (v) => terceirizado(v) && !!v.tipo_garantia && v.tipo_garantia !== 'sem_garantia', obrigatorioSe: (v) => terceirizado(v) && !!v.tipo_garantia && v.tipo_garantia !== 'sem_garantia' },
+    { nome: 'garantia_vigencia_fim', rotulo: 'Garantia válida até', tipo: 'data', visivel: (v) => terceirizado(v) && !!v.tipo_garantia && v.tipo_garantia !== 'sem_garantia' },
     { nome: 'objeto', rotulo: 'Objeto / rotas atendidas', tipo: 'texto_longo', naTabela: true },
     { nome: 'fiscal_nome', rotulo: 'Fiscal do contrato no município', tipo: 'texto', naTabela: true },
     { nome: 'ativo', rotulo: 'Ativa', tipo: 'booleano', padrao: true },

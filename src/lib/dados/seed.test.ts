@@ -27,9 +27,10 @@ describe('dados de demonstração', () => {
     expect([...new Set(problemas)]).toEqual([])
   })
 
-  it('cada demanda e adesão tem exatamente uma etapa em andamento (exceto encerradas)', () => {
+  it('cada demanda tem exatamente uma etapa em andamento (exceto encerradas); o PTE não tem etapas', () => {
     const base = restaurarDemonstracao()
-    for (const p of [...base.colecoes.demandas, ...base.colecoes.adesoes_pte]) {
+    for (const a of base.colecoes.adesoes_pte) expect(base.colecoes.processo_etapas.some((e) => e.processo_id === a.processo_id)).toBe(false)
+    for (const p of base.colecoes.demandas) {
       const abertas = base.colecoes.processo_etapas.filter((e) => e.processo_id === p.processo_id && e.status === 'em_andamento')
       const encerrado = p.situacao === 'cumprida' || p.status === 'encerrado'
       expect(abertas.length, String(p.id)).toBe(encerrado ? 0 : 1)

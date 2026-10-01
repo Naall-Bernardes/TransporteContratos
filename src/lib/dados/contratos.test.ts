@@ -57,7 +57,7 @@ describe('instrumentos', () => {
   it('analista SRE vê só os instrumentos da sua regional', async () => {
     const udi = usuario('analista.udi@demo.exemplo')
     const lista = await listar('instrumentos', udi)
-    expect(lista).toHaveLength(3) // 001 e 002 (execução) + 004 (etapa Contratos)
+    expect(lista).toHaveLength(4) // contratos 001, 002 e 004 + termo PTE de Uberlândia 2027
     expect(lista.every((i) => i.sre_id === udi.sre_id)).toBe(true)
     const parcelas = await listar('parcelas', udi)
     const ids = new Set(lista.map((i) => i.id))

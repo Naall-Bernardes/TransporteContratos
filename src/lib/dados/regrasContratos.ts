@@ -172,6 +172,10 @@ export function validarContrato(colecao: ColecaoContrato, r: Registro, ctx: Cont
           de === 'reapresentada' && para === 'em_diligencia'
             ? 'A diligência é de ciclo único: após a reapresentação, a prestação deve ser decidida.'
             : `Mudança de situação não permitida: ${ROTULO_STATUS_PRESTACAO[de]} → ${ROTULO_STATUS_PRESTACAO[para]}.`
+      // o município entrega e reapresenta; a análise (diligência e decisão) é do Estado
+      if (ctx.usuario.papel === 'municipio' && de !== para && !['em_analise', 'reapresentada'].includes(para))
+        erros._geral = 'O município entrega e reapresenta a prestação de contas; a análise é feita pela SRE/órgão central.'
+      if (ctx.usuario.papel === 'municipio' && !ctx.anterior) erros._geral = 'A prestação de contas prevista é criada pelo Estado.'
       if (ctx.anterior && de === para && ESTADOS_FINAIS_PRESTACAO.includes(de) && !ctx.usuarioEhAdmin)
         erros._geral = 'Prestação de contas já decidida. Só o administrador pode alterá-la.'
 

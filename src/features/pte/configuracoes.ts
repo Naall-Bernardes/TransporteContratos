@@ -1,5 +1,12 @@
 import { opcoes, type CadastroConfig } from '@/features/cadastros/configuracoes'
-import { ROTULO_DIVERGENCIA } from '@/lib/pte/pte'
+
+/** Rótulos das divergências antigas (conciliação feita hoje em outro sistema). */
+const ROTULO_DIVERGENCIA: Record<string, string> = {
+  nao_encontrado_simade: 'Estudante não encontrado no SIMADE',
+  inativo_simade: 'Matrícula inativa/transferida no SIMADE',
+  escola_divergente: 'Escola diferente da registrada no SIMADE',
+  duplicado_outro_municipio: 'Estudante informado também por outro município',
+}
 
 export const STATUS_CICLO = opcoes({
   planejamento: 'Planejamento',
@@ -104,18 +111,26 @@ export const DEMANDA_EXTRA: CadastroConfig = {
   ],
 }
 
-export const GERAR_TERMO: CadastroConfig = {
+/** Cadastro do termo de repasse ao município (valor pré-determinado em outro sistema). */
+export const TERMO_REPASSE: CadastroConfig = {
   colecao: 'instrumentos',
-  titulo: 'Gerar termo',
-  singular: 'termo',
+  titulo: 'Termo de repasse',
+  singular: 'termo de repasse',
   descricao: '',
   ordenarPor: () => '',
   campos: [
-    { nome: 'numero', rotulo: 'Nº do termo', tipo: 'texto', obrigatorioSe: () => true },
-    { nome: 'numero_sei', rotulo: 'Nº do processo SEI', tipo: 'texto', obrigatorioSe: () => true },
-    { nome: 'data_assinatura', rotulo: 'Data de assinatura', tipo: 'data', obrigatorioSe: () => true },
-    { nome: 'dotacao_orcamentaria', rotulo: 'Dotação orçamentária', tipo: 'texto', obrigatorioSe: () => true },
-    { nome: 'gestor_id', rotulo: 'Gestor', tipo: 'referencia', referencia: 'usuarios', obrigatorioSe: () => true },
-    { nome: 'fiscal_id', rotulo: 'Fiscal', tipo: 'referencia', referencia: 'usuarios', obrigatorioSe: () => true },
+    { secao: 'Município e termo', nome: 'municipio_id', rotulo: 'Município', tipo: 'referencia', referencia: 'municipios', obrigatorioSe: () => true },
+    { secao: 'Município e termo', nome: 'ano', rotulo: 'Ano letivo', tipo: 'numero', obrigatorioSe: () => true },
+    { secao: 'Município e termo', nome: 'numero', rotulo: 'Nº do termo', tipo: 'texto', obrigatorioSe: () => true, ajuda: 'Ex.: TC 031/2027' },
+    { secao: 'Município e termo', nome: 'numero_sei', rotulo: 'Nº do processo SEI', tipo: 'texto', obrigatorioSe: () => true },
+    { secao: 'Município e termo', nome: 'data_assinatura', rotulo: 'Data de assinatura', tipo: 'data', obrigatorioSe: () => true },
+    { secao: 'Município e termo', nome: 'vigencia_inicio', rotulo: 'Início da vigência', tipo: 'data', obrigatorioSe: () => true },
+    { secao: 'Município e termo', nome: 'vigencia_fim', rotulo: 'Fim da vigência', tipo: 'data', obrigatorioSe: () => true },
+    { secao: 'Repasse', nome: 'valor_global', rotulo: 'Valor do repasse (R$)', tipo: 'moeda', obrigatorioSe: () => true, ajuda: 'Valor pré-determinado (calculado no sistema do PTE).' },
+    { secao: 'Repasse', nome: 'num_parcelas', rotulo: 'Nº de parcelas', tipo: 'numero', padrao: 10, obrigatorioSe: () => true, ajuda: 'De fevereiro a novembro: até 10 (Res. 5.267/2026, art. 16).' },
+    { secao: 'Repasse', nome: 'primeira_parcela', rotulo: 'Data da 1ª parcela', tipo: 'data', obrigatorioSe: () => true },
+    { secao: 'Gestão', nome: 'dotacao_orcamentaria', rotulo: 'Dotação orçamentária', tipo: 'texto', obrigatorioSe: () => true },
+    { secao: 'Gestão', nome: 'gestor_id', rotulo: 'Gestor do termo', tipo: 'referencia', referencia: 'usuarios', obrigatorioSe: () => true },
+    { secao: 'Gestão', nome: 'fiscal_id', rotulo: 'Fiscal do termo', tipo: 'referencia', referencia: 'usuarios', obrigatorioSe: () => true },
   ],
 }

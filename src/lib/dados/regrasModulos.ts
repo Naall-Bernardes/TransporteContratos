@@ -203,6 +203,7 @@ export function normalizarModulo(colecao: ColecaoModulo, d: Campos, consulta: Co
       break
     case 'contratacoes_municipais':
       if (d.tipo === 'frota_propria') d.transportador_id = null
+      if ('valor' in d || 'valor_executado' in d) d.valor_saldo = vazio(d.valor) ? null : Math.round((num(d.valor) - num(d.valor_executado)) * 100) / 100
       break
     case 'cotacoes':
       if (!vazio(d.valor_mensal) && !vazio(d.meses)) d.valor_total = Math.round(num(d.valor_mensal) * num(d.meses) * 100) / 100
@@ -285,6 +286,9 @@ export function validarModulo(colecao: ColecaoModulo, r: Registro, ctx: Contexto
           if (vazio(r[c])) erros[c] = m
       }
       if (r.vigencia_fim && r.vigencia_inicio && String(r.vigencia_fim) < String(r.vigencia_inicio)) erros.vigencia_fim = 'O fim é anterior ao início.'
+      if (!vazio(r.valor_executado) && num(r.valor_executado) < 0) erros.valor_executado = 'Não pode ser negativo.'
+      if (!vazio(r.valor_executado) && !vazio(r.valor) && num(r.valor_executado) > num(r.valor)) erros.valor_executado = 'O executado passa do valor do contrato.'
+      if (r.tipo_garantia && r.tipo_garantia !== 'sem_garantia' && (vazio(r.valor_garantia) || num(r.valor_garantia) <= 0)) erros.valor_garantia = 'Informe o valor da garantia.'
       break
 
     case 'rotas_pte':

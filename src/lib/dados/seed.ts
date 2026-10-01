@@ -181,6 +181,8 @@ export function criarBaseDemonstracao(versao: number): Base {
     novo({ nome: 'Diana Diretora DAFI – UDI (fictícia)', email: 'dafi.udi@demo.exemplo', papel: 'diretor_sre', sre_id: sre('UDI'), ativo: true }),
     novo({ nome: 'Sérgio Analista – UDI (fictício)', email: 'analista.udi@demo.exemplo', papel: 'analista_sre', sre_id: sre('UDI'), ativo: true }),
     novo({ nome: 'Mariana Analista – MOC (fictícia)', email: 'analista.moc@demo.exemplo', papel: 'analista_sre', sre_id: sre('MOC'), ativo: true }),
+    novo({ nome: 'Prefeitura de Montes Claros (fictícia)', email: 'prefeitura.moc@demo.exemplo', papel: 'municipio', sre_id: null, municipio_id: municipio('Montes Claros').id, ativo: true }),
+    novo({ nome: 'Prefeitura de Uberlândia (fictícia)', email: 'prefeitura.udi@demo.exemplo', papel: 'municipio', sre_id: null, municipio_id: municipio('Uberlândia').id, ativo: true }),
   ]
 
   const hoje = hojeIso()

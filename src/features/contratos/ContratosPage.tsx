@@ -33,9 +33,11 @@ function Cartao({ titulo, valor, detalhe, ativo, cor, onClick }: { titulo: strin
 export function ContratosPage() {
   const usuario = useUsuario()
   const navegar = useNavigate()
-  const { dados, itens, recarregar, hoje } = useGestaoContratual()
+  const { dados, itens: todos, recarregar, hoje } = useGestaoContratual()
+  // termos de repasse do PTE ficam na tela PTE
+  const itens = useMemo(() => todos.filter((i) => i.instrumento.tipo === 'contrato_caixa'), [todos])
+  const ids = useMemo(() => new Set(itens.map((i) => i.instrumento.id)), [itens])
   const [filtro, setFiltro] = useState<Filtro>('ativos')
-  const [tipo, setTipo] = useState('')
   const [busca, setBusca] = useState('')
   const [novo, setNovo] = useState(false)
 
@@ -44,10 +46,10 @@ export function ContratosPage() {
     () =>
       new Set(
         (dados.prestacoes_contas ?? [])
-          .filter((p) => situacaoPrazoPrestacao(p, hoje) === 'vencida')
+          .filter((p) => ids.has(p.instrumento_id as string) && situacaoPrazoPrestacao(p, hoje) === 'vencida')
           .map((p) => p.instrumento_id as string),
       ),
-    [dados, hoje],
+    [dados, hoje, ids],
   )
 
   const resumo = useMemo(() => {
@@ -61,12 +63,12 @@ export function ContratosPage() {
       vencidos: conta('vencido'),
       encerrados: conta('encerrado'),
       comAlerta: itens.filter((i) => i.alertas.some((a) => a.nivel === 'critico')).length,
-      prestacoesAtrasadas: (dados.prestacoes_contas ?? []).filter((p) => situacaoPrazoPrestacao(p, hoje) === 'vencida').length,
+      prestacoesAtrasadas: (dados.prestacoes_contas ?? []).filter((p) => ids.has(p.instrumento_id as string) && situacaoPrazoPrestacao(p, hoje) === 'vencida').length,
       valorAtual: ativos.reduce((s, i) => s + i.situacao.valor_atual, 0),
       executado: ativos.reduce((s, i) => s + i.situacao.valor_executado, 0),
       saldo: ativos.reduce((s, i) => s + i.situacao.saldo, 0),
     }
-  }, [itens, dados, hoje])
+  }, [itens, dados, hoje, ids])
 
   const linhas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR')
@@ -83,14 +85,13 @@ export function ContratosPage() {
           default: return true
         }
       })
-      .filter((i) => !tipo || i.instrumento.tipo === tipo)
       .filter((i) =>
         !termo ||
         [i.processo?.codigo, i.instrumento.numero, i.instrumento.numero_sei, i.contratante, i.contratado, i.sigla_sre, i.instrumento.objeto]
           .some((t) => String(t ?? '').toLocaleLowerCase('pt-BR').includes(termo)),
       )
       .sort((a, b) => a.situacao.dias_para_vencer - b.situacao.dias_para_vencer)
-  }, [itens, filtro, tipo, busca, comPrestacaoAtrasada])
+  }, [itens, filtro, busca, comPrestacaoAtrasada])
 
   function exportar() {
     const cab = ['Código único', 'Nº SEI', 'Tipo', 'Nº', 'SRE', 'Contratante', 'Contratado', 'Início', 'Fim vigência atual', 'Dias p/ vencer', 'Situação',
@@ -115,7 +116,7 @@ export function ContratosPage() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Gestão contratual</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Contratos Caixa Escolar × transportador e termos Estado × município.
+            Contratos das Caixas Escolares com os transportadores (os termos de repasse aos municípios ficam na tela PTE).
             {!ehCentral(usuario) && ' Você vê apenas os instrumentos da sua regional.'}
           </p>
         </div>
@@ -159,11 +160,6 @@ export function ContratosPage() {
           <Search size={16} className="pointer-events-none absolute top-2.5 left-3 text-slate-400" />
           <input className="campo pl-9" placeholder="Código, nº, SEI, contratante, contratado…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
         </div>
-        <select className="campo w-auto" value={tipo} onChange={(e) => setTipo(e.target.value)} aria-label="Tipo">
-          <option value="">Todos os tipos</option>
-          <option value="contrato_caixa">Contratos (Judicial)</option>
-          <option value="termo_pte">Termos (PTE)</option>
-        </select>
         <select className="campo w-auto" value={filtro} onChange={(e) => setFiltro(e.target.value as Filtro)} aria-label="Situação">
           <option value="todos">Todas as situações</option>
           <option value="ativos">Ativos</option>
@@ -241,6 +237,7 @@ export function ContratosPage() {
             config={INSTRUMENTO}
             registro={null}
             referencias={dados}
+            valoresFixos={{ tipo: 'contrato_caixa' }}
             aoCancelar={() => setNovo(false)}
             aoSalvar={async (r) => {
               setNovo(false)

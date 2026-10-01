@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { hojeIso } from '../diasUteis'
 import { carregarBase, restaurarDemonstracao } from './armazenamento'
-import { ErroPermissao, ErroRegra, ErroValidacao, salvar, transacao } from './repositorio'
+import { ErroPermissao, ErroRegra, ErroValidacao, listar, salvar, transacao } from './repositorio'
 import { calcularPrioridade } from '../judicial/abertura'
 import { situacaoOficio } from '../judicial/oficios'
-import { aprovarCiclo, calcularAdesao, consultarSre, criarOficio, criarPaf, decidirAutorizacao, executarConciliacao, gerarCronograma, gerarPrestacoesPrevistas, abrirDemandaTransporte, escolherCotacao, salvarNecessidadeTransporte, registrarRespostaOficio, responderConsulta } from './servicos'
+import { consultarSre, criarTermoRepasse, criarOficio, criarPaf, decidirAutorizacao, gerarCronograma, gerarPrestacoesPrevistas, abrirDemandaTransporte, escolherCotacao, salvarNecessidadeTransporte, registrarRespostaOficio, responderConsulta } from './servicos'
 import { concluirEtapa } from './servicos'
 import type { Registro, Usuario } from './tipos'
 
@@ -153,26 +153,45 @@ describe('fluxo judicial', () => {
   })
 })
 
-describe('PTE', () => {
-  it('conciliação mantém justificativas, cálculo exclui divergências abertas e aprovação é única', async () => {
-    const ciclo = b().colecoes.ciclos_pte.find((c) => c.ano === 2027)!
-    const [aUdi, aJan] = b().colecoes.adesoes_pte.filter((a) => a.ciclo_id === ciclo.id)
-    await executarConciliacao(central(), aJan.id)
-    const div = b().colecoes.divergencias.find((d) => d.adesao_id === aUdi.id && d.status === 'aberta')!
-    await salvar('divergencias', { id: div.id, status: 'justificada', resolucao: 'Confirmado com a escola' }, central())
-    await executarConciliacao(central(), aUdi.id)
-    expect(b().colecoes.divergencias.find((d) => d.id === div.id)!.status).toBe('justificada')
+describe('PTE: termo de repasse e perfil Município', () => {
+  it('central cria o termo de repasse com parcelas e prestação anual; não duplica município no ano', async () => {
+    const jan = b().colecoes.municipios.find((m) => m.nome === 'Januária')!
+    const dados = {
+      municipio_id: jan.id, ano: 2027, numero: 'TC 040/2027', numero_sei: 'SEI-PTE', data_assinatura: hojeIso(), vigencia_inicio: '2027-02-01', vigencia_fim: '2027-12-20',
+      valor_global: 50000, num_parcelas: 10, primeira_parcela: '2027-02-10', dotacao_orcamentaria: 'X', gestor_id: central().id, fiscal_id: central().id,
+    }
+    await expect(criarTermoRepasse(usuario('prefeitura.moc@demo.exemplo'), dados)).rejects.toBeInstanceOf(ErroPermissao)
+    const ad = await criarTermoRepasse(central(), dados)
+    const termo = b().colecoes.instrumentos.find((i) => i.processo_id === ad.processo_id)!
+    expect(termo.tipo).toBe('termo_pte')
+    const parcelas = b().colecoes.parcelas.filter((p) => p.instrumento_id === termo.id)
+    expect(parcelas).toHaveLength(10)
+    expect(parcelas.reduce((t, p) => t + Number(p.valor_previsto), 0)).toBeCloseTo(50000, 2)
+    expect(b().colecoes.prestacoes_contas.some((p) => p.instrumento_id === termo.id && p.data_limite === '2028-02-28')).toBe(true)
+    await expect(criarTermoRepasse(central(), { ...dados, numero: 'TC 041/2027' })).rejects.toThrow(/já tem termo/)
+  })
 
-    await expect(aprovarCiclo(central(), ciclo.id)).rejects.toThrow(/sem cálculo/)
-    const calc = await calcularAdesao(central(), aUdi.id)
-    const abertas = b().colecoes.divergencias.filter((d) => d.adesao_id === aUdi.id && d.status === 'aberta').length
-    expect(Number(calc.qtd_alunos_validos)).toBeLessThan(12)
-    expect(abertas).toBeGreaterThan(0)
-    await calcularAdesao(central(), aJan.id)
-    await expect(aprovarCiclo(usuario('analista.udi@demo.exemplo'), ciclo.id)).rejects.toBeInstanceOf(ErroPermissao)
-    await aprovarCiclo(central(), ciclo.id)
-    await expect(aprovarCiclo(central(), ciclo.id)).rejects.toThrow(/já foi aprovado/)
-    await expect(calcularAdesao(central(), aUdi.id)).rejects.toThrow()
+  it('prefeitura vê e preenche só o seu município; não vê o Judicial nem edita o termo', async () => {
+    const pref = usuario('prefeitura.moc@demo.exemplo')
+    const minhas = await listar('adesoes_pte', pref)
+    expect(minhas.length).toBeGreaterThan(0)
+    expect(minhas.every((a) => a.municipio_id === pref.municipio_id)).toBe(true)
+    expect(await listar('demandas', pref)).toHaveLength(0)
+    expect(await listar('oficios', pref)).toHaveLength(0)
+    expect((await listar('instrumentos', pref)).every((i) => i.tipo === 'termo_pte' && i.municipio_id === pref.municipio_id)).toBe(true)
+    const t = b().colecoes.transportadores[0]
+    const contrato = await salvar('contratacoes_municipais', { adesao_id: minhas[0].id, tipo: 'terceirizado', transportador_id: t.id, numero_contrato: '099/2026', modalidade: 'pregao', vigencia_inicio: '2026-02-01', vigencia_fim: '2026-12-20', valor: 1000, valor_executado: 400 }, pref)
+    expect(contrato.valor_saldo).toBe(600)
+    const outra = b().colecoes.adesoes_pte.find((a) => a.municipio_id !== pref.municipio_id)!
+    await expect(salvar('contratacoes_municipais', { adesao_id: outra.id, tipo: 'frota_propria' }, pref)).rejects.toBeInstanceOf(ErroPermissao)
+    const termo = b().colecoes.instrumentos.find((i) => i.tipo === 'termo_pte' && i.municipio_id === pref.municipio_id)!
+    await expect(salvar('instrumentos', { id: termo.id, valor_global: 1 }, pref)).rejects.toBeInstanceOf(ErroPermissao)
+    // prestação: o município entrega, mas não decide
+    const prest = b().colecoes.prestacoes_contas.find((p) => p.instrumento_id === termo.id && p.status === 'pendente')
+    if (prest) {
+      await salvar('prestacoes_contas', { id: prest.id, status: 'em_analise', data_entrega: hojeIso() }, pref)
+      await expect(salvar('prestacoes_contas', { id: prest.id, status: 'aprovada', data_decisao: hojeIso(), analista_id: pref.id, parecer: 'ok' }, pref)).rejects.toBeInstanceOf(ErroValidacao)
+    }
   })
 })
 
@@ -202,11 +221,5 @@ describe('frota e conformidade legal', () => {
     await expect(salvar('condutores', { ...base, data_nascimento: '1990-01-01', cnh_categoria: 'B' }, central())).rejects.toMatchObject({ erros: { cnh_categoria: expect.stringContaining('categoria D') } })
   })
 
-  it('etapa P03 do PTE fica bloqueada com documento obrigatório vencido', async () => {
-    const adesao = b().colecoes.adesoes_pte.find((a) => a.status === 'execucao')!
-    const { montarDadosProcesso, pendenciasDeDados } = await import('../fluxo/processo')
-    const d = montarDadosProcesso((c) => b().colecoes[c], String(adesao.processo_id))
-    expect(pendenciasDeDados('P03', d).some((p) => p.includes('art. 8º'))).toBe(true)
-  })
 
 })

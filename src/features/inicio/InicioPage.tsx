@@ -1,6 +1,6 @@
 import { RotateCcw } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { PontoSemaforo } from '@/components/comum/Semaforo'
 import { Botao } from '@/components/ui/Botao'
 import { Modal } from '@/components/ui/Modal'
@@ -14,7 +14,7 @@ import { hojeIso } from '@/lib/diasUteis'
 import { limparArquivos } from '@/lib/documentos/arquivos'
 import { ROTULO_NIVEL } from '@/lib/fluxo/sla'
 import { situacaoDosInstrumentos, situacaoDosProcessos } from '@/lib/monitoramento'
-import { ehCentral } from '@/lib/permissoes'
+import { ehCentral, ehMunicipio } from '@/lib/permissoes'
 
 const ORDEM = { vermelho: 0, amarelo: 1, verde: 2, cinza: 3 }
 
@@ -58,6 +58,9 @@ export function InicioPage() {
     await limparArquivos().catch(() => undefined)
     sair() // os ids dos usuários mudam; volta ao login
   }
+
+  // a prefeitura trabalha só no PTE do seu município
+  if (ehMunicipio(usuario)) return <Navigate to="/pte" replace />
 
   return (
     <div>

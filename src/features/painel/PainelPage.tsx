@@ -95,16 +95,11 @@ export function PainelPage() {
         </div>
       </Bloco>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Bloco titulo="Tempo médio por etapa — Judicial" descricao="Dias úteis das etapas concluídas (entre parênteses, quantas). Traço = SLA. Etapas contínuas (execução) não entram.">
-          <BarrasHorizontais itens={p.tempoJudicial} rotuloReferencia="SLA" vazio="Nenhuma etapa concluída." />
-        </Bloco>
-        <Bloco titulo="Tempo médio por etapa — PTE" descricao="Dias úteis das etapas concluídas. Traço = SLA.">
-          <BarrasHorizontais itens={p.tempoPte} rotuloReferencia="SLA" vazio="Nenhuma etapa concluída." />
-        </Bloco>
-      </div>
+      <Bloco titulo="Tempo médio por etapa — Contratações" descricao="Dias úteis das etapas concluídas (entre parênteses, quantas). Traço = SLA. Etapas contínuas (Contratos) não entram.">
+        <BarrasHorizontais itens={p.tempoJudicial} rotuloReferencia="SLA" vazio="Nenhuma etapa concluída." />
+      </Bloco>
 
-      <Bloco titulo="Contratos e termos" link={{ para: '/contratos', rotulo: 'Abrir gestão contratual' }}>
+      <Bloco titulo="Contratos das Caixas Escolares" link={{ para: '/contratos', rotulo: 'Abrir gestão contratual' }}>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Cartao titulo="Ativos" valor={p.contratos.ativos} />
           <Cartao titulo="A vencer" valor={p.contratos.ate90 + p.contratos.ate60 + p.contratos.ate30} detalhe={`${p.contratos.ate90} em 90 · ${p.contratos.ate60} em 60 · ${p.contratos.ate30} em 30 dias`} />
@@ -125,23 +120,21 @@ export function PainelPage() {
         </div>
       </Bloco>
 
-      <Bloco titulo="PTE" link={{ para: '/pte', rotulo: 'Abrir PTE' }}>
+      <Bloco titulo="PTE — termos de repasse aos municípios" link={{ para: '/pte', rotulo: 'Abrir PTE' }}>
         <div className="grid gap-4 lg:grid-cols-2">
-          {[p.pteExecucao && { titulo: `Ciclo ${p.pteExecucao.ano} (em execução)`, r: p.pteExecucao }, p.pteAdesao && { titulo: `Ciclo ${p.pteAdesao.ano} (em adesão)`, r: p.pteAdesao }]
-            .filter(Boolean)
-            .map((c) => (
-              <div key={c!.titulo}>
-                <h3 className="mb-2 text-sm font-semibold text-slate-800">{c!.titulo}</h3>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <Cartao titulo="Municípios aderidos" valor={c!.r.municipios} />
-                  <Cartao titulo="Alunos atendidos" valor={c!.r.alunos.toLocaleString('pt-BR')} />
-                  <Cartao titulo="Divergências TER × SIMADE" valor={c!.r.divergencias} cor={c!.r.divergencias ? 'text-red-600' : undefined} />
-                  <Cartao titulo="Valor calculado" valor={formatarMoeda(c!.r.calculado)} />
-                  <Cartao titulo="Repassado" valor={formatarMoeda(c!.r.repassado)} />
-                  <Cartao titulo="Prestações pendentes" valor={c!.r.prestacoes} />
-                </div>
+          {p.pte.map((r) => (
+            <div key={r.ano}>
+              <h3 className="mb-2 text-sm font-semibold text-slate-800">{r.ano}</h3>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <Cartao titulo="Municípios com termo" valor={r.municipios} />
+                <Cartao titulo="Alunos atendidos" valor={r.alunos.toLocaleString('pt-BR')} />
+                <Cartao titulo="Valor dos repasses" valor={formatarMoeda(r.valor)} />
+                <Cartao titulo="Repassado" valor={formatarMoeda(r.repassado)} detalhe={r.valor ? `${((r.repassado / r.valor) * 100).toFixed(0)}%` : undefined} />
+                <Cartao titulo="Gasto informado" valor={formatarMoeda(r.gasto)} />
+                <Cartao titulo="Prestações pendentes" valor={r.prestacoes} />
               </div>
-            ))}
+            </div>
+          ))}
         </div>
       </Bloco>
 

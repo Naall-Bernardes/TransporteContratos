@@ -14,12 +14,15 @@ export const ROTULO_PAPEL: Record<Papel, string> = {
   subsecretario: 'Subsecretário(a)',
   diretor_sre: 'Diretor DAFI (SRE)',
   analista_sre: 'Analista SRE',
+  municipio: 'Município (prefeitura)',
 }
 
 export const ehCentral = (u: Usuario) => u.papel === 'admin' || u.papel === 'analista_central'
 export const ehDiretorOuCentral = (u: Usuario) => ehCentral(u) || u.papel === 'diretor_sre'
 /** Quem enxerga todas as regionais (órgão central e subsecretário). */
 export const veTodasSres = (u: Usuario) => ehCentral(u) || u.papel === 'subsecretario'
+/** Usuário da prefeitura: vê e preenche só os dados do PTE do seu município. */
+export const ehMunicipio = (u: Usuario) => u.papel === 'municipio'
 /** Só o subsecretário autoriza a liberação do recurso. */
 export const podeAutorizarLiberacao = (u: Usuario) => u.papel === 'subsecretario'
 
@@ -74,6 +77,7 @@ const SOMENTE_CENTRAL: Colecao[] = [
 ]
 
 export function podeEditarColecao(u: Usuario, colecao: Colecao): boolean {
+  if (ehMunicipio(u)) return EDITA_MUNICIPIO.includes(colecao)
   // A decisão de liberação é exclusiva do subsecretário
   if (colecao === 'autorizacoes_subsecretario') return u.papel === 'subsecretario'
   // O subsecretário decide; ao aprovar/devolver, o sistema atualiza a demanda e as etapas
@@ -82,6 +86,56 @@ export function podeEditarColecao(u: Usuario, colecao: Colecao): boolean {
   if (SOMENTE_ADMIN.includes(colecao)) return false
   if (u.papel === 'analista_central') return true
   return !SOMENTE_CENTRAL.includes(colecao)
+}
+
+/** O que o município preenche: contratos, frota, rotas, alunos, despesas, documentos e a prestação de contas. */
+const EDITA_MUNICIPIO: Colecao[] = [
+  'contratacoes_municipais', 'alocacoes', 'rotas_pte', 'pte_alunos', 'despesas_pte',
+  'veiculos', 'condutores', 'transportadores', 'documentos', 'documento_versoes', 'prestacoes_contas',
+]
+
+/** Tabelas do PTE que pertencem a um município diretamente (campo municipio_id). */
+const MUNICIPIO_DIRETO: Colecao[] = ['adesoes_pte']
+/** Tabelas que herdam o município do registro pai. */
+const PAI_MUNICIPIO: Partial<Record<Colecao, [string, Colecao]>> = {
+  contratacoes_municipais: ['adesao_id', 'adesoes_pte'],
+  rotas_pte: ['adesao_id', 'adesoes_pte'],
+  pte_alunos: ['adesao_id', 'adesoes_pte'],
+  despesas_pte: ['adesao_id', 'adesoes_pte'],
+  divergencias: ['adesao_id', 'adesoes_pte'],
+  calculos_repasse: ['adesao_id', 'adesoes_pte'],
+  demandas_extraordinarias: ['adesao_id', 'adesoes_pte'],
+  alocacoes: ['contratacao_id', 'contratacoes_municipais'],
+  parcelas: ['instrumento_id', 'instrumentos'],
+  prestacoes_contas: ['instrumento_id', 'instrumentos'],
+  aditivos: ['instrumento_id', 'instrumentos'],
+  fiscalizacoes: ['instrumento_id', 'instrumentos'],
+  ocorrencias: ['instrumento_id', 'instrumentos'],
+  documentos: ['processo_id', 'processos'],
+  documento_versoes: ['documento_id', 'documentos'],
+  processo_etapas: ['processo_id', 'processos'],
+}
+/** Fora do alcance do município (Judicial/MP, ofícios, contratos das Caixas Escolares). */
+const NAO_MUNICIPAL = '__nao_municipal__'
+const SEM_DONO = '__geral__'
+
+/** Município "dono" do registro, para o perfil Município. */
+export function municipioDoRegistro(colecao: Colecao, r: Registro | undefined, consulta: Consulta, profundidade = 0): string {
+  if (!r || profundidade > 6) return NAO_MUNICIPAL
+  if (MUNICIPIO_DIRETO.includes(colecao)) return String(r.municipio_id ?? NAO_MUNICIPAL)
+  if (colecao === 'processos') return r.modulo === 'PTE' ? String(r.municipio_id ?? NAO_MUNICIPAL) : NAO_MUNICIPAL
+  if (colecao === 'instrumentos') return r.tipo === 'termo_pte' ? String(r.municipio_id ?? NAO_MUNICIPAL) : NAO_MUNICIPAL
+  const pai = PAI_MUNICIPIO[colecao]
+  if (pai) {
+    const [campo, tabela] = pai
+    // documento de veículo/condutor/contratado (sem processo) e alocação sem contratação do município
+    if (!r[campo]) return colecao === 'documentos' || colecao === 'documento_versoes' ? SEM_DONO : NAO_MUNICIPAL
+    return municipioDoRegistro(tabela, consulta(tabela, r[campo]), consulta, profundidade + 1)
+  }
+  // registros ligados a SRE (Judicial/MP, ofícios, preços…) ficam de fora; cadastros gerais são visíveis
+  const sre = sreDoRegistro(colecao, r, consulta)
+  if (sre !== null && colecao !== 'usuarios' && colecao !== 'escolas') return NAO_MUNICIPAL
+  return SEM_DONO
 }
 
 const SEM_SRE = '__sem_sre__'
@@ -107,6 +161,10 @@ export function sreDoRegistro(colecao: Colecao, r: Registro | undefined, consult
 }
 
 export function podeVer(u: Usuario, colecao: Colecao, r: Registro, consulta: Consulta): boolean {
+  if (ehMunicipio(u)) {
+    const m = municipioDoRegistro(colecao, r, consulta)
+    return m === SEM_DONO || m === u.municipio_id
+  }
   if (veTodasSres(u)) return true
   const sre = sreDoRegistro(colecao, r, consulta)
   return sre === null || sre === u.sre_id
@@ -114,6 +172,11 @@ export function podeVer(u: Usuario, colecao: Colecao, r: Registro, consulta: Con
 
 export function podeEditar(u: Usuario, colecao: Colecao, r: Registro, consulta: Consulta): boolean {
   if (!podeEditarColecao(u, colecao)) return false
+  if (ehMunicipio(u)) {
+    const m = municipioDoRegistro(colecao, r, consulta)
+    // cadastros gerais que o município mantém (veículos, condutores, contratados e seus documentos)
+    return m === u.municipio_id || (m === SEM_DONO && ['veiculos', 'condutores', 'transportadores', 'documentos', 'documento_versoes'].includes(colecao))
+  }
   if (veTodasSres(u)) return true
   const sre = sreDoRegistro(colecao, r, consulta)
   return sre === null || sre === u.sre_id

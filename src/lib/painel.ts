@@ -55,29 +55,30 @@ export function calcularPainel(lista: (c: Colecao) => Registro[], hoje: string) 
     }
 
     // Contratos
-    const inst = situacaoDosInstrumentos(lista, hoje)
+    // só contratos das Caixas Escolares (os termos do PTE têm bloco próprio)
+    const inst = situacaoDosInstrumentos(lista, hoje).filter((i) => i.instrumento.tipo === 'contrato_caixa')
+    const idsContratos = new Set(inst.map((i) => i.instrumento.id))
     const ativosI = inst.filter((i) => !['encerrado', 'vencido'].includes(i.situacao.faixa))
     const conta = (f: string) => inst.filter((i) => i.situacao.faixa === f).length
 
-    // PTE: ciclo mais recente aprovado (em execução) e ciclo em adesão
-    const ciclos = [...lista('ciclos_pte')].sort((a, b) => Number(b.ano) - Number(a.ano))
-    const resumoCiclo = (c: (typeof ciclos)[number] | undefined) => {
-      if (!c) return null
-      const ades = lista('adesoes_pte').filter((a) => a.ciclo_id === c.id)
+    // PTE: termos de repasse por ano (o município informa contratos, despesas e prestação)
+    const anos = [...new Set(lista('ciclos_pte').map((c) => Number(c.ano)))].sort((a, b) => b - a)
+    const resumoAno = (ano: number) => {
+      const ciclo = lista('ciclos_pte').find((c) => Number(c.ano) === ano)
+      const ades = lista('adesoes_pte').filter((a) => a.ciclo_id === ciclo?.id)
       const ids = new Set(ades.map((a) => a.id))
-      const termos = lista('instrumentos').filter((i) => ades.some((a) => a.processo_id === i.processo_id))
+      const termos = lista('instrumentos').filter((i) => i.tipo === 'termo_pte' && ades.some((a) => a.processo_id === i.processo_id))
       const tids = new Set(termos.map((t) => t.id))
       return {
-        ano: c.ano,
+        ano,
         municipios: ades.length,
         alunos: lista('pte_alunos').filter((a) => ids.has(a.adesao_id as string) && a.ativo !== false).length,
-        divergencias: lista('divergencias').filter((d) => ids.has(d.adesao_id as string) && d.status === 'aberta').length,
-        calculado: ades.reduce((t, a) => t + Number(lista('calculos_repasse').filter((x) => x.adesao_id === a.id).sort((x, y) => Number(y.versao) - Number(x.versao))[0]?.valor_calculado ?? 0), 0),
+        valor: termos.reduce((t, x) => t + Number(x.valor_global || 0), 0),
         repassado: lista('parcelas').filter((x) => tids.has(x.instrumento_id as string)).reduce((t, x) => t + Number(x.valor_pago || 0), 0),
+        gasto: lista('despesas_pte').filter((x) => ids.has(x.adesao_id as string)).reduce((t, x) => t + Number(x.valor || 0), 0),
         prestacoes: lista('prestacoes_contas').filter((x) => tids.has(x.instrumento_id as string) && !['aprovada', 'aprovada_ressalvas', 'reprovada'].includes(String(x.status))).length,
       }
     }
-
 
     // Conformidade legal da frota em serviço (contratos judiciais e contratações do PTE)
     const entidadesEmServico = new Map<string, { pendentes: number; aVencer: number }>()
@@ -105,7 +106,6 @@ export function calcularPainel(lista: (c: Colecao) => Registro[], hoje: string) 
       porEtapa,
       porSre,
       tempoJudicial: tempoEtapa('JUDICIAL'),
-      tempoPte: tempoEtapa('PTE'),
       pendDocs: [...pendDocs.entries()].map(([rotulo, valor]) => ({ rotulo, valor })).sort((a, b) => a.rotulo.localeCompare(b.rotulo)),
       contratos: {
         ativos: ativosI.length,
@@ -116,9 +116,8 @@ export function calcularPainel(lista: (c: Colecao) => Registro[], hoje: string) 
         valor: ativosI.reduce((t, i) => t + i.situacao.valor_atual, 0),
         executado: ativosI.reduce((t, i) => t + i.situacao.valor_executado, 0),
         saldo: ativosI.reduce((t, i) => t + i.situacao.saldo, 0),
-        prestacoesAtrasadas: lista('prestacoes_contas').filter((x) => situacaoPrazoPrestacao(x, hoje) === 'vencida').length,
+        prestacoesAtrasadas: lista('prestacoes_contas').filter((x) => idsContratos.has(x.instrumento_id as string) && situacaoPrazoPrestacao(x, hoje) === 'vencida').length,
       },
-      pteExecucao: resumoCiclo(ciclos.find((c) => c.aprovado_em && c.status !== 'encerrado')),
-      pteAdesao: resumoCiclo(ciclos.find((c) => !c.aprovado_em)),
+      pte: anos.slice(0, 2).map(resumoAno),
     }
 }

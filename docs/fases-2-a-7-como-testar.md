@@ -177,3 +177,17 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 | 91 | Concluir a etapa → Autorização (como **Sofia**) | Ver coluna "Valor a liberar" e o dossiê | Valor = média das cotações; dossiê lista as cotações e a justificativa |
 | 92 | "Devolver para ajuste" | — | A demanda volta para a Escolha do transporte |
 
+## Rodada 10 — PTE pelo município (D54)
+
+> Os passos antigos do PTE (ciclos, conciliação SIMADE, cálculo, aprovação, etapas P02–P05) não valem mais.
+
+| # | Onde | Passo | Esperado |
+|---|---|---|---|
+| 93 | Carlos → PTE | Ver lista | Termos de Januária 2025 (encerrado), Montes Claros 2026 e Uberlândia 2027, com repasse, repassado, gasto, contratos/frota e prestação |
+| 94 | "Novo termo de repasse" | Januária, 2027, valor, 10 parcelas | Termo criado com 10 repasses e prestação "Exercício 2027" até 28/02/2028 |
+| 95 | Sair e entrar como **Prefeitura de Montes Claros** | — | Menu só com "PTE — meus termos" (e, em Cadastros, transportadores, veículos e condutores); vê só Montes Claros |
+| 96 | Termo 2026 → Contratos do município | Incluir/editar contrato | Campos de executado, saldo (calculado) e garantia |
+| 97 | Frota e motoristas / Rotas e alunos / Despesas | Preencher | Município edita; documentos da frota com pendências em vermelho |
+| 98 | Prestação de contas | "Registrar entrega" | Permitido; diligência e decisão não aparecem para a prefeitura |
+| 99 | Contratos e termos (como Carlos) | — | Só contratos das Caixas Escolares |
+

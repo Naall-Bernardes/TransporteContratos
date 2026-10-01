@@ -17,7 +17,7 @@ import type { Colecao } from '@/lib/dados/tipos'
 import { hojeIso } from '@/lib/diasUteis'
 import { contarDemandasPorEtapa } from '@/lib/monitoramento'
 import { podeVer } from '@/lib/permissoes'
-import { ehCentral, podeVerAuditoria, ROTULO_PAPEL } from '@/lib/permissoes'
+import { ehCentral, ehMunicipio, podeVerAuditoria, ROTULO_PAPEL } from '@/lib/permissoes'
 
 const estiloLink = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${isActive ? 'bg-marca-600 text-white' : 'text-marca-100 hover:bg-marca-800'}`
@@ -78,7 +78,13 @@ export function Layout() {
   }, [pathname, usuario, emJudicial]) // pathname: recalcula a cada navegação, refletindo etapas concluídas
   const Item = (p: { para: string; icone: ReactNode; children: ReactNode; fim?: boolean }) => <ItemMenu {...p} aoClicar={fechar} />
 
-  const menuTransporte = (
+  const prefeitura = ehMunicipio(usuario)
+  const menuTransporte = prefeitura ? (
+    <>
+      <Grupo titulo="Município" />
+      <Item para="/pte" icone={<Route size={16} />}>PTE — meus termos</Item>
+    </>
+  ) : (
     <>
       <Item para="/" fim icone={<Home size={16} />}>Início</Item>
       <Item para="/painel" icone={<BarChart3 size={16} />}>Painel</Item>
@@ -103,7 +109,14 @@ export function Layout() {
     </>
   )
 
-  const menuCadastros = (
+  const menuCadastros = prefeitura ? (
+    <>
+      <Grupo titulo="Transporte do município" />
+      <Item para="/cadastros/transportadores" icone={<Truck size={16} />}>Transportadores</Item>
+      <Item para="/cadastros/veiculos" icone={<CarFront size={16} />}>Veículos e embarcações</Item>
+      <Item para="/cadastros/condutores" icone={<UserRound size={16} />}>Condutores e monitores</Item>
+    </>
+  ) : (
     <>
       <Item para="/cadastros" fim icone={<LayoutGrid size={16} />}>Visão geral</Item>
       <Grupo titulo="Rede e território" />

@@ -55,6 +55,7 @@ export const REFERENCIAS: { origem: Colecao; campo: string; alvo: Colecao }[] = 
   { origem: 'precos_referencia', campo: 'tipo_veiculo_id', alvo: 'tipos_veiculo' },
   { origem: 'feriados', campo: 'municipio_id', alvo: 'municipios' },
   { origem: 'usuarios', campo: 'sre_id', alvo: 'sres' },
+  { origem: 'usuarios', campo: 'municipio_id', alvo: 'municipios' },
   { origem: 'processos', campo: 'sre_id', alvo: 'sres' },
   { origem: 'processos', campo: 'municipio_id', alvo: 'municipios' },
   { origem: 'instrumentos', campo: 'processo_id', alvo: 'processos' },
@@ -144,7 +145,8 @@ export function normalizar(colecao: Colecao, dados: Campos, consulta: Consulta):
       break
     case 'usuarios':
       if (d.email) d.email = String(d.email).toLowerCase()
-      if (d.papel === 'admin' || d.papel === 'analista_central' || d.papel === 'subsecretario') d.sre_id = null
+      if (d.papel === 'admin' || d.papel === 'analista_central' || d.papel === 'subsecretario' || d.papel === 'municipio') d.sre_id = null
+      if ('papel' in d && d.papel !== 'municipio') d.municipio_id = null
       break
   }
   if (ehContrato(colecao)) return normalizarContrato(colecao, d, consulta)
@@ -229,6 +231,7 @@ export function validar(colecao: Colecao, r: Registro, existentes: Registro[], c
     case 'usuarios':
       if ((r.papel === 'diretor_sre' || r.papel === 'analista_sre') && vazio(r.sre_id))
         erros.sre_id = 'Usuário de SRE precisa ter a regional informada.'
+      if (r.papel === 'municipio' && vazio(r.municipio_id)) erros.municipio_id = 'Usuário de prefeitura precisa ter o município informado.'
       if (r.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(r.email))) erros.email = 'E-mail inválido.'
       break
   }

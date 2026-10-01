@@ -134,7 +134,7 @@ export const FILHAS_INSTRUMENTO: ColecaoContrato[] = [
   'prestacoes_contas',
 ]
 
-export type Papel = 'admin' | 'analista_central' | 'subsecretario' | 'diretor_sre' | 'analista_sre'
+export type Papel = 'admin' | 'analista_central' | 'subsecretario' | 'diretor_sre' | 'analista_sre' | 'municipio'
 
 export interface Registro {
   id: string

@@ -11,7 +11,6 @@ import { ehCentral, ehDiretorOuCentral, podeAutorizarLiberacao } from '../permis
 import { calcularPrioridade, errosAbertura, errosNecessidade, type DadosAbertura, type NecessidadeTransporte } from '../judicial/abertura'
 import { resumoCotacoes } from '../judicial/cotacoes'
 import { origemDoOrgao } from '../judicial/oficios'
-import { calcularRepasse, conciliar, DIVERGENCIAS_DE_ROTA, inconsistenciasRotas } from '../pte/pte'
 import { criarProcesso, ErroPermissao, ErroRegra, ErroValidacao, transacao, type Tx } from './repositorio'
 import type { Colecao, Registro, Usuario } from './tipos'
 
@@ -264,7 +263,6 @@ function avancarDaEtapa(tx: Tx, usuario: Usuario, instancia: Registro, modelo: R
   const proxima = modelosDo(tx, modulo).find((m) => Number(m.ordem) > Number(modelo.ordem))
   if (proxima) {
     iniciarEtapa(tx, String(instancia.processo_id), proxima, responsavelPadrao(tx, usuario, proxima, dados.demanda))
-    if (dados.adesao) tx.salvar('adesoes_pte', { id: dados.adesao.id, status: STATUS_ADESAO[String(proxima.codigo)] ?? dados.adesao.status })
   } else {
     if (dados.demanda) tx.salvar('demandas', { id: dados.demanda.id, situacao: 'cumprida' })
     if (dados.adesao) tx.salvar('adesoes_pte', { id: dados.adesao.id, status: 'encerrado' })
@@ -344,131 +342,63 @@ export function criarPaf(usuario: Usuario, demandaId: string, p: DadosPaf) {
   })
 }
 
-const STATUS_ADESAO: Record<string, string> = {
-  P03: 'definicao_repasse',
-  P04: 'execucao',
-  P05: 'prestacao',
-}
-
 // ---------- PTE ----------
+// O fluxo de adesão/cálculo é feito em outro sistema. Aqui o Estado registra o termo de repasse
+// (valor pré-determinado e cronograma) e o município informa como executa o transporte.
 
-export function criarAdesao(usuario: Usuario, dados: Record<string, unknown>) {
-  return transacao(usuario, (tx) => {
-    const ciclo = tx.consulta('ciclos_pte', dados.ciclo_id)
-    const municipio = tx.consulta('municipios', dados.municipio_id)
-    if (!ciclo || !municipio) throw new ErroRegra('Escolha o ciclo e o município.')
-    if (ciclo.aprovado_em) throw new ErroRegra('Ciclo já aprovado: não aceita novas adesões.')
-    const processo = criarProcesso(tx, 'PTE', {
-      ano: Number(ciclo.ano),
-      sre_id: municipio.sre_id,
-      municipio_id: municipio.id,
-      numero_sei: dados.numero_sei,
-    })
-    const adesao = tx.salvar('adesoes_pte', { ...dados, processo_id: processo.id, status: 'aderido' })
-    iniciarEtapa(tx, processo.id, modelosDo(tx, 'PTE')[0], null)
-    return adesao
-  })
+export interface DadosTermoRepasse {
+  municipio_id: string
+  ano: number
+  numero: string
+  numero_sei: string
+  data_assinatura: string
+  vigencia_inicio: string
+  vigencia_fim: string
+  valor_global: number
+  num_parcelas: number
+  primeira_parcela: string
+  dotacao_orcamentaria: string
+  gestor_id: string
+  fiscal_id: string
 }
 
-/** Refaz a conciliação: novas divergências entram abertas; as que sumiram são marcadas corrigidas; justificadas são mantidas. */
-export function executarConciliacao(usuario: Usuario, adesaoId: string) {
+/** Cria o termo de repasse ao município: processo PTE, vínculo do município ao ano, termo, parcelas e prestação anual. */
+export function criarTermoRepasse(usuario: Usuario, t: DadosTermoRepasse) {
+  if (!ehCentral(usuario)) return Promise.reject(new ErroPermissao('O termo de repasse é cadastrado pelo órgão central.'))
   return transacao(usuario, (tx) => {
-    const adesao = tx.consulta('adesoes_pte', adesaoId)!
-    const informados = tx.lista('pte_alunos').filter((a) => a.adesao_id === adesaoId)
-    const simade = tx.lista('simade_registros').filter((s) => s.ciclo_id === adesao.ciclo_id)
-    const outras = tx
-      .lista('adesoes_pte')
-      .filter((a) => a.ciclo_id === adesao.ciclo_id && a.id !== adesaoId)
-      .flatMap((a) => {
-        const municipio = String(tx.consulta('municipios', a.municipio_id)?.nome ?? '')
-        return tx.lista('pte_alunos').filter((x) => x.adesao_id === a.id).map((aluno) => ({ aluno, municipio }))
-      })
-    const rotasCiclo = tx.lista('rotas_pte').filter((r) => tx.consulta('adesoes_pte', r.adesao_id)?.ciclo_id === adesao.ciclo_id && r.ativa !== false)
-    const mediaCusto = rotasCiclo.length ? rotasCiclo.reduce((t, r) => t + Number(r.custo_km || 0), 0) / rotasCiclo.length : 0
-    const encontradas = [
-      ...conciliar(informados, simade, outras),
-      ...inconsistenciasRotas(tx.lista('rotas_pte').filter((r) => r.adesao_id === adesaoId), informados, mediaCusto),
-    ]
-    const existentes = tx.lista('divergencias').filter((d) => d.adesao_id === adesaoId)
-    const chave = (d: Record<string, unknown>) => `${d.referencia ?? d.cod_simade}|${d.tipo}`
-    const atuais = new Set(encontradas.map((e) => chave({ ...e })))
-
-    for (const e of existentes)
-      if (!atuais.has(chave(e)) && e.status === 'aberta')
-        tx.salvar('divergencias', { id: e.id, status: 'corrigida', resolucao: `Não aparece mais na conciliação de ${formatarData(hojeIso())}.` })
-    for (const n of encontradas) {
-      const ja = existentes.find((e) => chave(e) === chave({ ...n }))
-      if (!ja) tx.salvar('divergencias', { adesao_id: adesaoId, ...n, status: 'aberta' })
-      else if (ja.status === 'corrigida') tx.salvar('divergencias', { id: ja.id, status: 'aberta', resolucao: null, descricao: n.descricao })
-    }
-    tx.salvar('adesoes_pte', { id: adesaoId, conciliado_em: hojeIso() })
-    return encontradas.length
-  })
-}
-
-export function calcularAdesao(usuario: Usuario, adesaoId: string) {
-  return transacao(usuario, (tx) => {
-    const adesao = tx.consulta('adesoes_pte', adesaoId)!
-    const ciclo = tx.consulta('ciclos_pte', adesao.ciclo_id)!
-    const abertas = tx.lista('divergencias').filter((d) => d.adesao_id === adesaoId && d.status === 'aberta')
-    const alunosDiv = new Set(abertas.filter((d) => !DIVERGENCIAS_DE_ROTA.includes(d.tipo as never)).map((d) => String(d.referencia)))
-    const rotasDiv = new Set(abertas.filter((d) => DIVERGENCIAS_DE_ROTA.includes(d.tipo as never)).map((d) => String(d.referencia).replace(/^ROTA /, '')))
-    const r = calcularRepasse(
-      tx.lista('rotas_pte').filter((x) => x.adesao_id === adesaoId),
-      tx.lista('pte_alunos').filter((a) => a.adesao_id === adesaoId),
-      alunosDiv,
-      rotasDiv,
-      { dias_letivos: Number(ciclo.dias_letivos || 200), pnate_estadual: Number(adesao.pnate_estadual || 0), saldo_reprogramado: Number(adesao.saldo_reprogramado || 0) },
-    )
-    const versao = tx.lista('calculos_repasse').filter((c) => c.adesao_id === adesaoId).length + 1
-    const { rotas: _detalhe, ...resumo } = r
-    void _detalhe
-    return tx.salvar('calculos_repasse', { adesao_id: adesaoId, versao, ...resumo, calculado_em: hojeIso() })
-  })
-}
-
-/** Aprovação ÚNICA por ciclo: trava parâmetros e cálculos. */
-export function aprovarCiclo(usuario: Usuario, cicloId: string) {
-  return transacao(usuario, (tx) => {
-    if (!ehCentral(usuario)) throw new ErroPermissao('Só o órgão central aprova o ciclo.')
-    const ciclo = tx.consulta('ciclos_pte', cicloId)!
-    if (ciclo.aprovado_em) throw new ErroRegra('Este ciclo já foi aprovado.')
-    const adesoes = tx.lista('adesoes_pte').filter((a) => a.ciclo_id === cicloId)
-    const semCalculo = adesoes.filter((a) => !tx.lista('calculos_repasse').some((c) => c.adesao_id === a.id))
-    if (adesoes.length === 0) throw new ErroRegra('Nenhuma adesão neste ciclo.')
-    if (semCalculo.length) throw new ErroRegra(`${semCalculo.length} adesão(ões) ainda sem cálculo.`)
-    tx.salvar('ciclos_pte', { id: cicloId, aprovado_em: hojeIso(), aprovado_por: usuario.id, status: 'aprovado' })
-  })
-}
-
-/** Gera o termo/convênio da adesão com o valor aprovado e o cronograma de repasses do ciclo. */
-export function gerarTermo(usuario: Usuario, adesaoId: string, dados: Record<string, unknown>) {
-  return transacao(usuario, (tx) => {
-    const adesao = tx.consulta('adesoes_pte', adesaoId)!
-    const ciclo = tx.consulta('ciclos_pte', adesao.ciclo_id)!
-    if (!ciclo.aprovado_em) throw new ErroRegra('Aprove o ciclo antes de gerar o termo.')
-    if (tx.lista('instrumentos').some((i) => i.processo_id === adesao.processo_id)) throw new ErroRegra('Esta adesão já tem termo.')
-    const calculos = tx.lista('calculos_repasse').filter((c) => c.adesao_id === adesaoId)
-    const ultimo = calculos.sort((a, b) => Number(b.versao) - Number(a.versao))[0]
-    const municipio = tx.consulta('municipios', adesao.municipio_id)
+    const municipio = tx.consulta('municipios', t.municipio_id)
+    if (!municipio) throw new ErroRegra('Escolha o município.')
+    const ano = Number(t.ano)
+    if (!ano) throw new ErroRegra('Informe o ano.')
+    const parcelas = Number(t.num_parcelas)
+    if (!parcelas || parcelas < 1 || parcelas > 12) throw new ErroValidacao({ num_parcelas: 'Informe de 1 a 12 parcelas.' })
+    if (!t.primeira_parcela) throw new ErroValidacao({ primeira_parcela: 'Informe a data da 1ª parcela.' })
+    const ciclo = tx.lista('ciclos_pte').find((c) => Number(c.ano) === ano) ?? tx.salvar('ciclos_pte', { ano, status: 'aprovado', dias_letivos: 200, num_parcelas: parcelas, vigencia_inicio: t.vigencia_inicio, vigencia_fim: t.vigencia_fim })
+    if (tx.lista('adesoes_pte').some((a) => a.ciclo_id === ciclo.id && a.municipio_id === municipio.id)) throw new ErroRegra(`${municipio.nome} já tem termo de repasse em ${ano}.`)
+    const processo = criarProcesso(tx, 'PTE', { ano, sre_id: municipio.sre_id, municipio_id: municipio.id, numero_sei: t.numero_sei })
+    const adesao = tx.salvar('adesoes_pte', { processo_id: processo.id, ciclo_id: ciclo.id, municipio_id: municipio.id, data_adesao: t.data_assinatura, status: 'execucao', numero_sei: t.numero_sei })
     const inst = tx.salvar('instrumentos', {
       tipo: 'termo_pte',
-      processo_id: adesao.processo_id,
-      municipio_id: adesao.municipio_id,
-      objeto: `Repasse PTE/MG ${ciclo.ano} ao município de ${municipio?.nome} para transporte de estudantes da rede estadual.`,
-      vigencia_inicio: ciclo.vigencia_inicio,
-      vigencia_fim: ciclo.vigencia_fim,
-      valor_global: ultimo?.valor_calculado,
+      processo_id: processo.id,
+      municipio_id: municipio.id,
+      numero: t.numero,
+      numero_sei: t.numero_sei,
+      objeto: `Repasse PTE/MG ${ano} ao município de ${municipio.nome} para transporte de estudantes da rede estadual.`,
+      data_assinatura: t.data_assinatura,
+      vigencia_inicio: t.vigencia_inicio,
+      vigencia_fim: t.vigencia_fim,
+      valor_global: t.valor_global,
+      dotacao_orcamentaria: t.dotacao_orcamentaria,
+      gestor_id: t.gestor_id,
+      fiscal_id: t.fiscal_id,
       status: 'vigente',
       periodicidade_prestacao: 'anual',
       prazo_prestacao_dias: 60,
-      ...dados,
     })
-    // Repasses mensais de fevereiro a novembro (Res. 5.267/2026, art. 16)
-    criarParcelas(tx, inst, Number(ciclo.num_parcelas || 10), `${ciclo.ano}-02-10`, 1)
-    // Prestação de contas anual até 28/02 do ano seguinte (art. 19, II; Decreto 46.946/2016, art. 9º)
-    tx.salvar('prestacoes_contas', { instrumento_id: inst.id, periodo_referencia: `Exercício ${ciclo.ano}`, data_limite: `${Number(ciclo.ano) + 1}-02-28`, status: 'pendente' })
-    return inst
+    criarParcelas(tx, inst, parcelas, t.primeira_parcela, 1)
+    // Prestação de contas anual até 28/02 do ano seguinte (Res. 5.267/2026, art. 19, II)
+    tx.salvar('prestacoes_contas', { instrumento_id: inst.id, periodo_referencia: `Exercício ${ano}`, data_limite: `${ano + 1}-02-28`, status: 'pendente' })
+    return adesao
   })
 }
 
@@ -582,25 +512,6 @@ export function importarAlunosTer(usuario: Usuario, adesaoId: string, linhas: Re
       turno: coluna(l, 'turno').toLowerCase().replace('ã', 'a') || null,
       origem: existente?.origem ?? 'TER',
       ativo: true,
-    })
-    return existente ? 'atualizado' : 'incluido'
-  })
-}
-
-/** Base SIMADE do ciclo. Colunas: matricula/cod_simade, nome, inep/escola_inep, ibge/municipio_ibge, situacao. */
-export function importarSimade(usuario: Usuario, cicloId: string, linhas: Record<string, string>[]) {
-  return importar(usuario, linhas, (tx, l) => {
-    const cod = coluna(l, 'cod_simade', 'matricula_simade', 'matricula', 'simade').replace(/\D/g, '')
-    const existente = tx.lista('simade_registros').find((s) => s.ciclo_id === cicloId && s.cod_simade === cod)
-    const situacao = coluna(l, 'situacao', 'situacao_matricula').toLowerCase()
-    tx.salvar('simade_registros', {
-      ...(existente ? { id: existente.id } : {}),
-      ciclo_id: cicloId,
-      cod_simade: cod,
-      nome: coluna(l, 'nome', 'nome_aluno'),
-      escola_inep: coluna(l, 'escola_inep', 'inep', 'cod_inep', 'codigo_inep'),
-      municipio_ibge: coluna(l, 'municipio_ibge', 'ibge', 'cod_ibge'),
-      situacao: ['ativo', 'ativa', 'matriculado', ''].includes(situacao) ? 'ativo' : situacao,
     })
     return existente ? 'atualizado' : 'incluido'
   })

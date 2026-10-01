@@ -12,6 +12,8 @@ import { situacaoPrazoPrestacao, TRANSICOES_PRESTACAO, ESTADOS_FINAIS_PRESTACAO 
 import { ROTULO_STATUS_PRESTACAO } from '@/lib/dados/regrasContratos'
 import type { Registro } from '@/lib/dados/tipos'
 import { formatarData } from '@/lib/formatacao'
+import { useUsuario } from '@/features/auth/Sessao'
+import { ehMunicipio } from '@/lib/permissoes'
 import { ACOES_PRESTACAO, CONFIGS_CONTRATO } from './configuracoes'
 
 interface Props {
@@ -43,6 +45,7 @@ const Linha = ({ rotulo, valor }: { rotulo: string; valor: unknown }) =>
 
 export function PrestacaoContas({ instrumentoId, prestacoes, referencias, podeEditar, hoje, aoAlterar }: Props) {
   const [acao, setAcao] = useState<{ nome: string; registro: Registro | null } | null>(null)
+  const municipio = ehMunicipio(useUsuario())
   const nomeAnalista = (id: unknown) => referencias.usuarios?.find((u) => u.id === id)?.nome
   const ordenadas = [...prestacoes].sort((a, b) => String(a.data_limite).localeCompare(String(b.data_limite)))
 
@@ -56,7 +59,7 @@ export function PrestacaoContas({ instrumentoId, prestacoes, referencias, podeEd
           Fluxo: pendente → em análise → aprovada / aprovada com ressalvas / reprovada. Se necessário, abre-se <strong>uma única</strong> diligência
           antes da decisão.
         </p>
-        {podeEditar && (
+        {podeEditar && !municipio && (
           <Botao onClick={() => setAcao({ nome: 'nova', registro: null })}>
             <Plus size={16} /> Prever prestação de contas
           </Botao>
@@ -81,7 +84,7 @@ export function PrestacaoContas({ instrumentoId, prestacoes, referencias, podeEd
                 </div>
                 {podeEditar && (
                   <div className="flex flex-wrap gap-2">
-                    {acoesDisponiveis(status).map((a) => (
+                    {acoesDisponiveis(status).filter((a) => !municipio || a === 'entregar' || a === 'reapresentar').map((a) => (
                       <Botao key={a} variante="secundario" onClick={() => setAcao({ nome: a, registro: p })}>
                         {ACOES_PRESTACAO[a].rotulo}
                       </Botao>
