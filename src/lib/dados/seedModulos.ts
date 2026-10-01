@@ -138,6 +138,7 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
     ['Aluna Fictícia Dez', 'Serra Verde'],
     ['Aluno Fictício Onze', 'Coração de Minas'],
     ['Aluna Fictícia Doze', 'Rio das Pedras'],
+    ['Aluno Fictício Treze', 'Aurora'],
   ].map(([nome, esc], i) =>
     push('alunos', novo({ nome, cod_simade: String(8800101 + i), data_nascimento: `201${2 + i}-0${i + 2}-10`, escola_atual_id: escola(esc).id, serie: `${6 + i}º ano`, turno: 'manha', ativo: true })),
   )
@@ -311,6 +312,35 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   demanda({ sre: 'MOC', escola: 'Serra Verde', alunos: ['Aluna Fictícia Dez'], etapa: 'C02', inicioEtapa: d(-4), prazo_judicial: d(5), origem: 'judicial', responsavel: mariana, valorEstimado: Number(precoMocAdaptado.valor), statusCaracterizacao: 'aprovada', pcd: true })
   // Aguardando o subsecretário, com devolução anterior no histórico e prazo judicial vencido
   demanda({ sre: 'MTA', escola: 'Coração de Minas', alunos: ['Aluno Fictício Onze'], etapa: 'C02', inicioEtapa: d(-9), prazo_judicial: d(-2), origem: 'judicial', responsavel: usuario('central@demo.exemplo'), valorEstimado: 5200, statusCaracterizacao: 'aprovada', devolucaoAnterior: 'Km diário da caracterização incompatível com o mapa da rota; revisar antes de liberar (fictício).' })
+
+  // Em Contratos (etapa 4): contrato da Caixa Escolar já cadastrado, com garantia; falta concluir a habilitação do veículo/motorista
+  const dContrato = demanda({ sre: 'UDI', escola: 'Aurora', alunos: ['Aluno Fictício Treze'], etapa: 'C04', inicioEtapa: d(-3), prazo_judicial: d(8), origem: 'judicial', responsavel: sergio, valor: { mensal: 7500, meses: 10 }, financeiro: { autorizado: true, paf: true }, statusCaracterizacao: 'aprovada' })
+  const procContrato = out.processos?.find((p) => p.id === dContrato.processo_id) ?? c.contratos.processos.find((p) => p.id === dContrato.processo_id)
+  const contratoC04 = push('instrumentos', novo({
+    tipo: 'contrato_caixa',
+    processo_id: dContrato.processo_id,
+    sre_id: dContrato.sre_id,
+    numero: '004/2026',
+    numero_sei: procContrato?.numero_sei ?? null,
+    caixa_escolar_id: dContrato.caixa_escolar_id,
+    transportador_id: c.transportadores.find((t) => String(t.razao_social).includes('Transportes Fictícios'))!.id,
+    objeto: 'Transporte escolar do Aluno Fictício Treze, residência → E.E. Professora Aurora, ida e volta (fictício).',
+    data_assinatura: d(-2),
+    dotacao_orcamentaria: '1261.12.361.155.4256.0001.339039 (fictícia)',
+    vigencia_inicio: d(3),
+    vigencia_fim: somarMeses(d(3), 10),
+    valor_global: 75000,
+    valor_executado: 0,
+    tipo_garantia: 'seguro_garantia',
+    valor_garantia: 3750,
+    garantia_vigencia_fim: somarMeses(d(3), 13),
+    status: 'vigente',
+    gestor_id: sergio,
+    fiscal_id: sergio,
+    periodicidade_prestacao: 'final',
+    prazo_prestacao_dias: 30,
+  }))
+  docAvulso(String(dContrato.processo_id), 'contrato', d(-2))
 
   // ---------- Ofícios ----------
   interface OficioSeed {
@@ -505,6 +535,7 @@ export function criarModulosDemonstracao(c: Contexto): Partial<Record<Colecao, R
   const maria = f.condutor({ nome: 'Maria Monitora (fictícia)', funcao: 'monitor', vinculo_tipo: 'transportador', transportador_id: tFict.id, cnh_numero: null, cnh_categoria: null, cnh_validade: null })
   f.alocar({ instrumento_id: c1.id, veiculo_id: vanUdi.id, condutor_id: joao.id, rota: 'Comunidade rural → E.E. Professora Aurora', inicio: c1.vigencia_inicio })
   f.alocar({ instrumento_id: c2.id, veiculo_id: adaptadoUdi.id, condutor_id: pedro.id, monitor_id: maria.id, rota: 'Residência → E.E. Rio das Pedras', inicio: c2.vigencia_inicio })
+  f.alocar({ instrumento_id: contratoC04.id, veiculo_id: vanUdi.id, condutor_id: joao.id, rota: 'Residência → E.E. Professora Aurora', inicio: contratoC04.vigencia_inicio })
 
   const picape = f.veiculo({ placa: 'MOC4C56', renavam: '34567890123', tipo_veiculo_id: tipo('Veículo com tração'), marca_modelo: 'Picape 4x4 adaptada (fictícia)', ano_fabricacao: 2020, lotacao: 4, proprietario_tipo: 'transportador', transportador_id: tNorte.id }, { v_laudo: 'vencido' })
   const antonio = f.condutor({ nome: 'Antônio Motorista (fictício)', vinculo_tipo: 'transportador', transportador_id: tNorte.id }, { c_curso: 'a_vencer' })
