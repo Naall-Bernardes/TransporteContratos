@@ -87,7 +87,7 @@ export function Layout() {
       <Item para="/judicial" icone={<Gavel size={16} />}>Contratações</Item>
       {emJudicial && (
         <div className="mt-0.5 mb-1 ml-5 border-l border-marca-700 pl-2">
-          <SubItem para="/judicial/novo" aoClicar={fechar} qtd={contagem.aCadastrar} icone={<FilePlus2 size={14} />}>Cadastro a partir de ofício</SubItem>
+          <SubItem para="/judicial/novo" aoClicar={fechar} qtd={contagem.aCadastrar} icone={<FilePlus2 size={14} />}>Cadastro</SubItem>
           {etapasJudicial.map((m) => {
             const Icone = iconeEtapa(m.codigo)
             return (

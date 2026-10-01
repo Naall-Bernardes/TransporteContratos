@@ -124,7 +124,7 @@ export function JudicialPage() {
           <Botao variante="secundario" onClick={exportar} disabled={!filtradas.length}><Download size={16} /> Exportar CSV</Botao>
           {!codigo && ehCentral(usuario) && (
             <Link to="/judicial/novo" className="inline-flex items-center gap-2 rounded-md bg-marca-600 px-3 py-2 text-sm font-medium text-white hover:bg-marca-700">
-              <FilePlus2 size={16} /> Cadastrar a partir de ofício
+              <FilePlus2 size={16} /> Cadastrar contratação
             </Link>
           )}
         </div>
