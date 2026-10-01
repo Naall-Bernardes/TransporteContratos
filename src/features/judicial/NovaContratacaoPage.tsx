@@ -9,12 +9,24 @@ import type { Colecao } from '@/lib/dados/tipos'
 import { useTodos } from '@/lib/dados/useColecao'
 import { hojeIso } from '@/lib/diasUteis'
 import { formatarData } from '@/lib/formatacao'
-import { ROTULO_PRIORIDADE, type Prioridade } from '@/lib/judicial/abertura'
+import { ROTULO_PRIORIDADE, TIPOS_DETERMINACAO, type Prioridade } from '@/lib/judicial/abertura'
 import { situacaoDosProcessos } from '@/lib/monitoramento'
 import { ehCentral } from '@/lib/permissoes'
-import { SITUACOES_DEMANDA } from './configuracoes'
+import { ORIGENS, SITUACOES_DEMANDA } from './configuracoes'
 
 /** Primeira tela de Contratações: demandas de transporte cadastradas (a partir dos ofícios de intimação) e o botão de cadastro. */
+function Filtro({ rotulo, valor, mudar, opcoes }: { rotulo: string; valor: string; mudar: (v: string) => void; opcoes: string[][] }) {
+  return (
+    <label className="block">
+      <span className="text-xs text-slate-600">{rotulo}</span>
+      <select className="campo mt-1" value={valor} onChange={(e) => mudar(e.target.value)}>
+        <option value="">Todos</option>
+        {opcoes.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
+      </select>
+    </label>
+  )
+}
+
 const COR_PRIORIDADE: Record<Prioridade, string> = { urgente: 'bg-red-100 text-red-800', alta: 'bg-amber-100 text-amber-800', normal: 'bg-slate-100 text-slate-700' }
 export function NovaContratacaoPage() {
   const usuario = useUsuario()
@@ -24,6 +36,18 @@ export function NovaContratacaoPage() {
   const central = ehCentral(usuario)
   const [busca, setBusca] = useState('')
   const [situacao, setSituacao] = useState('')
+  const [etapa, setEtapa] = useState('')
+  const [prioridade, setPrioridade] = useState('')
+  const [semaforo, setSemaforo] = useState('')
+  const [sre, setSre] = useState('')
+  const [escola, setEscola] = useState('')
+  const [respSre, setRespSre] = useState('')
+  const [respCentral, setRespCentral] = useState('')
+  const [determinacao, setDeterminacao] = useState('')
+  const [origem, setOrigem] = useState('')
+  const [de, setDe] = useState('')
+  const [ate, setAte] = useState('')
+  const [prazoJudicial, setPrazoJudicial] = useState('')
   const lista = (c: Colecao) => dados[c] ?? []
 
   const linhas = useMemo(() => {
@@ -46,10 +70,39 @@ export function NovaContratacaoPage() {
       .sort((a, b) => b.cadastradoEm.localeCompare(a.cadastradoEm))
   }, [dados, hoje])
 
+  // opções dos filtros (só o que aparece nas demandas visíveis)
+  const etapas = lista('etapas_modelo').filter((m) => m.modulo === 'JUDICIAL').sort((a, b) => Number(a.ordem) - Number(b.ordem))
+  const usados = (campo: string) => new Set(linhas.map((l) => l.demanda![campo]).filter(Boolean))
+  const escolas = lista('escolas').filter((e) => usados('escola_id').has(e.id) && (!sre || e.sre_id === sre)).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))
+  const responsaveisSre = lista('usuarios').filter((u) => usados('responsavel_sre_id').has(u.id) && (!sre || u.sre_id === sre))
+  const responsaveisCentral = lista('usuarios').filter((u) => usados('responsavel_central_id').has(u.id))
+  const temFiltro = [busca, situacao, etapa, prioridade, semaforo, sre, escola, respSre, respCentral, determinacao, origem, de, ate, prazoJudicial].some(Boolean)
+  function limpar() {
+    for (const f of [setBusca, setSituacao, setEtapa, setPrioridade, setSemaforo, setSre, setEscola, setRespSre, setRespCentral, setDeterminacao, setOrigem, setDe, setAte, setPrazoJudicial]) f('')
+  }
+
   const pendentes = lista('oficios').filter((o) => o.tipo === 'intimacao_cumprimento' && !o.demanda_id).sort((a, b) => String(a.prazo_resposta).localeCompare(String(b.prazo_resposta)))
 
   const filtradas = linhas
     .filter((l) => !situacao || l.demanda!.situacao === situacao)
+    .filter((l) => !etapa || (l.demanda!.situacao === 'ativa' && String(l.modelo?.codigo) === etapa))
+    .filter((l) => !prioridade || l.demanda!.prioridade === prioridade)
+    .filter((l) => !semaforo || (l.demanda!.situacao === 'ativa' && l.semaforo.cor === semaforo))
+    .filter((l) => !sre || l.sre_id === sre)
+    .filter((l) => !escola || l.demanda!.escola_id === escola)
+    .filter((l) => !respSre || l.demanda!.responsavel_sre_id === respSre)
+    .filter((l) => !respCentral || l.demanda!.responsavel_central_id === respCentral)
+    .filter((l) => !determinacao || l.demanda!.tipo_determinacao === determinacao)
+    .filter((l) => !origem || l.demanda!.origem === origem)
+    .filter((l) => !de || l.cadastradoEm >= de)
+    .filter((l) => !ate || l.cadastradoEm <= ate)
+    .filter((l) => {
+      const vencido = !l.demanda!.data_inicio_transporte && String(l.demanda!.prazo_judicial) < hoje
+      if (prazoJudicial === 'vencido') return vencido && l.demanda!.situacao === 'ativa'
+      if (prazoJudicial === 'transporte_iniciado') return Boolean(l.demanda!.data_inicio_transporte)
+      if (prazoJudicial === 'aguardando_inicio') return !l.demanda!.data_inicio_transporte && !vencido
+      return true
+    })
     .filter((l) => {
       const t = busca.trim().toLocaleLowerCase('pt-BR')
       return !t || [l.processo.codigo, l.processo.numero_sei, l.codigoOficio, l.demanda!.numero_processo_origem, l.demanda!.comarca, l.escola, l.sigla].some((x) => String(x ?? '').toLocaleLowerCase('pt-BR').includes(t))
@@ -70,15 +123,36 @@ export function NovaContratacaoPage() {
         )}
       </div>
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        <div className="relative w-full max-w-sm">
-          <Search size={16} className="pointer-events-none absolute top-2.5 left-3 text-slate-400" />
-          <input className="campo pl-9" placeholder="Código, SEI, ofício, processo, comarca, escola…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
+      <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+          <label className="block sm:col-span-2">
+            <span className="text-xs text-slate-600">Buscar</span>
+            <span className="relative mt-1 block">
+              <Search size={16} className="pointer-events-none absolute top-2.5 left-3 text-slate-400" />
+              <input className="campo pl-9" placeholder="Código, SEI, ofício, processo, comarca, escola…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            </span>
+          </label>
+          <Filtro rotulo="Situação" valor={situacao} mudar={setSituacao} opcoes={SITUACOES_DEMANDA.map((o) => [o.valor, o.rotulo])} />
+          <Filtro rotulo="Etapa atual" valor={etapa} mudar={setEtapa} opcoes={etapas.map((m) => [String(m.codigo), `${m.ordem}. ${m.nome}`])} />
+          <Filtro rotulo="Prioridade" valor={prioridade} mudar={setPrioridade} opcoes={Object.entries(ROTULO_PRIORIDADE)} />
+          <Filtro rotulo="Semáforo" valor={semaforo} mudar={setSemaforo} opcoes={[['vermelho', 'Vencido'], ['amarelo', 'A vencer'], ['verde', 'No prazo']]} />
+          <Filtro rotulo="Prazo judicial" valor={prazoJudicial} mudar={setPrazoJudicial} opcoes={[['vencido', 'Vencido sem transporte'], ['aguardando_inicio', 'Aguardando início'], ['transporte_iniciado', 'Transporte iniciado']]} />
+          {central && <Filtro rotulo="SRE" valor={sre} mudar={(v) => { setSre(v); setEscola(''); setRespSre('') }} opcoes={lista('sres').map((x) => [String(x.id), String(x.sigla)])} />}
+          <Filtro rotulo="Escola" valor={escola} mudar={setEscola} opcoes={escolas.map((e) => [String(e.id), String(e.nome)])} />
+          <Filtro rotulo="Responsável na SRE" valor={respSre} mudar={setRespSre} opcoes={responsaveisSre.map((u) => [String(u.id), String(u.nome)])} />
+          <Filtro rotulo="Responsável no central" valor={respCentral} mudar={setRespCentral} opcoes={responsaveisCentral.map((u) => [String(u.id), String(u.nome)])} />
+          <Filtro rotulo="Tipo de determinação" valor={determinacao} mudar={setDeterminacao} opcoes={Object.entries(TIPOS_DETERMINACAO)} />
+          <Filtro rotulo="Origem" valor={origem} mudar={setOrigem} opcoes={ORIGENS.map((o) => [o.valor, o.rotulo])} />
+          <label className="block">
+            <span className="text-xs text-slate-600">Cadastrada de</span>
+            <input className="campo mt-1" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">até</span>
+            <input className="campo mt-1" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          </label>
         </div>
-        <select className="campo w-auto" value={situacao} onChange={(e) => setSituacao(e.target.value)} aria-label="Situação">
-          <option value="">Todas as situações</option>
-          {SITUACOES_DEMANDA.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
-        </select>
+        {temFiltro && <button className="mt-2 text-xs text-marca-700 hover:underline" onClick={limpar}>Limpar filtros</button>}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
