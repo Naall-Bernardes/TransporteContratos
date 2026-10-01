@@ -1,7 +1,12 @@
 import { AlertTriangle, Download, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { FAIXA, SeloVigencia } from '@/components/comum/Selo'
+import { PontoSemaforo } from '@/components/comum/Semaforo'
+import { feriadosDe } from '@/lib/dados/servicos'
+import type { Colecao, Registro } from '@/lib/dados/tipos'
+import { avaliarEtapa, montarDadosProcesso } from '@/lib/fluxo/processo'
+import { situacaoDosProcessos } from '@/lib/monitoramento'
 import { Botao } from '@/components/ui/Botao'
 import { Modal } from '@/components/ui/Modal'
 import { useUsuario } from '@/features/auth/Sessao'
@@ -110,13 +115,30 @@ export function ContratosPage() {
 
   const f = (id: Filtro) => ({ ativo: filtro === id, onClick: () => setFiltro(filtro === id ? 'todos' : id) })
 
+  // Etapa Contratos das Contratações: demandas que chegaram aqui e o que falta em cada uma
+  const etapa = useMemo(() => {
+    const lista = (c: Colecao) => dados[c] ?? []
+    const modelo = lista('etapas_modelo').find((m) => m.codigo === 'C04')
+    const naEtapa = situacaoDosProcessos(lista, hoje, feriadosDe(lista)).filter((x) => x.demanda && x.demanda.situacao === 'ativa' && x.modelo?.codigo === 'C04')
+    const porProcesso = new Map<string, { demandaId: string; falta: string[] }>()
+    const aguardando: { demanda: Registro; codigo: string; escola: string; prazo: unknown; semaforo: (typeof naEtapa)[number]['semaforo'] }[] = []
+    for (const x of naEtapa) {
+      const av = modelo ? avaliarEtapa(montarDadosProcesso(lista, x.processo.id, hoje), modelo, lista('checklist_modelo'), lista('tipos_documento')) : { pendencias: [], faltantes: [] }
+      const falta = [...av.pendencias, ...(av.faltantes.length ? [`Documento(s): ${av.faltantes.map((d) => d.nome).join(', ')}`] : [])]
+      porProcesso.set(String(x.processo.id), { demandaId: String(x.demanda!.id), falta })
+      if (!lista('instrumentos').some((i) => i.processo_id === x.processo.id && i.tipo === 'contrato_caixa'))
+        aguardando.push({ demanda: x.demanda!, codigo: String(x.processo.codigo), escola: String(lista('escolas').find((e) => e.id === x.demanda!.escola_id)?.nome ?? ''), prazo: x.demanda!.prazo_judicial, semaforo: x.semaforo })
+    }
+    return { porProcesso, aguardando }
+  }, [dados, hoje])
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Gestão contratual</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Contratos</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Contratos das Caixas Escolares com os transportadores (os termos de repasse aos municípios ficam na tela PTE).
+            Etapa Contratos das Contratações: contratos das Caixas Escolares com os transportadores — vigência, execução, fiscalização, prestação de contas e encerramento.
             {!ehCentral(usuario) && ' Você vê apenas os instrumentos da sua regional.'}
           </p>
         </div>
@@ -131,6 +153,23 @@ export function ContratosPage() {
           )}
         </div>
       </div>
+
+      {etapa.aguardando.length > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+          <h2 className="font-semibold text-amber-900">Demandas aguardando o cadastro do contrato ({etapa.aguardando.length})</h2>
+          <p className="text-xs text-amber-900">Chegaram à etapa Contratos depois do PAF. Abra a demanda para cadastrar o contrato firmado pela Caixa Escolar.</p>
+          <ul className="mt-2 space-y-1">
+            {etapa.aguardando.map((a) => (
+              <li key={String(a.demanda.id)} className="flex flex-wrap items-center gap-2">
+                <PontoSemaforo cor={a.semaforo.cor} />
+                <Link to={`/judicial/${a.demanda.id}?secao=C04`} className="font-medium text-marca-700 hover:underline">{a.codigo}</Link>
+                <span className="text-slate-700">{a.escola} · prazo judicial {formatarData(a.prazo)}</span>
+                {podeEditarColecao(usuario, 'instrumentos') && <Link to={`/judicial/${a.demanda.id}?secao=C04`} className="text-xs text-marca-700 hover:underline">Cadastrar contrato →</Link>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Cartao titulo="Instrumentos ativos" valor={resumo.ativos} detalhe={`Saldo total ${formatarMoeda(resumo.saldo)}`} {...f('ativos')} />
@@ -183,6 +222,7 @@ export function ContratosPage() {
               <th className="px-3 py-2 text-right font-medium">Valor atual</th>
               <th className="px-3 py-2 font-medium">Executado</th>
               <th className="px-3 py-2 text-right font-medium">Saldo</th>
+              <th className="px-3 py-2 font-medium">Etapa / o que falta</th>
               <th className="px-3 py-2" aria-label="Alertas" />
             </tr>
           </thead>
@@ -215,6 +255,21 @@ export function ContratosPage() {
                     <p className="mt-0.5 text-xs text-slate-500 tabular-nums">{i.situacao.pct_executado.toFixed(0)}%</p>
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{formatarMoeda(i.situacao.saldo)}</td>
+                  <td className="px-3 py-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                    {(() => {
+                      const e = etapa.porProcesso.get(String(i.instrumento.processo_id))
+                      if (!e) return <span className="text-slate-400">—</span>
+                      return (
+                        <Link to={`/judicial/${e.demandaId}?secao=C04`} className="block hover:underline">
+                          {e.falta.length === 0 ? (
+                            <span className="font-medium text-green-700">Pronta para concluir</span>
+                          ) : (
+                            <span className="text-amber-900">{e.falta.length} pendência(s): {e.falta[0]}</span>
+                          )}
+                        </Link>
+                      )
+                    })()}
+                  </td>
                   <td className="px-3 py-2">
                     {criticos > 0 && (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600" title={i.alertas.map((a) => a.texto).join('\n')}>

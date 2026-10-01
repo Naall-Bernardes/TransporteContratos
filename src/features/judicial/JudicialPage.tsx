@@ -1,6 +1,6 @@
 import { CheckCircle2, Download, FilePlus2, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Cartao } from '@/components/comum/Cartao'
 import { PontoSemaforo, ROTULO_COR } from '@/components/comum/Semaforo'
 import { Botao } from '@/components/ui/Botao'
@@ -27,6 +27,12 @@ type Filtro = '' | 'ativas' | 'vermelho' | 'amarelo' | 'judicial_vencido' | 'niv
  */
 export function JudicialPage() {
   const { codigo } = useParams()
+  // a etapa Contratos é a tela de gestão dos contratos
+  if (codigo === 'C04') return <Navigate to="/contratos" replace />
+  return <ListaContratacoes codigo={codigo} />
+}
+
+function ListaContratacoes({ codigo }: { codigo?: string }) {
   const usuario = useUsuario()
   const navegar = useNavigate()
   const { dados, recarregar } = useTodos()

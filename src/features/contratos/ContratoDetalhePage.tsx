@@ -115,7 +115,7 @@ export function ContratoDetalhePage() {
   return (
     <div>
       <Link to="/contratos" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-marca-700">
-        <ArrowLeft size={16} /> Gestão contratual
+        <ArrowLeft size={16} /> Contratos
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-3">

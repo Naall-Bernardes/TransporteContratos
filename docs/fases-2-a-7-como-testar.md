@@ -191,3 +191,5 @@ O Judicial/MP agora tem dois fluxos: **Ofícios** (tudo que chega e precisa de r
 | 98 | Prestação de contas | "Registrar entrega" | Permitido; diligência e decisão não aparecem para a prefeitura |
 | 99 | Contratos e termos (como Carlos) | — | Só contratos das Caixas Escolares |
 
+
+> Atualização: "Contratos e termos" saiu do menu e virou a etapa **Contratos** dentro de Contratações (endereço `/contratos`): lista de contratos com a coluna "Etapa / o que falta" e o quadro "Demandas aguardando o cadastro do contrato".

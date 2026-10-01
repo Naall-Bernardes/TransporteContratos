@@ -3,7 +3,7 @@
 //  - Cadastros: dados de base (rede, alunos, frota, preços, calendário) e administração.
 
 import {
-  BarChart3, Bus, FilePlus2, CalendarDays, CarFront, ClipboardCheck, Database, FileSignature, Files, Gavel, History,
+  BarChart3, Bus, FilePlus2, CalendarDays, CarFront, ClipboardCheck, Database, Files, Gavel, History,
   Home, LayoutGrid, ListChecks, LogOut, Mail, Menu, Route, School, Tag, Timer, Truck, UserRound, Users, X,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -64,7 +64,8 @@ export function Layout() {
   const [menuAberto, setMenuAberto] = useState(false)
   const sre = carregarBase().colecoes.sres.find((s) => s.id === usuario.sre_id)
   const fechar = () => setMenuAberto(false)
-  const emJudicial = pathname.startsWith('/judicial')
+  // Contratações inclui a gestão dos contratos (/contratos), que é a etapa Contratos
+  const emJudicial = pathname.startsWith('/judicial') || pathname.startsWith('/contratos')
 
   // Submenu de Contratações: cadastro a partir de ofício e as etapas, com a quantidade em cada uma
   const etapasJudicial = carregarBase().colecoes.etapas_modelo.filter((m) => m.modulo === 'JUDICIAL').sort((a, b) => Number(a.ordem) - Number(b.ordem))
@@ -97,7 +98,7 @@ export function Layout() {
           {etapasJudicial.map((m) => {
             const Icone = iconeEtapa(m.codigo)
             return (
-              <SubItem key={m.id} para={`/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0} icone={<Icone size={14} />}>
+              <SubItem key={m.id} para={m.codigo === 'C04' ? '/contratos' : `/judicial/etapa/${m.codigo}`} aoClicar={fechar} qtd={contagem.porEtapa[String(m.codigo)] ?? 0} icone={<Icone size={14} />}>
                 {String(m.nome)}
               </SubItem>
             )
@@ -105,7 +106,6 @@ export function Layout() {
         </div>
       )}
       <Item para="/pte" icone={<Route size={16} />}>PTE</Item>
-      <Item para="/contratos" icone={<FileSignature size={16} />}>Contratos e termos</Item>
     </>
   )
 
