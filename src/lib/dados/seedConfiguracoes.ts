@@ -10,7 +10,7 @@ const SLA = 5
 
 export const ETAPAS: [modulo: string, ordem: number, codigo: string, nome: string, papel: string, sla: number | null][] = [
   ['JUDICIAL', 1, 'C01', 'Caracterização da demanda', 'sre', SLA],
-  ['JUDICIAL', 2, 'C02', 'Autorização do subsecretário', 'subsecretario', SLA],
+  ['JUDICIAL', 2, 'C02', 'Autorização', 'subsecretario', SLA],
   ['JUDICIAL', 3, 'C03', 'Registro do PAF', 'central', SLA],
   ['JUDICIAL', 4, 'C04', 'Contratos', 'sre', SLA],
   ['JUDICIAL', 5, 'C05', 'Execução e fiscalização', 'sre', null],

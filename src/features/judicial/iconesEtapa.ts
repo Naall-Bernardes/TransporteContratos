@@ -4,7 +4,7 @@ import { ClipboardList, FileSignature, ListTree, type LucideIcon, ShieldCheck, S
 
 export const ICONE_ETAPA: Record<string, LucideIcon> = {
   C01: ClipboardList, // Caracterização
-  C02: ShieldCheck, // Autorização do subsecretário
+  C02: ShieldCheck, // Autorização
   C03: Stamp, // Registro do PAF
   C04: FileSignature, // Contratos
   C05: Truck, // Execução e fiscalização
