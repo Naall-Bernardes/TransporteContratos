@@ -1,6 +1,6 @@
-import { Plus, Search } from 'lucide-react'
+import { ArrowRight, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Cartao } from '@/components/comum/Cartao'
 import { PontoSemaforo } from '@/components/comum/Semaforo'
 import { Botao } from '@/components/ui/Botao'
@@ -16,6 +16,20 @@ import { formatarData } from '@/lib/formatacao'
 import { ROTULO_SITUACAO_OFICIO, situacaoDosOficios, type SituacaoOficio } from '@/lib/judicial/oficios'
 import { ehCentral } from '@/lib/permissoes'
 import { OFICIO, ORGAOS_OFICIO, TIPOS_OFICIO } from './configuracoes'
+
+/** Tipo do ofício: cor e nome curto para a coluna. Intimação para cumprimento de sentença vai para Contratações. */
+const COR_TIPO: Record<string, string> = {
+  intimacao_cumprimento: 'bg-violet-100 text-violet-800',
+  pedido_informacao: 'bg-sky-100 text-sky-800',
+  reiteracao: 'bg-orange-100 text-orange-800',
+  outro: 'bg-slate-100 text-slate-700',
+}
+const ROTULO_TIPO_CURTO: Record<string, string> = {
+  intimacao_cumprimento: 'Cumprimento de sentença',
+  pedido_informacao: 'Pedido de informação',
+  reiteracao: 'Reiteração / cobrança',
+  outro: 'Outro',
+}
 
 type Filtro = '' | 'pendentes' | SituacaoOficio | 'vencidos' | 'amarelo'
 
@@ -197,6 +211,7 @@ export function OficiosPage() {
             <tr>
               <th className="px-3 py-2 font-medium">Código / nº</th>
               <th className="px-3 py-2 font-medium">Nº processo SEI</th>
+              <th className="px-3 py-2 font-medium">Tipo / destino</th>
               <th className="px-3 py-2 font-medium">Órgão</th>
               <th className="px-3 py-2 font-medium">Assunto</th>
               <th className="px-3 py-2 font-medium">Recebido</th>
@@ -214,14 +229,28 @@ export function OficiosPage() {
                   <p className="text-xs text-slate-500">nº {String(l.oficio.numero)}{l.sigla ? ` · ${l.sigla}` : ''}</p>
                 </td>
                 <td className="px-3 py-2 text-xs whitespace-nowrap">{String(l.oficio.numero_sei || l.processo?.numero_sei || '—')}</td>
+                <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                  <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${COR_TIPO[String(l.oficio.tipo)] ?? COR_TIPO.outro}`}>{ROTULO_TIPO_CURTO[String(l.oficio.tipo)] ?? String(l.oficio.tipo)}</span>
+                  {l.oficio.tipo === 'intimacao_cumprimento' ? (
+                    l.cumprimento ? (
+                      <Link to={`/judicial/${l.oficio.demanda_id}`} className="mt-1 flex items-center gap-1 text-xs whitespace-nowrap text-marca-700 hover:underline"><ArrowRight size={12} /> Contratações · {String(l.cumprimento.codigo)}</Link>
+                    ) : central ? (
+                      <Link to={`/judicial/novo/cadastrar?oficio=${l.oficio.id}`} className="mt-1 flex items-center gap-1 text-xs font-medium whitespace-nowrap text-amber-700 hover:underline"><ArrowRight size={12} /> Enviar para Contratações</Link>
+                    ) : (
+                      <p className="mt-1 text-xs whitespace-nowrap text-amber-700">Aguardando ir para Contratações</p>
+                    )
+                  ) : l.cumprimento ? (
+                    <Link to={`/judicial/${l.oficio.demanda_id}`} className="mt-1 block text-xs whitespace-nowrap text-slate-500 hover:underline">ligado a {String(l.cumprimento.codigo)}</Link>
+                  ) : (
+                    <p className="mt-1 text-xs whitespace-nowrap text-slate-500">Resposta ao órgão</p>
+                  )}
+                </td>
                 <td className="px-3 py-2">
                   <p>{ORGAOS_OFICIO.find((o) => o.valor === l.oficio.orgao_tipo)?.rotulo}</p>
                   <p className="text-xs text-slate-500">{String(l.oficio.orgao_nome ?? '')}{l.oficio.comarca ? ` · ${l.oficio.comarca}` : ''}</p>
                 </td>
                 <td className="max-w-md px-3 py-2">
-                  <p className="text-xs font-medium text-slate-500">{TIPOS_OFICIO.find((o) => o.valor === l.oficio.tipo)?.rotulo}</p>
                   <p className="line-clamp-2">{String(l.oficio.assunto ?? '')}</p>
-                  {l.cumprimento && <p className="text-xs text-marca-700">Contratação {String(l.cumprimento.codigo)}</p>}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">{formatarData(l.oficio.data_recebimento)}</td>
                 <td className="px-3 py-2">
